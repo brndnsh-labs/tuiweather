@@ -301,8 +301,7 @@ describe("store", () => {
     });
     await store.getState().init();
 
-    store.getState().toggleUnits();
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await store.getState().toggleUnits();
 
     expect(store.getState().config.units).toBe("imperial");
     const text = await readFile(join(dir, "config.toml"), "utf8");
@@ -311,8 +310,7 @@ describe("store", () => {
     expect(text).toContain('slug = "portland"');
     expect(store.getState().lastActionError).toBeUndefined();
 
-    store.getState().toggleUnits();
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await store.getState().toggleUnits();
     expect(store.getState().config.units).toBe("metric");
   });
 
@@ -326,8 +324,7 @@ describe("store", () => {
     await store.getState().init();
     expect(store.getState().config.units).toBe("imperial");
 
-    store.getState().toggleUnits();
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    await store.getState().toggleUnits();
 
     expect(store.getState().lastActionError).toBeDefined();
   });

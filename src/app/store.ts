@@ -84,7 +84,7 @@ export interface WeatherState {
   refresh(slug: string | null): Promise<void>;
   switchLocation(slug: string): void;
   cycleLocation(delta: 1 | -1): void;
-  toggleUnits(): void;
+  toggleUnits(): Promise<void>;
   toggleHelp(): void;
   setOverlayOpen(open: boolean): void;
   searchLocations(query: string): Promise<GeocodingResult[]>;
@@ -231,12 +231,12 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
         get().switchLocation(next.slug);
       },
 
-      toggleUnits: () => {
+      toggleUnits: async () => {
         const config = get().config;
         const units: TuiConfig["units"] = config.units === "metric" ? "imperial" : "metric";
         const next: TuiConfig = { ...config, units };
         set({ config: next });
-        void saveConfig(next, deps.configPath).catch((e: unknown) => {
+        await saveConfig(next, deps.configPath).catch((e: unknown) => {
           set({ lastActionError: errorMessage(e) });
         });
       },
