@@ -56,4 +56,4 @@ Releases are tag-driven and cut from `main` by a maintainer:
 ./scripts/release.sh <major|minor|patch>
 ```
 
-The script verifies a clean, synced tree, bumps `package.json`, prepends a changelog section generated from conventional commits, tags `vX.Y.Z`, and pushes. The `release` workflow then builds cross-platform binaries, attaches them to the GitHub release with checksums, publishes to npm, and updates the [homebrew tap](https://github.com/brndnsh-labs/homebrew-tap).
+The script verifies a clean, synced tree, bumps `package.json`, prepends a changelog section generated from conventional commits, tags `vX.Y.Z`, and pushes. The `release` workflow then builds cross-platform binaries, attaches them to the GitHub release with checksums, and publishes to npm.

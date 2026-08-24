@@ -14,18 +14,12 @@ Keyboard-driven terminal weather app: Dark Sky-style rain nowcasting, hourly and
 
 ## Install
 
-All three channels are planned for v0.1.0 and are **not yet available** — this is a pre-release repository. Until then, run from source (see Development).
+The npm package and standalone binaries are planned for v0.1.0 and are **not yet available** — this is a pre-release repository. Until then, run from source (see Development).
 
 > Coming in v0.1.0. Pre-release; package not published yet.
 
 ```sh
 bun install -g tuiweather
-```
-
-> Coming in v0.1.0. Pre-release; tap does not exist yet.
-
-```sh
-brew install brndnsh-labs/tap/tuiweather
 ```
 
 > Coming in v0.1.0. Pre-release; binaries are not being attached to releases yet.
