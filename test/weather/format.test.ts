@@ -1,0 +1,189 @@
+import { describe, expect, test } from "bun:test";
+import {
+  convertTempC,
+  formatClock,
+  formatDayLabel,
+  formatHourLabel,
+  formatPct,
+  formatPrecip,
+  formatTemp,
+  formatWind,
+  uvLabel,
+} from "../../src/lib/weather/format";
+
+describe("convertTempC", () => {
+  test("freezing point", () => {
+    expect(convertTempC(0, "imperial")).toBe(32);
+  });
+
+  test("scale crossover", () => {
+    expect(convertTempC(-40, "imperial")).toBe(-40);
+  });
+
+  test("body temperature stays unrounded until display", () => {
+    expect(convertTempC(36.6, "imperial")).toBeCloseTo(97.88);
+  });
+
+  test("metric is identity", () => {
+    expect(convertTempC(21.4, "metric")).toBe(21.4);
+  });
+});
+
+describe("formatTemp", () => {
+  test("null renders en dash", () => {
+    expect(formatTemp(null, "metric")).toBe("–");
+    expect(formatTemp(null, "imperial")).toBe("–");
+  });
+
+  test("rounds converted value and appends degree sign", () => {
+    expect(formatTemp(0, "imperial")).toBe("32°");
+    expect(formatTemp(-40, "imperial")).toBe("-40°");
+    expect(formatTemp(36.6, "imperial")).toBe("98°");
+    expect(formatTemp(21.4, "metric")).toBe("21°");
+    expect(formatTemp(-3.6, "metric")).toBe("-4°");
+  });
+});
+
+describe("formatWind", () => {
+  test("null speed renders en dash regardless of direction", () => {
+    expect(formatWind(null, 315, "metric")).toBe("–");
+  });
+
+  test("metric speed with compass point", () => {
+    expect(formatWind(12, 315, "metric")).toBe("12 km/h NW");
+  });
+
+  test("imperial converts km/h to mph", () => {
+    expect(formatWind(12, 315, "imperial")).toBe("7 mph NW");
+  });
+
+  test("null direction omits compass", () => {
+    expect(formatWind(12, null, "metric")).toBe("12 km/h");
+    expect(formatWind(12, null, "imperial")).toBe("7 mph");
+  });
+
+  test("compass spot checks incl. round-half boundaries of deg/22.5", () => {
+    const point = (deg: number) => formatWind(0, deg, "metric").split(" ").pop();
+    expect(point(0)).toBe("N");
+    expect(point(11)).toBe("N");
+    expect(point(12)).toBe("NNE");
+    expect(point(22)).toBe("NNE");
+    expect(point(23)).toBe("NNE");
+    expect(point(34)).toBe("NE");
+    expect(point(45)).toBe("NE");
+    expect(point(90)).toBe("E");
+    expect(point(135)).toBe("SE");
+    expect(point(180)).toBe("S");
+    expect(point(202)).toBe("SSW");
+    expect(point(203)).toBe("SSW");
+    expect(point(214)).toBe("SW");
+    expect(point(225)).toBe("SW");
+    expect(point(270)).toBe("W");
+    expect(point(315)).toBe("NW");
+    expect(point(337)).toBe("NNW");
+    expect(point(359)).toBe("N");
+    expect(point(360)).toBe("N");
+  });
+});
+
+describe("formatPrecip", () => {
+  test("null renders en dash", () => {
+    expect(formatPrecip(null, "metric")).toBe("–");
+    expect(formatPrecip(null, "imperial")).toBe("–");
+  });
+
+  test("metric keeps one decimal, trims bare .0", () => {
+    expect(formatPrecip(2.5, "metric")).toBe("2.5 mm");
+    expect(formatPrecip(3, "metric")).toBe("3 mm");
+    expect(formatPrecip(12.34, "metric")).toBe("12.3 mm");
+    expect(formatPrecip(0, "metric")).toBe("0 mm");
+  });
+
+  test("imperial renders inches at two decimals", () => {
+    expect(formatPrecip(25.4, "imperial")).toBe("1.00 in");
+    expect(formatPrecip(2.54, "imperial")).toBe("0.10 in");
+  });
+});
+
+describe("formatPct", () => {
+  test("null renders en dash", () => {
+    expect(formatPct(null)).toBe("–");
+  });
+
+  test("rounds to whole percent", () => {
+    expect(formatPct(62.4)).toBe("62%");
+    expect(formatPct(50.5)).toBe("51%");
+    expect(formatPct(0)).toBe("0%");
+  });
+});
+
+describe("formatClock", () => {
+  test("positive offset: 06:07Z at UTC+9 is 3:07 PM local", () => {
+    expect(formatClock("2026-08-24T06:07:00Z", 9 * 3600)).toBe("3:07 PM");
+  });
+
+  test("negative offset crosses midnight backwards: 06:07Z at UTC-7 is 11:07 PM", () => {
+    expect(formatClock("2026-08-24T06:07:00Z", -7 * 3600)).toBe("11:07 PM");
+  });
+
+  test("noon edge renders 12 PM", () => {
+    expect(formatClock("2026-08-24T03:00:00Z", 9 * 3600)).toBe("12:00 PM");
+  });
+
+  test("early morning renders 1 AM without leading zero", () => {
+    expect(formatClock("2026-08-24T16:00:00Z", 9 * 3600)).toBe("1:00 AM");
+  });
+
+  test("midnight renders 12 AM", () => {
+    expect(formatClock("2026-08-24T00:00:00Z", 0)).toBe("12:00 AM");
+  });
+});
+
+describe("formatHourLabel", () => {
+  test("afternoon hour", () => {
+    expect(formatHourLabel("2026-08-24T14:07:00Z", 0)).toBe("2p");
+  });
+
+  test("midnight hour renders 12a", () => {
+    expect(formatHourLabel("2026-08-24T00:30:00Z", 0)).toBe("12a");
+  });
+
+  test("noon hour renders 12p", () => {
+    expect(formatHourLabel("2026-08-24T12:00:00Z", 0)).toBe("12p");
+  });
+
+  test("offset can push label across midnight", () => {
+    expect(formatHourLabel("2026-08-24T15:07:00Z", 9 * 3600)).toBe("12a");
+    expect(formatHourLabel("2026-08-24T05:07:00Z", -7 * 3600)).toBe("10p");
+  });
+});
+
+describe("formatDayLabel", () => {
+  test("US DST transition date resolves via pure UTC arithmetic", () => {
+    expect(formatDayLabel("2026-03-08")).toBe("Sun");
+  });
+
+  test("ordinary dates", () => {
+    expect(formatDayLabel("2026-08-24")).toBe("Mon");
+    expect(formatDayLabel("2026-01-01")).toBe("Thu");
+  });
+});
+
+describe("uvLabel", () => {
+  test("null renders double dash", () => {
+    expect(uvLabel(null)).toBe("--");
+  });
+
+  test("threshold bands are inclusive", () => {
+    expect(uvLabel(0)).toBe("Low");
+    expect(uvLabel(2)).toBe("Low");
+    expect(uvLabel(2.5)).toBe("Moderate");
+    expect(uvLabel(5)).toBe("Moderate");
+    expect(uvLabel(5.5)).toBe("High");
+    expect(uvLabel(7)).toBe("High");
+    expect(uvLabel(7.5)).toBe("Very high");
+    expect(uvLabel(10)).toBe("Very high");
+    expect(uvLabel(10.1)).toBe("Extreme");
+    expect(uvLabel(14)).toBe("Extreme");
+  });
+});
