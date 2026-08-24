@@ -14,15 +14,13 @@ Keyboard-driven terminal weather app: Dark Sky-style rain nowcasting, hourly and
 
 ## Install
 
-The npm package and standalone binaries are planned for v0.1.0 and are **not yet available** — this is a pre-release repository. Until then, run from source (see Development).
-
-> Coming in v0.1.0. Pre-release; package not published yet.
+The npm bootstrap package is available as `tuiweather@0.0.0` while the first supported release is prepared. Install the preview channel with Bun:
 
 ```sh
-bun install -g tuiweather
+bun install --global tuiweather@next
 ```
 
-> Coming in v0.1.0. Pre-release; binaries are not being attached to releases yet.
+Standalone binaries will be attached beginning with v0.1.0.
 
 Download a standalone binary from [GitHub Releases](https://github.com/brndnsh-labs/tuiweather/releases).
 

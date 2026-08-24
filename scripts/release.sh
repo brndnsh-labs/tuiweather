@@ -28,6 +28,12 @@ if [[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]]; then
   exit 1
 fi
 
+bun run typecheck
+bun run lint
+bun run test
+bun run build
+npm pack --dry-run --json >/dev/null
+
 CURRENT=$(bun -e 'console.log(JSON.parse(require("fs").readFileSync("package.json","utf8")).version)')
 IFS='.' read -r MAJOR MINOR PATCH <<<"${CURRENT}"
 case "${BUMP}" in
@@ -64,17 +70,17 @@ trap 'rm -f "${NOTES_FILE}"' EXIT
 {
   echo "## ${TAG} ($(date +%Y-%m-%d))"
   echo ""
-  if git log --format='%s' ${RANGE} | grep -Eq '^feat(!|\(.+\))?(!)?:'; then
+  if git log --format='%s' "${RANGE}" | grep -Eq '^feat(!|\(.+\))?(!)?:'; then
     echo "### Features"
-    git log --format='- %s (%h)' ${RANGE} | grep -E '^feat' || true
+    git log --format='- %s (%h)' "${RANGE}" | grep -E '^feat' || true
     echo ""
   fi
-  if git log --format='%s' ${RANGE} | grep -Eq '^fix(!|\(.+\))?!?:'; then
+  if git log --format='%s' "${RANGE}" | grep -Eq '^fix(!|\(.+\))?!?:'; then
     echo "### Fixes"
-    git log --format='- %s (%h)' ${RANGE} | grep -E '^fix' || true
+    git log --format='- %s (%h)' "${RANGE}" | grep -E '^fix' || true
     echo ""
   fi
-  OTHERS=$(git log --format='- %s (%h)' ${RANGE} | grep -vE '^- (feat|fix)' || true)
+  OTHERS=$(git log --format='- %s (%h)' "${RANGE}" | grep -vE '^- (feat|fix)' || true)
   if [[ -n "${OTHERS}" ]]; then
     echo "### Other"
     echo "${OTHERS}"
@@ -91,7 +97,7 @@ mv "${CHANGELOG}.next" "${CHANGELOG}"
 git add package.json CHANGELOG.md
 git commit -q -m "chore(release): ${TAG}"
 git tag "${TAG}"
-git push origin main --tags
+git push --atomic origin main "${TAG}"
 
 echo ""
 echo "tagged ${TAG}; the release workflow will build binaries and publish to npm."

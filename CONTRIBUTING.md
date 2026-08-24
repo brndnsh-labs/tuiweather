@@ -56,6 +56,6 @@ Releases are tag-driven and cut from `main` by a maintainer:
 ./scripts/release.sh <major|minor|patch>
 ```
 
-The script verifies a clean, synced tree, bumps `package.json`, prepends a changelog section generated from conventional commits, tags `vX.Y.Z`, and pushes. The `release` workflow then builds cross-platform binaries, attaches them to the GitHub release with checksums, and publishes to npm.
+The script verifies a clean, synced tree, runs the release gates, bumps `package.json`, prepends a changelog section generated from conventional commits, tags `vX.Y.Z`, and atomically pushes the release commit and tag. The `release` workflow prepares exact artifacts, publishes npm through OIDC, then attaches the standalone binaries and checksums to the GitHub release.
 
-See [docs/RELEASING.md](docs/RELEASING.md) for the package boundary, first-publish bootstrap, authentication flow, and release verification.
+See [docs/RELEASING.md](docs/RELEASING.md) for the package boundary, trusted-publisher setup, authentication flow, and release verification.
