@@ -80,10 +80,17 @@ describe("condition glyphs and labels", () => {
     }
   });
 
-  test("uses the documented safe glyph set", () => {
-    const safeSet = new Set(["☀", "🌤", "☁", "🌫", "🌦", "🌧", "❄", "🌨", "⛈"]);
+  test("uses the documented safe glyph set (text presentation only)", () => {
+    const safeSet = new Set(["☀", "☁", "☂", "☰", "❄", "▽", "↯"]);
     for (const condition of CONDITIONS) {
       expect(safeSet.has(conditionGlyph(condition))).toBe(true);
+    }
+  });
+
+  test("no glyph falls in an emoji-presentation code point block", () => {
+    for (const condition of CONDITIONS) {
+      const codePoint = conditionGlyph(condition).codePointAt(0) ?? 0;
+      expect(codePoint).toBeLessThan(0x1f000);
     }
   });
 });

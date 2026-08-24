@@ -34,18 +34,18 @@ export const WMO_TABLE: Readonly<Record<number, Condition>> = {
 const GLYPHS: Record<Condition, string> = {
   clear: "☀",
   "mostly-clear": "☀",
-  "partly-cloudy": "🌤",
+  "partly-cloudy": "☁",
   overcast: "☁",
-  fog: "🌫",
-  drizzle: "🌦",
-  rain: "🌧",
-  "heavy-rain": "🌧",
-  "freezing-rain": "🌨",
+  fog: "☰",
+  drizzle: "☂",
+  rain: "☂",
+  "heavy-rain": "☂",
+  "freezing-rain": "☂",
   snow: "❄",
-  "heavy-snow": "🌨",
-  sleet: "🌨",
-  thunderstorm: "⛈",
-  hail: "⛈",
+  "heavy-snow": "❄",
+  sleet: "❄",
+  thunderstorm: "↯",
+  hail: "▽",
 };
 
 const LABELS: Record<Condition, string> = {
