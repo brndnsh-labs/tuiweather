@@ -1,9 +1,18 @@
 import { useKeyboard, useRenderer } from "@opentui/react";
 import { type ReactNode, useEffect, useMemo } from "react";
+import { Sparkline } from "../components/Sparkline";
+import { DetailsGrid } from "../features/current/DetailsGrid";
+import { Hero } from "../features/current/Hero";
+import { DailyList, dailyChips } from "../features/daily/DailyList";
+import { HourlyStrip, sectionRule, sliceUpcoming } from "../features/hourly/HourlyStrip";
+import { NowcastBanner } from "../features/nowcast/NowcastBanner";
 import { conditionGlyph } from "../lib/providers/openmeteo/wmo";
+import { deriveNowcast } from "../lib/weather/derive";
 import { formatTemp } from "../lib/weather/format";
+import type { NormalizedForecast } from "../lib/weather/types";
 import { resolvePalette } from "../theme/palette";
-import { ThemeContext } from "../theme/tokens";
+import { ThemeContext, usePalette } from "../theme/tokens";
+import type { Tier } from "../viewport/breakpoints";
 import { useViewport } from "../viewport/useViewport";
 import { Footer } from "./components/Footer";
 import { Header } from "./components/Header";
@@ -19,6 +28,7 @@ interface AppProps {
   initialSlug?: string;
   quit?: () => void;
   nowMs?: number;
+  nowUtc?: string;
 }
 
 function truncateTo(text: string, width: number): string {
@@ -30,6 +40,104 @@ function clampLine(label: string, width: number): string {
   if (width <= 1) return "";
   if (label.length <= width - 2) return `${label} …`;
   return `${label.slice(0, width - 1)}…`;
+}
+
+interface MainContentProps {
+  tier: Tier;
+  width: number;
+  forecast: NormalizedForecast;
+  nowUtc: string;
+  units: "metric" | "imperial";
+}
+
+function XsChips({
+  forecast,
+  units,
+  width,
+}: {
+  forecast: NormalizedForecast;
+  units: "metric" | "imperial";
+  width: number;
+}) {
+  const palette = usePalette();
+  return (
+    <text fg={palette.fg}>{truncateTo(dailyChips(forecast.daily, units), Math.max(0, width))}</text>
+  );
+}
+
+function MainContent({ tier, width, forecast, nowUtc, units }: MainContentProps) {
+  const palette = usePalette();
+  const nowcast = deriveNowcast(forecast, nowUtc);
+
+  if (tier === "xs") {
+    const tempValues = sliceUpcoming(forecast.hourly, nowUtc, 12).map((p) => p.temperatureC);
+    return (
+      <box flexDirection="column" gap={1}>
+        <Hero obs={forecast.current} units={units} mini />
+        <NowcastBanner nowcast={nowcast} hideWhenDry width={width} />
+        {tempValues.length > 0 ? (
+          <Sparkline
+            values={tempValues}
+            width={Math.min(tempValues.length, width)}
+            palette={palette}
+          />
+        ) : null}
+        <XsChips forecast={forecast} units={units} width={width} />
+      </box>
+    );
+  }
+
+  if (tier === "sm") {
+    return (
+      <scrollbox flexGrow={1} focused viewportCulling={false}>
+        <box flexDirection="column" gap={1}>
+          <Hero obs={forecast.current} units={units} compact />
+          <NowcastBanner nowcast={nowcast} hideWhenDry width={width} />
+          <HourlyStrip
+            points={forecast.hourly}
+            nowUtc={nowUtc}
+            utcOffsetSeconds={forecast.utcOffsetSeconds}
+            units={units}
+            maxPoints={12}
+            width={width}
+          />
+          <text fg={palette.fgDim}>{sectionRule(`${forecast.daily.length} day`, width)}</text>
+          <DailyList
+            days={forecast.daily}
+            units={units}
+            columns={2}
+            width={width}
+            showPrecip={false}
+          />
+        </box>
+      </scrollbox>
+    );
+  }
+
+  return (
+    <box flexDirection="column" flexGrow={1} gap={1}>
+      <Hero obs={forecast.current} units={units} />
+      {tier === "lg" ? (
+        <DetailsGrid
+          obs={forecast.current}
+          today={forecast.daily[0]}
+          utcOffsetSeconds={forecast.utcOffsetSeconds}
+          units={units}
+          colWidth={Math.max(10, Math.floor(width / 2))}
+        />
+      ) : null}
+      <HourlyStrip
+        points={forecast.hourly}
+        nowUtc={nowUtc}
+        utcOffsetSeconds={forecast.utcOffsetSeconds}
+        units={units}
+        maxPoints={24}
+        width={width}
+      />
+      <text fg={palette.fgDim}>{sectionRule(`${forecast.daily.length} day`, width)}</text>
+      <DailyList days={forecast.daily} units={units} columns={1} width={width} />
+    </box>
+  );
 }
 
 export function App(props: AppProps = {}) {
@@ -77,7 +185,9 @@ export function App(props: AppProps = {}) {
     activeSlug === null ? undefined : config.locations.find((loc) => loc.slug === activeSlug);
   const label = activeLocation?.label ?? "tuiweather";
   const nowMs = props.nowMs ?? Date.now();
+  const nowUtc = props.nowUtc ?? new Date(nowMs).toISOString();
   const tier = viewport.tier;
+  const forecast = entry?.forecast;
 
   const header = (
     <Header
@@ -102,9 +212,31 @@ export function App(props: AppProps = {}) {
 
   const footer = <Footer tier={tier} />;
 
-  const placeholder = (
-    <box border borderColor={palette.border} flexGrow={1} title={`main · ${tier}`}>
+  const mainWidth = tier === "lg" ? viewport.width - SIDEBAR_WIDTH - 4 : viewport.width - 4;
+
+  const mainView =
+    forecast && !helpOpen ? (
+      <MainContent
+        tier={tier}
+        width={mainWidth}
+        forecast={forecast}
+        nowUtc={nowUtc}
+        units={config.units}
+      />
+    ) : (
       <text fg={palette.fgDim}>{tier}</text>
+    );
+
+  const mainPanel = (
+    <box
+      border
+      borderColor={palette.border}
+      flexGrow={1}
+      title={`main · ${tier}`}
+      flexDirection="column"
+      paddingX={1}
+    >
+      {mainView}
     </box>
   );
 
@@ -144,7 +276,7 @@ export function App(props: AppProps = {}) {
         <box flexDirection="column" flexGrow={1} gap={1}>
           {header}
           {status}
-          {placeholder}
+          {mainPanel}
           {footer}
         </box>
       </box>
@@ -154,7 +286,7 @@ export function App(props: AppProps = {}) {
       <box flexDirection="column" flexGrow={1} gap={1}>
         {header}
         {status}
-        {placeholder}
+        {mainPanel}
         {footer}
       </box>
     );
