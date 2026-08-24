@@ -5,7 +5,7 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "tuiweather": "./bin/tuiweather.js"
+    "tuiweather": "bin/tuiweather.js"
   },
   "files": [
     "bin",
