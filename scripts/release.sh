@@ -94,5 +94,5 @@ git tag "${TAG}"
 git push origin main --tags
 
 echo ""
-echo "tagged ${TAG}; the release workflow will build binaries, publish to npm, and update the homebrew tap."
+echo "tagged ${TAG}; the release workflow will build binaries and publish to npm."
 echo "watch: gh run watch \$(gh run list --limit 1 --json databaseId -q '.[0].databaseId')"

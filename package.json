@@ -38,7 +38,7 @@
     "lint": "biome check .",
     "fmt": "biome check --write .",
     "test": "bun test",
-    "prepublishOnly": "bun run build && bun run test"
+    "prepublishOnly": "bun run typecheck && bun run lint && bun run test && bun run build"
   },
   "dependencies": {
     "@opentui/core": "^0.5.8",

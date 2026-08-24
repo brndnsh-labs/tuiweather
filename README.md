@@ -38,6 +38,8 @@ xattr -d com.apple.quarantine /path/to/tuiweather
 
 Run `tuiweather` with no arguments for the full TUI.
 
+Use `tuiweather --help` for command-line options and `tuiweather --version` to print the installed version.
+
 | Key | Action |
 | --- | --- |
 | `r` | Refresh current location (bypasses cache) |
