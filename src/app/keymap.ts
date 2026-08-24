@@ -6,13 +6,18 @@ export interface KeymapApi {
   toggleUnits(): void;
   helpOpen(): boolean;
   toggleHelp(): void;
+  searchOpen(): boolean;
+  openSearch(): void;
+  deleteActive(): void;
 }
 
 /**
- * Central key handler. "/" is intentionally unmapped for M2: search lands in
- * M4, so the key is a silent no-op rather than an error.
+ * While the search overlay is modal it owns the keyboard entirely: printable
+ * keys must reach the input (not "d"/"q"/"u" actions) and escape must close
+ * the overlay rather than quit.
  */
 export function handleKey(name: string, api: KeymapApi): void {
+  if (api.searchOpen()) return;
   switch (name) {
     case "q":
       api.quit();
@@ -38,6 +43,12 @@ export function handleKey(name: string, api: KeymapApi): void {
       break;
     case "?":
       api.toggleHelp();
+      break;
+    case "/":
+      api.openSearch();
+      break;
+    case "d":
+      api.deleteActive();
       break;
     default:
       break;

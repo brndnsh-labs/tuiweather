@@ -6,6 +6,7 @@ import { Hero } from "../features/current/Hero";
 import { DailyList, dailyChips } from "../features/daily/DailyList";
 import { HourlyStrip, sectionRule, sliceUpcoming } from "../features/hourly/HourlyStrip";
 import { NowcastBanner } from "../features/nowcast/NowcastBanner";
+import { SearchOverlay } from "../features/search/SearchOverlay";
 import { conditionGlyph } from "../lib/providers/openmeteo/wmo";
 import { deriveNowcast } from "../lib/weather/derive";
 import { formatTemp } from "../lib/weather/format";
@@ -151,6 +152,7 @@ export function App(props: AppProps = {}) {
   const error = store((s) => (activeSlug === null ? undefined : s.errorBySlug[activeSlug]));
   const stale = store((s) => (activeSlug === null ? false : (s.staleBySlug[activeSlug] ?? false)));
   const helpOpen = store((s) => s.helpOpen);
+  const overlayOpen = store((s) => s.overlayOpen);
   const forecastBySlug = store((s) => s.forecastBySlug);
 
   const viewport = useViewport();
@@ -173,6 +175,9 @@ export function App(props: AppProps = {}) {
       toggleUnits: () => store.getState().toggleUnits(),
       helpOpen: () => store.getState().helpOpen,
       toggleHelp: () => store.getState().toggleHelp(),
+      searchOpen: () => store.getState().overlayOpen,
+      openSearch: () => store.getState().setOverlayOpen(true),
+      deleteActive: () => void store.getState().deleteActiveLocation(),
     }),
     [store, quit],
   );
@@ -215,7 +220,7 @@ export function App(props: AppProps = {}) {
   const mainWidth = tier === "lg" ? viewport.width - SIDEBAR_WIDTH - 4 : viewport.width - 4;
 
   const mainView =
-    forecast && !helpOpen ? (
+    forecast && !helpOpen && !overlayOpen ? (
       <MainContent
         tier={tier}
         width={mainWidth}
@@ -297,6 +302,9 @@ export function App(props: AppProps = {}) {
       <box flexDirection="column" width="100%" height="100%">
         {body}
         {helpOpen ? <HelpOverlay width={viewport.width} height={viewport.height} /> : null}
+        {overlayOpen ? (
+          <SearchOverlay store={store} width={viewport.width} height={viewport.height} />
+        ) : null}
       </box>
     </ThemeContext>
   );

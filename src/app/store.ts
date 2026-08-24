@@ -1,8 +1,13 @@
 import { create } from "zustand";
+import { uniqueSlug } from "../features/search/SearchOverlay";
 import { loadConfig } from "../lib/config/load";
 import { saveConfig } from "../lib/config/save";
 import { DEFAULT_CONFIG, type TuiConfig } from "../lib/config/schema";
 import { fetchForecast, OPENMETEO_PROVIDER_ID } from "../lib/providers/openmeteo/client";
+import {
+  type GeocodingResult,
+  searchLocations as geocodeLocations,
+} from "../lib/providers/openmeteo/geocoding";
 import type { WeatherProvider } from "../lib/providers/types";
 import { cachedForecast } from "../lib/weather/cache";
 import type { GeoPoint, NormalizedForecast } from "../lib/weather/types";
@@ -15,6 +20,9 @@ export type ForecastFetcher = (
   stale: boolean;
 }>;
 
+export type LocationEntry = TuiConfig["locations"][number];
+export type SearchLocationsFn = (query: string) => Promise<GeocodingResult[]>;
+
 export interface ForecastEntry {
   forecast: NormalizedForecast;
   fetchedAtMs: number;
@@ -23,6 +31,7 @@ export interface ForecastEntry {
 export interface StoreDeps {
   configPath?: string;
   fetchForecast?: ForecastFetcher;
+  searchLocations?: SearchLocationsFn;
 }
 
 const OPENMETEO_PROVIDER: WeatherProvider = {
@@ -32,6 +41,8 @@ const OPENMETEO_PROVIDER: WeatherProvider = {
 
 export const defaultFetcher: ForecastFetcher = (location, opts) =>
   cachedForecast(OPENMETEO_PROVIDER, location, { maxAgeMinutes: opts.maxAgeMinutes });
+
+export const defaultSearchLocations: SearchLocationsFn = (query) => geocodeLocations(query);
 
 export function prodDeps(): Required<Pick<StoreDeps, "fetchForecast">> {
   return { fetchForecast: defaultFetcher };
@@ -46,6 +57,7 @@ export interface WeatherState {
   staleBySlug: Record<string, boolean>;
   lastActionError: string | undefined;
   helpOpen: boolean;
+  overlayOpen: boolean;
 
   init(explicitSlug?: string): Promise<void>;
   loadForecast(slug: string, opts?: { bypassCache?: boolean }): Promise<void>;
@@ -54,6 +66,10 @@ export interface WeatherState {
   cycleLocation(delta: 1 | -1): void;
   toggleUnits(): void;
   toggleHelp(): void;
+  setOverlayOpen(open: boolean): void;
+  searchLocations(query: string): Promise<GeocodingResult[]>;
+  addLocation(entry: LocationEntry): Promise<void>;
+  deleteActiveLocation(): Promise<void>;
 }
 
 function errorMessage(e: unknown): string {
@@ -81,6 +97,7 @@ export function resolveDefaultSlug(config: TuiConfig, explicitSlug?: string): st
 
 export function createStoreInstance(deps: StoreDeps = prodDeps()) {
   const fetcher = deps.fetchForecast ?? defaultFetcher;
+  const geocoder = deps.searchLocations ?? defaultSearchLocations;
 
   return create<WeatherState>()((set, get) => ({
     config: DEFAULT_CONFIG,
@@ -91,6 +108,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
     staleBySlug: {},
     lastActionError: undefined,
     helpOpen: false,
+    overlayOpen: false,
 
     init: async (explicitSlug?: string) => {
       try {
@@ -170,6 +188,68 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
     },
 
     toggleHelp: () => set((s) => ({ helpOpen: !s.helpOpen })),
+
+    setOverlayOpen: (open: boolean) => set({ overlayOpen: open }),
+
+    searchLocations: (query: string) => geocoder(query),
+
+    addLocation: async (entry: LocationEntry) => {
+      const config = get().config;
+      const slug = uniqueSlug(
+        entry.slug,
+        config.locations.map((loc) => loc.slug),
+      );
+      const finalEntry: LocationEntry = slug === entry.slug ? entry : { ...entry, slug };
+      const isFirstLocation = config.locations.length === 0;
+      const next: TuiConfig = {
+        ...config,
+        locations: [...config.locations, finalEntry],
+      };
+      if (isFirstLocation && config.default_location === undefined) {
+        next.default_location = slug;
+      }
+      set({ config: next });
+      try {
+        await saveConfig(next, deps.configPath);
+      } catch (e) {
+        set({ lastActionError: errorMessage(e) });
+      }
+      get().switchLocation(slug);
+    },
+
+    deleteActiveLocation: async () => {
+      const { config, activeSlug } = get();
+      if (!activeSlug) return;
+      const locations = config.locations;
+      if (locations.length <= 1) {
+        set({ lastActionError: "cannot delete the only location" });
+        return;
+      }
+      const idx = locations.findIndex((loc) => loc.slug === activeSlug);
+      if (idx === -1) return;
+      const remaining = locations.filter((_, i) => i !== idx);
+      const next: TuiConfig = { ...config, locations: remaining };
+      if (config.default_location === activeSlug) {
+        const fallback = remaining[0];
+        if (fallback) {
+          next.default_location = fallback.slug;
+        } else {
+          delete next.default_location;
+        }
+      }
+      const nextActive = remaining[Math.min(idx, remaining.length - 1)];
+      set({ config: next });
+      try {
+        await saveConfig(next, deps.configPath);
+      } catch (e) {
+        set({ lastActionError: errorMessage(e) });
+      }
+      if (nextActive) {
+        get().switchLocation(nextActive.slug);
+      } else {
+        set({ activeSlug: null });
+      }
+    },
   }));
 }
 
