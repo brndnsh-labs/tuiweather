@@ -7,6 +7,7 @@ import {
   formatPct,
   formatPrecip,
   formatTemp,
+  formatVisibility,
   formatWind,
   uvLabel,
 } from "../../src/lib/weather/format";
@@ -166,6 +167,28 @@ describe("formatDayLabel", () => {
   test("ordinary dates", () => {
     expect(formatDayLabel("2026-08-24")).toBe("Mon");
     expect(formatDayLabel("2026-01-01")).toBe("Thu");
+  });
+});
+
+describe("formatVisibility", () => {
+  test("null renders double dash regardless of units", () => {
+    expect(formatVisibility(null, "metric")).toBe("--");
+    expect(formatVisibility(null, "imperial")).toBe("--");
+  });
+
+  test("metric renders kilometers at one decimal, trimming bare .0", () => {
+    expect(formatVisibility(10000, "metric")).toBe("10 km");
+    expect(formatVisibility(14300, "metric")).toBe("14.3 km");
+  });
+
+  test("imperial converts meters to miles at one decimal, trimming bare .0", () => {
+    expect(formatVisibility(9656, "imperial")).toBe("6 mi");
+    expect(formatVisibility(5000, "imperial")).toBe("3.1 mi");
+  });
+
+  test("zero stays visible rather than null-like", () => {
+    expect(formatVisibility(0, "metric")).toBe("0 km");
+    expect(formatVisibility(0, "imperial")).toBe("0 mi");
   });
 });
 

@@ -2,7 +2,11 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createStoreInstance, type ForecastFetcher } from "../../src/app/store";
+import {
+  createStoreInstance,
+  type ForecastFetcher,
+  type RefreshTimerDeps,
+} from "../../src/app/store";
 import { ProviderError } from "../../src/lib/providers/types";
 import type { CurrentObs, NormalizedForecast } from "../../src/lib/weather/types";
 
@@ -264,5 +268,164 @@ describe("store", () => {
 
     store.getState().toggleHelp();
     expect(store.getState().helpOpen).toBe(false);
+  });
+});
+
+interface FakeRefreshTimers extends RefreshTimerDeps {
+  advance(ms: number): Promise<void>;
+  pending(): number;
+}
+
+function makeFakeTimers(): FakeRefreshTimers {
+  const jobs = new Map<number, { at: number; periodMs: number; handler: () => void }>();
+  let nextId = 1;
+  let now = 0;
+  const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+  return {
+    setInterval(handler, ms) {
+      const id = nextId++;
+      jobs.set(id, { at: now + ms, periodMs: ms, handler });
+      return id;
+    },
+    clearInterval(handle) {
+      if (typeof handle === "number") jobs.delete(handle);
+    },
+    pending: () => jobs.size,
+    async advance(ms) {
+      const target = now + ms;
+      for (;;) {
+        const due = [...jobs.entries()]
+          .filter(([, job]) => job.at <= target)
+          .sort((a, b) => a[1].at - b[1].at)[0];
+        if (!due) break;
+        now = due[1].at;
+        due[1].at += due[1].periodMs;
+        due[1].handler();
+        await flush();
+      }
+      now = target;
+    },
+  };
+}
+
+describe("store auto-refresh", () => {
+  const PERIOD_MS = 10 * 60_000;
+
+  function makeFetcher(): ForecastFetcher & { calls: string[] } {
+    const calls: string[] = [];
+    return Object.assign(
+      (location: { latitude: number; longitude: number }) => {
+        calls.push(`${location.latitude},${location.longitude}`);
+        return Promise.resolve({ forecast: makeForecast(), stale: false });
+      },
+      { calls },
+    );
+  }
+
+  async function timedStore(fetcher: ForecastFetcher, timers: FakeRefreshTimers) {
+    const dir = await makeConfigDir(CONFIG_TOML);
+    return createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: fetcher,
+      refreshTimers: timers,
+    });
+  }
+
+  test("two virtual periods fire two background fetches on a single timer", async () => {
+    const timers = makeFakeTimers();
+    const fetcher = makeFetcher();
+    const store = await timedStore(fetcher, timers);
+
+    await store.getState().init();
+    expect(store.getState().activeSlug).toBe("london");
+    expect(fetcher.calls.length).toBe(1);
+    expect(timers.pending()).toBe(1);
+
+    await timers.advance(PERIOD_MS - 1);
+    expect(fetcher.calls.length).toBe(1);
+
+    await timers.advance(1);
+    expect(fetcher.calls.length).toBe(2);
+    expect(timers.pending()).toBe(1);
+
+    await timers.advance(PERIOD_MS);
+    expect(fetcher.calls.length).toBe(3);
+    expect(timers.pending()).toBe(1);
+
+    store.getState().dispose();
+  });
+
+  test("repeated init and manual refresh never stack timers", async () => {
+    const timers = makeFakeTimers();
+    const fetcher = makeFetcher();
+    const store = await timedStore(fetcher, timers);
+
+    await store.getState().init();
+    await store.getState().init();
+    await store.getState().refresh(store.getState().activeSlug);
+    expect(timers.pending()).toBe(1);
+
+    await timers.advance(PERIOD_MS);
+    store.getState().dispose();
+  });
+
+  test("dispose stops the loop and blocks future scheduling", async () => {
+    const timers = makeFakeTimers();
+    const fetcher = makeFetcher();
+    const store = await timedStore(fetcher, timers);
+
+    await store.getState().init();
+    expect(timers.pending()).toBe(1);
+
+    store.getState().dispose();
+    expect(timers.pending()).toBe(0);
+
+    const after = fetcher.calls.length;
+    await timers.advance(PERIOD_MS * 3);
+    expect(fetcher.calls.length).toBe(after);
+
+    store.getState().switchLocation("london");
+    expect(timers.pending()).toBe(0);
+
+    store.getState().dispose();
+  });
+
+  test("slug switch resets the interval to the new location", async () => {
+    const timers = makeFakeTimers();
+    const fetcher = makeFetcher();
+    const store = await timedStore(fetcher, timers);
+
+    await store.getState().init();
+    expect(store.getState().activeSlug).toBe("london");
+    fetcher.calls.length = 0;
+
+    await timers.advance(PERIOD_MS - 1000);
+    store.getState().switchLocation("portland");
+    expect(fetcher.calls).toEqual(["45.5202,-122.6765"]);
+    expect(timers.pending()).toBe(1);
+
+    await timers.advance(PERIOD_MS - 1000);
+    expect(fetcher.calls.length).toBe(1);
+
+    await timers.advance(1000);
+    expect(fetcher.calls).toEqual(["45.5202,-122.6765", "45.5202,-122.6765"]);
+
+    store.getState().dispose();
+  });
+
+  test("init failure leaves no timer behind", async () => {
+    const timers = makeFakeTimers();
+    const dir = await mkdtemp(join(tmpdir(), "tuiweather-store-test-"));
+    tmpDirs.push(dir);
+    const store = createStoreInstance({
+      configPath: dir,
+      fetchForecast: makeFetcher(),
+      refreshTimers: timers,
+    });
+
+    await store.getState().init();
+
+    expect(store.getState().lastActionError).toBeDefined();
+    expect(timers.pending()).toBe(0);
   });
 });

@@ -24,6 +24,8 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 const EN_DASH = "–";
 const MM_PER_INCH = 25.4;
 const MPH_PER_KMH = 0.621371;
+const M_PER_KM = 1000;
+const M_PER_MI = 1609.344;
 
 function compassPoint(deg: number): string {
   const idx = ((Math.round(deg / 22.5) % 16) + 16) % 16;
@@ -60,6 +62,14 @@ export function formatPrecip(mm: number | null, units: Units): string {
 export function formatPct(p: number | null): string {
   if (p === null) return EN_DASH;
   return `${Math.round(p)}%`;
+}
+
+export function formatVisibility(meters: number | null, units: Units): string {
+  if (meters === null) return "--";
+  if (units === "imperial") {
+    return `${Number.parseFloat((meters / M_PER_MI).toFixed(1))} mi`;
+  }
+  return `${Number.parseFloat((meters / M_PER_KM).toFixed(1))} km`;
 }
 
 export function formatClock(isoUtc: string, utcOffsetSeconds: number): string {

@@ -63,3 +63,15 @@ WMO weather codes) must not leak past `lib/providers/<provider>/`.
 - Conventional commits (`feat:`, `fix:`, `chore:`...); PRs must pass all CI checks before merge.
 - Tests colocate under `test/` mirroring `src/` layout; snapshot goldens update via `bun test -u` and are reviewed like code.
 - Keep dependencies minimal; additions require justification in the PR description.
+
+## OpenTUI quirks
+
+Hard-won knowledge from building this UI against `@opentui/react` 0.5.x. Re-check these when upgrading.
+
+- **Lowercase intrinsics via jsx-runtime.** Elements are `box`, `text`, `span`, `input`, `scrollbox`, etc., provided by the jsx-runtime configured in tsconfig — never React DOM tags, no explicit element import needed.
+- **UI tests use `testRender`** from `@opentui/react/test-utils`: capture frames with `setup.captureCharFrame()`, resize with `setup.resize(w, h)`, drive input with `setup.mockInput.pressKeys([...])` / `.pressArrow(...)` / `.pressEnter()`, and pump the render loop with `setup.flush()` (all wrapped in try/finally around `setup.renderer.destroy()`).
+- **Escape needs `pressEscape()` plus a tick.** Plain `pressKeys(["escape"])` does not route the same way through the input pipeline; use `mockInput.pressEscape()` and follow with a short real sleep (~30ms) before asserting on frames.
+- **No reliable wait for debounced updates.** `waitFor` cannot await debounce timers or async store chains; poll `captureCharFrame()` against a predicate with short sleeps instead (see the `waitUntilFrame` helpers in `test/ui/`).
+- **zustand v5: `create` vs `createStore`.** `create<T>()(fn)` returns a store that doubles as a React hook (components call it selector-style) while still exposing `getState()`/`setState()` for imperative use; vanilla `createStore` returns only the imperative form. Our store instance is passed as a prop and used both ways.
+- **The ascii-font tiny font lacks a degree glyph.** Never route `°` through font-based rendering; plain `text` elements handle it fine.
+- **`scrollbox` needs `viewportCulling={false}` under char-frame capture**, otherwise captured frames nondeterministically drop rows outside the culled window and goldens flake.

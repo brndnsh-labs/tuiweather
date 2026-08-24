@@ -162,31 +162,35 @@ export function SearchOverlay({ store, width, height }: SearchOverlayProps) {
   let body: ReactNode;
   if (status === "results") {
     body = visible.map((result, i) => (
-      <text key={`${result.id}`} fg={i === cursor ? palette.accent : palette.fg} bg="#16161e">
+      <text
+        key={`${result.id}`}
+        fg={i === cursor ? palette.accent : palette.fg}
+        bg={palette.surface}
+      >
         {resultLine(result, i === cursor)}
       </text>
     ));
   } else if (status === "searching") {
     body = (
-      <text fg={palette.fgDim} bg="#16161e">
+      <text fg={palette.fgDim} bg={palette.surface}>
         searching…
       </text>
     );
   } else if (status === "error") {
     body = (
-      <text fg={palette.danger} bg="#16161e">
+      <text fg={palette.danger} bg={palette.surface}>
         {truncateTo(errorMsg ?? "search failed", SEARCH_BOX_INNER)}
       </text>
     );
   } else if (status === "empty") {
     body = (
-      <text fg={palette.fgDim} bg="#16161e">
+      <text fg={palette.fgDim} bg={palette.surface}>
         no matches
       </text>
     );
   } else {
     body = (
-      <text fg={palette.fgDim} bg="#16161e">
+      <text fg={palette.fgDim} bg={palette.surface}>
         type to search
       </text>
     );
@@ -202,20 +206,25 @@ export function SearchOverlay({ store, width, height }: SearchOverlayProps) {
       zIndex={10}
       border
       borderColor={palette.accent}
-      backgroundColor="#16161e"
+      backgroundColor={palette.surface}
       title="search location"
       flexDirection="column"
     >
-      <input focused onInput={setQuery} width={SEARCH_BOX_INNER} backgroundColor="#16161e" />
-      <text fg={palette.border} bg="#16161e">
+      <input
+        focused
+        onInput={setQuery}
+        width={SEARCH_BOX_INNER}
+        backgroundColor={palette.surface}
+      />
+      <text fg={palette.border} bg={palette.surface}>
         {"─".repeat(SEARCH_BOX_INNER)}
       </text>
       {body}
-      <box flexGrow={1} backgroundColor="#16161e" />
-      <text fg={palette.border} bg="#16161e">
+      <box flexGrow={1} backgroundColor={palette.surface} />
+      <text fg={palette.border} bg={palette.surface}>
         {"─".repeat(SEARCH_BOX_INNER)}
       </text>
-      <text fg={palette.fgDim} bg="#16161e">
+      <text fg={palette.fgDim} bg={palette.surface}>
         {"enter select · ↑↓ navigate · esc cancel"}
       </text>
     </box>

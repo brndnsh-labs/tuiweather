@@ -2,6 +2,7 @@ import { createCliRenderer } from "@opentui/core";
 import { createRoot } from "@opentui/react";
 import { App } from "./app/App";
 import { buildOneLine } from "./app/oneline";
+import { appStore } from "./app/store";
 import { loadConfig } from "./lib/config/load";
 import type { TuiConfig } from "./lib/config/schema";
 import { fetchForecast, OPENMETEO_PROVIDER_ID } from "./lib/providers/openmeteo/client";
@@ -82,6 +83,7 @@ async function runTui(locationArg: string | null): Promise<number> {
     return 2;
   }
   const renderer = await createCliRenderer({ exitOnCtrlC: true });
+  renderer.on("destroy", () => appStore.getState().dispose());
   createRoot(renderer).render(<App initialSlug={resolved.slug} />);
   return 0;
 }

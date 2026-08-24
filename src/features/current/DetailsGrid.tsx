@@ -1,4 +1,11 @@
-import { formatClock, formatTemp, formatWind, type Units, uvLabel } from "../../lib/weather/format";
+import {
+  formatClock,
+  formatTemp,
+  formatVisibility,
+  formatWind,
+  type Units,
+  uvLabel,
+} from "../../lib/weather/format";
 import type { CurrentObs, DailyPoint } from "../../lib/weather/types";
 import { usePalette } from "../../theme/tokens";
 
@@ -11,11 +18,6 @@ interface DetailsGridProps {
 }
 
 const LABEL_PAD = 9;
-
-function visText(visibilityM: number | null): string {
-  if (visibilityM === null) return "--";
-  return `${(visibilityM / 1000).toFixed(1)} km`;
-}
 
 function Cell({ label, value }: { label: string; value: string }) {
   const palette = usePalette();
@@ -33,7 +35,7 @@ export function DetailsGrid({ obs, today, utcOffsetSeconds, units, colWidth }: D
   const pressure = obs.pressureHpa === null ? "--" : `${Math.round(obs.pressureHpa)} hPa`;
   const gusts = obs.windGustKmh === null ? "--" : formatWind(obs.windGustKmh, null, units);
   const uv = obs.uvIndex === null ? "--" : `${Math.round(obs.uvIndex)} ${uvLabel(obs.uvIndex)}`;
-  const visibility = visText(obs.visibilityM);
+  const visibility = formatVisibility(obs.visibilityM, units);
   const sunrise = today?.sunriseUtc ? formatClock(today.sunriseUtc, utcOffsetSeconds) : "--";
   const sunset = today?.sunsetUtc ? formatClock(today.sunsetUtc, utcOffsetSeconds) : "--";
 

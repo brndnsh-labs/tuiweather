@@ -165,6 +165,12 @@ export function App(props: AppProps = {}) {
     void store.getState().init(props.initialSlug);
   }, [store, props.initialSlug]);
 
+  useEffect(() => {
+    return () => {
+      store.getState().dispose();
+    };
+  }, [store]);
+
   const quit = props.quit ?? (() => renderer.destroy());
   const api = useMemo<KeymapApi>(
     () => ({

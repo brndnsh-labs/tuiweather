@@ -22,13 +22,25 @@ export function HelpOverlay({ width, height }: HelpOverlayProps) {
       zIndex={10}
       border
       borderColor={palette.accent}
+      backgroundColor={palette.surface}
       title="keys"
       flexDirection="column"
     >
-      <text fg={palette.fg}>{"q quit        r refresh      u units"}</text>
-      <text fg={palette.fg}>{"[ ] prev/next location   ? toggle help"}</text>
-      <text fg={palette.fgDim}>{"/ search (coming soon)"}</text>
-      <text fg={palette.fg}>{"esc close"}</text>
+      <text fg={palette.fg} bg={palette.surface}>
+        {"q quit        r refresh      u units"}
+      </text>
+      <text fg={palette.fg} bg={palette.surface}>
+        {"[ ] prev/next location   ? toggle help"}
+      </text>
+      <text fg={palette.fgDim} bg={palette.surface}>
+        {"/ search"}
+      </text>
+      <text fg={palette.fg} bg={palette.surface}>
+        {"esc close"}
+      </text>
+      <text fg={palette.fgDim} bg={palette.surface}>
+        {"data by open-meteo.com · MIT licensed"}
+      </text>
     </box>
   );
 }
