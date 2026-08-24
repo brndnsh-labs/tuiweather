@@ -4,6 +4,30 @@
   "description": "Keyboard-driven terminal weather app powered by Open-Meteo",
   "license": "MIT",
   "type": "module",
+  "bin": {
+    "tuiweather": "./bin/tuiweather.js"
+  },
+  "files": [
+    "bin",
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/brndnsh-labs/tuiweather.git"
+  },
+  "homepage": "https://github.com/brndnsh-labs/tuiweather#readme",
+  "bugs": "https://github.com/brndnsh-labs/tuiweather/issues",
+  "keywords": [
+    "tui",
+    "weather",
+    "terminal",
+    "cli",
+    "open-meteo",
+    "forecast"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "bun": ">=1.3.0"
   },
@@ -13,7 +37,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "fmt": "biome check --write .",
-    "test": "bun test"
+    "test": "bun test",
+    "prepublishOnly": "bun run build && bun run test"
   },
   "dependencies": {
     "@opentui/core": "^0.5.8",
