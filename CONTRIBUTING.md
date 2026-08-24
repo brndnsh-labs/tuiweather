@@ -47,3 +47,13 @@ CI runs all three on every PR and they are required checks on `main`. Run them l
 2. New behavior has tests; bug fixes have a regression test.
 3. Snapshot diffs justified if present.
 4. README/config docs updated when user-facing surface changes.
+
+## Releases
+
+Releases are tag-driven and cut from `main` by a maintainer:
+
+```sh
+./scripts/release.sh <major|minor|patch>
+```
+
+The script verifies a clean, synced tree, bumps `package.json`, prepends a changelog section generated from conventional commits, tags `vX.Y.Z`, and pushes. The `release` workflow then builds cross-platform binaries, attaches them to the GitHub release with checksums, publishes to npm, and updates the [homebrew tap](https://github.com/brndnsh-labs/homebrew-tap).
