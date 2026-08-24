@@ -68,6 +68,7 @@ export function prodDeps(): Required<Pick<StoreDeps, "fetchForecast">> {
 }
 
 export interface WeatherState {
+  initStatus: "idle" | "loading" | "ready" | "error";
   config: TuiConfig;
   activeSlug: string | null;
   forecastBySlug: Record<string, ForecastEntry>;
@@ -88,6 +89,7 @@ export interface WeatherState {
   setOverlayOpen(open: boolean): void;
   searchLocations(query: string): Promise<GeocodingResult[]>;
   addLocation(entry: LocationEntry): Promise<void>;
+  completeOnboarding(entry: LocationEntry, units: TuiConfig["units"]): Promise<boolean>;
   deleteActiveLocation(): Promise<void>;
   dispose(): void;
 }
@@ -148,6 +150,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
     }
 
     return {
+      initStatus: "idle",
       config: DEFAULT_CONFIG,
       activeSlug: null,
       forecastBySlug: {},
@@ -159,14 +162,15 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
       overlayOpen: false,
 
       init: async (explicitSlug?: string) => {
+        set({ initStatus: "loading", lastActionError: undefined });
         try {
           const config = await loadConfig(deps.configPath);
           const slug = resolveDefaultSlug(config, explicitSlug);
-          set({ config, activeSlug: slug });
+          set({ config, activeSlug: slug, initStatus: "ready" });
           if (slug) await get().loadForecast(slug);
           scheduleRefreshLoop();
         } catch (e) {
-          set({ lastActionError: errorMessage(e) });
+          set({ initStatus: "error", lastActionError: errorMessage(e) });
         }
       },
 
@@ -265,6 +269,36 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
           set({ lastActionError: errorMessage(e) });
         }
         get().switchLocation(slug);
+      },
+
+      completeOnboarding: async (entry: LocationEntry, units: TuiConfig["units"]) => {
+        const config = get().config;
+        if (config.locations.length > 0) {
+          set({ lastActionError: "onboarding is already complete" });
+          return false;
+        }
+        const slug = uniqueSlug(
+          entry.slug,
+          config.locations.map((loc) => loc.slug),
+        );
+        const finalEntry: LocationEntry = slug === entry.slug ? entry : { ...entry, slug };
+        const next: TuiConfig = {
+          ...config,
+          units,
+          default_location: slug,
+          locations: [finalEntry],
+        };
+        set({ lastActionError: undefined });
+        try {
+          await saveConfig(next, deps.configPath);
+        } catch (e) {
+          set({ lastActionError: errorMessage(e) });
+          return false;
+        }
+        set({ config: next, activeSlug: slug, lastActionError: undefined });
+        await get().loadForecast(slug);
+        scheduleRefreshLoop();
+        return true;
       },
 
       deleteActiveLocation: async () => {

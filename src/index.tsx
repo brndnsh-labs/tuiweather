@@ -34,7 +34,8 @@ async function runOneLine(locationArg: string | null): Promise<number> {
   const config = await loadConfig();
   const resolved = resolveSlugFromConfig(config, locationArg);
   if ("error" in resolved) {
-    stderr(resolved.error);
+    const hint = config.locations.length === 0 ? "; run tuiweather to set one up" : "";
+    stderr(`${resolved.error}${hint}`);
     return 2;
   }
   const provider: WeatherProvider = {
@@ -52,14 +53,19 @@ async function runOneLine(locationArg: string | null): Promise<number> {
 
 async function runTui(locationArg: string | null): Promise<number> {
   const config = await loadConfig();
-  const resolved = resolveSlugFromConfig(config, locationArg);
-  if ("error" in resolved) {
-    stderr(resolved.error);
-    return 2;
+  let initialSlug: string | undefined;
+  if (locationArg !== null || config.locations.length > 0) {
+    const resolved = resolveSlugFromConfig(config, locationArg);
+    if ("error" in resolved) {
+      const hint = config.locations.length === 0 ? "; run tuiweather to set one up" : "";
+      stderr(`${resolved.error}${hint}`);
+      return 2;
+    }
+    initialSlug = resolved.slug;
   }
   const renderer = await createCliRenderer({ exitOnCtrlC: true });
   renderer.on("destroy", () => appStore.getState().dispose());
-  createRoot(renderer).render(<App initialSlug={resolved.slug} />);
+  createRoot(renderer).render(<App initialSlug={initialSlug} />);
   return 0;
 }
 

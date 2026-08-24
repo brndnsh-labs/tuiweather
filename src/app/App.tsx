@@ -6,6 +6,7 @@ import { Hero } from "../features/current/Hero";
 import { DailyList, dailyChips } from "../features/daily/DailyList";
 import { HourlyStrip, sectionRule, sliceUpcoming } from "../features/hourly/HourlyStrip";
 import { NowcastBanner } from "../features/nowcast/NowcastBanner";
+import { FirstRun } from "../features/onboarding/FirstRun";
 import { SearchOverlay } from "../features/search/SearchOverlay";
 import { conditionGlyph } from "../lib/providers/openmeteo/wmo";
 import { deriveNowcast } from "../lib/weather/derive";
@@ -143,6 +144,7 @@ function MainContent({ tier, width, forecast, nowUtc, units }: MainContentProps)
 
 export function App(props: AppProps = {}) {
   const store = props.store ?? appStore;
+  const initStatus = store((s) => s.initStatus);
   const config = store((s) => s.config);
   const activeSlug = store((s) => s.activeSlug);
   const entry = store((s) => (activeSlug === null ? undefined : s.forecastBySlug[activeSlug]));
@@ -154,6 +156,7 @@ export function App(props: AppProps = {}) {
   const helpOpen = store((s) => s.helpOpen);
   const overlayOpen = store((s) => s.overlayOpen);
   const forecastBySlug = store((s) => s.forecastBySlug);
+  const lastActionError = store((s) => s.lastActionError);
 
   const viewport = useViewport();
   const renderer = useRenderer();
@@ -181,7 +184,12 @@ export function App(props: AppProps = {}) {
       toggleUnits: () => store.getState().toggleUnits(),
       helpOpen: () => store.getState().helpOpen,
       toggleHelp: () => store.getState().toggleHelp(),
-      searchOpen: () => store.getState().overlayOpen,
+      searchOpen: () => {
+        const state = store.getState();
+        return (
+          state.overlayOpen || (state.initStatus === "ready" && state.config.locations.length === 0)
+        );
+      },
       openSearch: () => store.getState().setOverlayOpen(true),
       deleteActive: () => void store.getState().deleteActiveLocation(),
     }),
@@ -199,6 +207,7 @@ export function App(props: AppProps = {}) {
   const nowUtc = props.nowUtc ?? new Date(nowMs).toISOString();
   const tier = viewport.tier;
   const forecast = entry?.forecast;
+  const onboardingOpen = initStatus === "ready" && config.locations.length === 0;
 
   const header = (
     <Header
@@ -306,11 +315,27 @@ export function App(props: AppProps = {}) {
   return (
     <ThemeContext value={palette}>
       <box flexDirection="column" width="100%" height="100%">
-        {body}
-        {helpOpen ? <HelpOverlay width={viewport.width} height={viewport.height} /> : null}
-        {overlayOpen ? (
-          <SearchOverlay store={store} width={viewport.width} height={viewport.height} />
-        ) : null}
+        {initStatus === "idle" || initStatus === "loading" ? (
+          <box flexGrow={1} justifyContent="center" alignItems="center">
+            <text fg={palette.fgDim}>starting tuiweather…</text>
+          </box>
+        ) : initStatus === "error" ? (
+          <box flexGrow={1} justifyContent="center" alignItems="center">
+            <text fg={palette.danger}>
+              {truncateTo(lastActionError ?? "could not load config", Math.max(1, viewport.width))}
+            </text>
+          </box>
+        ) : onboardingOpen ? (
+          <FirstRun store={store} width={viewport.width} height={viewport.height} quit={quit} />
+        ) : (
+          <>
+            {body}
+            {helpOpen ? <HelpOverlay width={viewport.width} height={viewport.height} /> : null}
+            {overlayOpen ? (
+              <SearchOverlay store={store} width={viewport.width} height={viewport.height} />
+            ) : null}
+          </>
+        )}
       </box>
     </ThemeContext>
   );

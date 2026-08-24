@@ -7,6 +7,7 @@ Keyboard-driven terminal weather app: Dark Sky-style rain nowcasting, hourly and
 - **Rain nowcast** — minute-level "umbrella in N min" warnings derived from 15-minute precipitation buckets
 - **Hourly + daily forecast** — sparkline temperature strip, condition glyphs, precipitation probabilities
 - **Location search** — type `/`, search the Open-Meteo geocoder, enter to add; locations persist to config
+- **Guided first run** — choose units and find a location without editing a config file
 - **Units** — metric/imperial toggle persisted across runs
 - **Themes** — day, night, or auto (follows sunrise/sunset)
 - **Responsive layout** — four breakpoint tiers down to 32 columns; clamps gracefully below that
@@ -35,6 +36,10 @@ xattr -d com.apple.quarantine /path/to/tuiweather
 ## Usage
 
 Run `tuiweather` with no arguments for the full TUI.
+
+On the first run, tuiweather opens a short keyboard tour, asks for metric or imperial units, and
+lets you search for your first location. The completed setup is written atomically to the normal
+config path before weather data loads.
 
 Use `tuiweather --help` for command-line options and `tuiweather --version` to print the installed version.
 
@@ -69,6 +74,8 @@ set -g status-right "#(tuiweather --one-line)"
 ```
 
 Responses are cached on disk, so frequent invocations stay cheap; cached data older than `refresh_minutes` triggers a refetch.
+One-line mode is non-interactive; if no location is configured yet, run `tuiweather` once to
+complete setup.
 
 ## Configuration
 

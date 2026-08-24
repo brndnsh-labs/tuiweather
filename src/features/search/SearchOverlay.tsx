@@ -1,19 +1,31 @@
 import { useKeyboard } from "@opentui/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import type { LocationEntry, WeatherStore } from "../../app/store";
+import type { LocationEntry, SearchLocationsFn, WeatherStore } from "../../app/store";
 import type { GeocodingResult } from "../../lib/providers/openmeteo/geocoding";
 import { usePalette } from "../../theme/tokens";
 
 export const SEARCH_DEBOUNCE_MS = 300;
 export const SEARCH_BOX_WIDTH = 60;
 export const SEARCH_BOX_HEIGHT = 10;
-const SEARCH_BOX_INNER = SEARCH_BOX_WIDTH - 2;
 const SEARCH_MAX_RESULTS = 4;
 
 interface SearchOverlayProps {
   store: WeatherStore;
   width: number;
   height: number;
+}
+
+interface LocationPickerProps {
+  searchLocations: SearchLocationsFn;
+  width: number;
+  height: number;
+  title?: string;
+  footer?: string;
+  busy?: boolean;
+  actionError?: string;
+  onQueryChange?: () => void;
+  onSelect(result: GeocodingResult): void;
+  onCancel(): void;
 }
 
 type SearchStatus = "idle" | "searching" | "error" | "empty" | "results";
@@ -74,16 +86,27 @@ function regionText(result: GeocodingResult): string {
   return `${main}${suffix}`;
 }
 
-function resultLine(result: GeocodingResult, selected: boolean): string {
+function resultLine(result: GeocodingResult, selected: boolean, width: number): string {
   const right = formatCoords(result.latitude, result.longitude);
   const leftRaw = `${result.name} · ${regionText(result)}`;
-  const avail = Math.max(0, SEARCH_BOX_INNER - 2 - right.length);
+  const avail = Math.max(0, width - 2 - right.length);
   const left = truncateTo(leftRaw, avail).padEnd(avail);
   const prefix = selected ? "›" : " ";
-  return `${prefix} ${left}${right}`.slice(0, SEARCH_BOX_INNER);
+  return `${prefix} ${left}${right}`.slice(0, width);
 }
 
-export function SearchOverlay({ store, width, height }: SearchOverlayProps) {
+export function LocationPicker({
+  searchLocations,
+  width,
+  height,
+  title = "search location",
+  footer = "enter select · ↑↓ navigate · esc cancel",
+  busy = false,
+  actionError,
+  onQueryChange,
+  onSelect,
+  onCancel,
+}: LocationPickerProps) {
   const palette = usePalette();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<SearchStatus>("idle");
@@ -91,9 +114,12 @@ export function SearchOverlay({ store, width, height }: SearchOverlayProps) {
   const [errorMsg, setErrorMsg] = useState<string | undefined>(undefined);
   const [cursor, setCursor] = useState(0);
   const requestIdRef = useRef(0);
-  const searchLocations = store((s) => s.searchLocations);
-  const visibleCount = Math.min(results.length, SEARCH_MAX_RESULTS);
-  const visible = results.slice(0, SEARCH_MAX_RESULTS);
+  const boxWidth = Math.max(1, Math.min(SEARCH_BOX_WIDTH, width >= 32 ? width - 2 : width));
+  const boxHeight = Math.max(1, Math.min(SEARCH_BOX_HEIGHT, height));
+  const innerWidth = Math.max(1, boxWidth - 2);
+  const visibleLimit = Math.max(1, Math.min(SEARCH_MAX_RESULTS, boxHeight - 6));
+  const visible = results.slice(0, visibleLimit);
+  const visibleCount = visible.length;
 
   useEffect(() => {
     const q = query.trim();
@@ -131,7 +157,7 @@ export function SearchOverlay({ store, width, height }: SearchOverlayProps) {
 
   useKeyboard((key) => {
     if (key.name === "escape") {
-      store.getState().setOverlayOpen(false);
+      onCancel();
       return;
     }
     if (key.name === "up") {
@@ -139,35 +165,37 @@ export function SearchOverlay({ store, width, height }: SearchOverlayProps) {
       return;
     }
     if (key.name === "down") {
-      setCursor((c) => Math.min(visibleCount - 1, c + 1));
+      setCursor((c) => Math.min(Math.max(0, visibleCount - 1), c + 1));
       return;
     }
     if (key.name === "return" || key.name === "enter") {
-      if (visibleCount === 0) return;
-      const idx = Math.min(cursor, visibleCount - 1);
-      const chosen = results[idx];
-      if (!chosen) return;
-      const s = store.getState();
-      const entry = buildLocationEntry(
-        chosen,
-        s.config.locations.map((loc) => loc.slug),
-      );
-      void s.addLocation(entry).then(() => s.setOverlayOpen(false));
+      if (busy || visibleCount === 0) return;
+      const chosen = visible[Math.min(cursor, visibleCount - 1)];
+      if (chosen) onSelect(chosen);
     }
   });
 
-  const left = Math.max(0, Math.floor((width - SEARCH_BOX_WIDTH) / 2));
-  const top = Math.max(0, Math.floor((height - SEARCH_BOX_HEIGHT) / 2));
-
   let body: ReactNode;
-  if (status === "results") {
+  if (busy) {
+    body = (
+      <text fg={palette.fgDim} bg={palette.surface}>
+        saving…
+      </text>
+    );
+  } else if (actionError) {
+    body = (
+      <text fg={palette.danger} bg={palette.surface}>
+        {truncateTo(actionError, innerWidth)}
+      </text>
+    );
+  } else if (status === "results") {
     body = visible.map((result, i) => (
       <text
         key={`${result.id}`}
         fg={i === cursor ? palette.accent : palette.fg}
         bg={palette.surface}
       >
-        {resultLine(result, i === cursor)}
+        {resultLine(result, i === cursor, innerWidth)}
       </text>
     ));
   } else if (status === "searching") {
@@ -179,7 +207,7 @@ export function SearchOverlay({ store, width, height }: SearchOverlayProps) {
   } else if (status === "error") {
     body = (
       <text fg={palette.danger} bg={palette.surface}>
-        {truncateTo(errorMsg ?? "search failed", SEARCH_BOX_INNER)}
+        {truncateTo(errorMsg ?? "search failed", innerWidth)}
       </text>
     );
   } else if (status === "empty") {
@@ -196,37 +224,63 @@ export function SearchOverlay({ store, width, height }: SearchOverlayProps) {
     );
   }
 
+  const left = Math.max(0, Math.floor((width - boxWidth) / 2));
+  const top = Math.max(0, Math.floor((height - boxHeight) / 2));
+
   return (
     <box
       position="absolute"
       left={left}
       top={top}
-      width={SEARCH_BOX_WIDTH}
-      height={SEARCH_BOX_HEIGHT}
+      width={boxWidth}
+      height={boxHeight}
       zIndex={10}
       border
       borderColor={palette.accent}
       backgroundColor={palette.surface}
-      title="search location"
+      title={truncateTo(title, innerWidth)}
       flexDirection="column"
     >
       <input
         focused
-        onInput={setQuery}
-        width={SEARCH_BOX_INNER}
+        onInput={(value) => {
+          onQueryChange?.();
+          setQuery(value);
+        }}
+        width={innerWidth}
         backgroundColor={palette.surface}
       />
       <text fg={palette.border} bg={palette.surface}>
-        {"─".repeat(SEARCH_BOX_INNER)}
+        {"─".repeat(innerWidth)}
       </text>
       {body}
       <box flexGrow={1} backgroundColor={palette.surface} />
       <text fg={palette.border} bg={palette.surface}>
-        {"─".repeat(SEARCH_BOX_INNER)}
+        {"─".repeat(innerWidth)}
       </text>
       <text fg={palette.fgDim} bg={palette.surface}>
-        {"enter select · ↑↓ navigate · esc cancel"}
+        {truncateTo(footer, innerWidth)}
       </text>
     </box>
+  );
+}
+
+export function SearchOverlay({ store, width, height }: SearchOverlayProps) {
+  const searchLocations = store((s) => s.searchLocations);
+  return (
+    <LocationPicker
+      searchLocations={searchLocations}
+      width={width}
+      height={height}
+      onCancel={() => store.getState().setOverlayOpen(false)}
+      onSelect={(chosen) => {
+        const state = store.getState();
+        const entry = buildLocationEntry(
+          chosen,
+          state.config.locations.map((loc) => loc.slug),
+        );
+        void state.addLocation(entry).then(() => state.setOverlayOpen(false));
+      }}
+    />
   );
 }

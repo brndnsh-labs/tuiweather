@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -131,6 +131,79 @@ describe("store", () => {
     await store.getState().init();
 
     expect(store.getState().activeSlug).toBe("portland");
+  });
+
+  test("empty config becomes ready without fetching a location", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "tuiweather-store-test-"));
+    tmpDirs.push(dir);
+    const fetcher = stubFetcher();
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: fetcher,
+    });
+
+    await store.getState().init();
+
+    expect(store.getState().initStatus).toBe("ready");
+    expect(store.getState().config.locations).toEqual([]);
+    expect(store.getState().activeSlug).toBeNull();
+    expect(fetcher.calls.locations).toEqual([]);
+  });
+
+  test("completeOnboarding atomically saves units and the first default location", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "tuiweather-store-test-"));
+    tmpDirs.push(dir);
+    const path = join(dir, "config.toml");
+    const fetcher = stubFetcher();
+    const store = createStoreInstance({ configPath: path, fetchForecast: fetcher });
+    await store.getState().init();
+
+    const completed = await store.getState().completeOnboarding(
+      {
+        slug: "tokyo-jp",
+        label: "Tokyo, jp",
+        latitude: 35.68,
+        longitude: 139.69,
+      },
+      "metric",
+    );
+
+    expect(completed).toBe(true);
+    expect(store.getState().config.units).toBe("metric");
+    expect(store.getState().config.default_location).toBe("tokyo-jp");
+    expect(store.getState().activeSlug).toBe("tokyo-jp");
+    expect(fetcher.calls.locations).toEqual(["35.68,139.69"]);
+    const text = await readFile(path, "utf8");
+    expect(text).toContain('units = "metric"');
+    expect(text).toContain('default_location = "tokyo-jp"');
+    expect(text).toContain('slug = "tokyo-jp"');
+    store.getState().dispose();
+  });
+
+  test("completeOnboarding leaves state empty when the atomic save fails", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "tuiweather-store-test-"));
+    tmpDirs.push(dir);
+    const path = join(dir, "config.toml");
+    const fetcher = stubFetcher();
+    const store = createStoreInstance({ configPath: path, fetchForecast: fetcher });
+    await store.getState().init();
+    await mkdir(path);
+
+    const completed = await store.getState().completeOnboarding(
+      {
+        slug: "tokyo-jp",
+        label: "Tokyo, jp",
+        latitude: 35.68,
+        longitude: 139.69,
+      },
+      "metric",
+    );
+
+    expect(completed).toBe(false);
+    expect(store.getState().config.locations).toEqual([]);
+    expect(store.getState().activeSlug).toBeNull();
+    expect(fetcher.calls.locations).toEqual([]);
+    expect(store.getState().lastActionError).toBeDefined();
   });
 
   test("config read failure lands in lastActionError, never throws", async () => {
