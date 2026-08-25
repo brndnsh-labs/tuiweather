@@ -15,3 +15,5 @@ All notable changes to this project are documented here.
 - chore: polish pass (70feee8)
 - chore: bootstrap repository (4db130d)
 
+## v0.2.0 (2026-08-25)
+
