@@ -13,11 +13,7 @@
   "backend_overrides": {
     "auto_merge": true
   },
-  "harnesses": [
-    "codex",
-    "opencode",
-    "claude"
-  ],
+  "harnesses": ["codex", "opencode", "claude"],
   "tracker": {
     "description": "**GitHub issues** (`brndnsh-labs/tuiweather`)",
     "statuses": [
@@ -74,9 +70,7 @@
     "update": "bun update",
     "install": "bun install",
     "lockfile": "bun.lock",
-    "manifests": [
-      "package.json"
-    ]
+    "manifests": ["package.json"]
   },
   "brakes": [
     "user-config schema & migrations",
