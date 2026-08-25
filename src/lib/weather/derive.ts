@@ -27,6 +27,8 @@ interface Bucket {
   precipMm: number;
 }
 
+const LIGHT_MM = 0.1;
+const MODERATE_MM = 0.4;
 const MIN_MS = 60_000;
 
 function minutesUntil(targetMs: number, nowMs: number): number {
@@ -34,9 +36,20 @@ function minutesUntil(targetMs: number, nowMs: number): number {
 }
 
 function toIntensity(precipMm: number): Intensity {
-  if (precipMm < 0.1) return "light";
-  if (precipMm < 0.4) return "moderate";
+  if (precipMm < LIGHT_MM) return "light";
+  if (precipMm < MODERATE_MM) return "moderate";
   return "heavy";
+}
+
+/**
+ * Block glyph for one 15-minute bucket: dry floor below WET_MM, then the
+ * toIntensity bands scaled up.
+ */
+export function precipGlyph(mm: number): string {
+  if (mm < WET_MM) return "▁";
+  if (mm < LIGHT_MM) return "▃";
+  if (mm < MODERATE_MM) return "▅";
+  return "█";
 }
 
 function sortedBuckets(f: NormalizedForecast): Bucket[] {
@@ -89,6 +102,29 @@ export function deriveNowcast(f: NormalizedForecast, nowUtc: string): Nowcast {
     startsInMin: minutesUntil(upcoming.startMs, nowMs),
     intensity: toIntensity(upcoming.precipMm),
   };
+}
+
+/**
+ * Per-15-min precipitation from the bucket containing now through the end of
+ * minutely15 data. Buckets are labeled by their END instant, so the bucket
+ * spanning [startUtc, endUtc) with startUtc <= now < endUtc counts as
+ * upcoming; empty when now is outside the data window.
+ */
+export function upcomingPrecipSeries(f: NormalizedForecast, nowUtc: string): number[] {
+  const nowMs = Date.parse(nowUtc);
+  const buckets = sortedBuckets(f);
+
+  const first = buckets[0];
+  const last = buckets.at(-1);
+  if (!first || !last || nowMs < first.startMs || nowMs >= last.endMs) {
+    return [];
+  }
+
+  const series: number[] = [];
+  for (const b of buckets) {
+    if (b.endMs > nowMs) series.push(b.precipMm);
+  }
+  return series;
 }
 
 const INTENSITY_WORD: Record<Intensity, string> = {

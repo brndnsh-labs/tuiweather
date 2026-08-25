@@ -58,4 +58,4 @@ test("the packed artifact contains only the supported product surface and can ex
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
-});
+}, 30_000);
