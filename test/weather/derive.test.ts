@@ -2,7 +2,9 @@ import { describe, expect, test } from "bun:test";
 import {
   deriveNowcast,
   describeNowcast,
+  precipGlyph,
   todayPrecipWindow,
+  upcomingPrecipSeries,
   WET_MM,
 } from "../../src/lib/weather/derive";
 import type { NormalizedForecast, PrecipInterval } from "../../src/lib/weather/types";
@@ -210,6 +212,66 @@ describe("deriveNowcast rules", () => {
     expect(startingWith(0.1)).toMatchObject({ kind: "starting", intensity: "moderate" });
     expect(startingWith(0.39)).toMatchObject({ kind: "starting", intensity: "moderate" });
     expect(startingWith(0.4)).toMatchObject({ kind: "starting", intensity: "heavy" });
+  });
+});
+
+describe("precipGlyph", () => {
+  test("boundary table: below WET_MM is dry floor, then light/moderate/heavy bands", () => {
+    expect(precipGlyph(0)).toBe("▁");
+    expect(precipGlyph(0.029)).toBe("▁");
+    expect(precipGlyph(WET_MM)).toBe("▃");
+    expect(precipGlyph(0.031)).toBe("▃");
+    expect(precipGlyph(0.099)).toBe("▃");
+    expect(precipGlyph(0.1)).toBe("▅");
+    expect(precipGlyph(0.399)).toBe("▅");
+    expect(precipGlyph(0.4)).toBe("█");
+    expect(precipGlyph(2.5)).toBe("█");
+  });
+});
+
+describe("upcomingPrecipSeries", () => {
+  test("starts at the bucket whose [start,end) contains now, in time order", () => {
+    const f = forecast(
+      buckets([
+        ["14:00", 0],
+        ["14:15", 0.2],
+        ["14:30", 0.5],
+        ["14:45", 0],
+      ]),
+    );
+    // Bucket labeled 14:15 spans [14:00,14:15) and contains 14:12.
+    expect(upcomingPrecipSeries(f, instant("14:12"))).toEqual([0.2, 0.5, 0]);
+  });
+
+  test("drops buckets that have fully elapsed by now", () => {
+    const f = forecast(
+      buckets([
+        ["14:00", 0],
+        ["14:15", 0.2],
+        ["14:30", 0.5],
+      ]),
+    );
+    // At 14:20 the containing bucket is the one labeled 14:30 ([14:15,14:30)).
+    expect(upcomingPrecipSeries(f, instant("14:20"))).toEqual([0.5]);
+  });
+
+  test("empty when now is outside the data window on either side", () => {
+    const f = forecast(buckets([["14:15", 0.5]]));
+    expect(upcomingPrecipSeries(f, instant("13:50"))).toEqual([]);
+    expect(upcomingPrecipSeries(f, instant("14:15"))).toEqual([]);
+    expect(upcomingPrecipSeries(forecast([]), instant("14:12"))).toEqual([]);
+  });
+
+  test("sorts shuffled input defensively like deriveNowcast", () => {
+    const ordered = forecast(
+      buckets([
+        ["14:00", 0],
+        ["14:15", 0.2],
+        ["14:30", 0.7],
+      ]),
+    );
+    const shuffled = forecast([...ordered.minutely15].reverse());
+    expect(upcomingPrecipSeries(shuffled, instant("14:05"))).toEqual([0.2, 0.7]);
   });
 });
 
