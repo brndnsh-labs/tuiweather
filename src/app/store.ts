@@ -12,13 +12,13 @@ import {
   type GeocodingResult,
   searchLocations as geocodeLocations,
 } from "../lib/providers/openmeteo/geocoding";
-import type { WeatherProvider } from "../lib/providers/types";
+import type { ForecastWindow, WeatherProvider } from "../lib/providers/types";
 import { cachedForecast } from "../lib/weather/cache";
 import type { GeoPoint, NormalizedForecast } from "../lib/weather/types";
 
 export type ForecastFetcher = (
   location: GeoPoint,
-  opts: { maxAgeMinutes: number },
+  opts: { maxAgeMinutes: number; window: ForecastWindow },
 ) => Promise<{
   forecast: NormalizedForecast;
   stale: boolean;
@@ -55,11 +55,14 @@ export interface StoreDeps {
 
 const OPENMETEO_PROVIDER: WeatherProvider = {
   id: OPENMETEO_PROVIDER_ID,
-  getForecast: (location) => fetchForecast(location),
+  getForecast: (location, window) => fetchForecast(location, window),
 };
 
 export const defaultFetcher: ForecastFetcher = (location, opts) =>
-  cachedForecast(OPENMETEO_PROVIDER, location, { maxAgeMinutes: opts.maxAgeMinutes });
+  cachedForecast(OPENMETEO_PROVIDER, location, {
+    maxAgeMinutes: opts.maxAgeMinutes,
+    window: opts.window,
+  });
 
 export const defaultSearchLocations: SearchLocationsFn = (query) => geocodeLocations(query);
 
@@ -187,6 +190,10 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
             { latitude: location.latitude, longitude: location.longitude },
             {
               maxAgeMinutes: opts?.bypassCache === true ? 0 : get().config.refresh_minutes,
+              window: {
+                forecastDays: state.config.daily_days,
+                forecastHours: state.config.hourly_hours,
+              },
             },
           );
           set((s) => ({

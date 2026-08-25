@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { ProviderError, type WeatherProvider } from "../providers/types";
+import { type ForecastWindow, ProviderError, type WeatherProvider } from "../providers/types";
 import type { GeoPoint, NormalizedForecast } from "./types";
 
 const DEFAULT_MAX_AGE_MINUTES = 10;
@@ -20,9 +20,16 @@ export interface CacheIo {
   remove(key: string): Promise<void>;
 }
 
-export function cacheKey(providerId: string, latitude: number, longitude: number): string {
+export function cacheKey(
+  providerId: string,
+  latitude: number,
+  longitude: number,
+  window?: ForecastWindow,
+): string {
+  const windowTag =
+    window === undefined ? "" : `|${window.forecastDays ?? "*"}|${window.forecastHours ?? "*"}`;
   const digest = createHash("sha256")
-    .update(`${providerId}|${latitude.toFixed(3)}|${longitude.toFixed(3)}`)
+    .update(`${providerId}|${latitude.toFixed(3)}|${longitude.toFixed(3)}${windowTag}`)
     .digest("hex");
   return `${digest}.json`;
 }
@@ -81,13 +88,13 @@ class FsCacheIo implements CacheIo {
 export async function cachedForecast(
   provider: WeatherProvider,
   location: GeoPoint,
-  opts?: { maxAgeMinutes?: number; nowUtc?: string },
+  opts?: { maxAgeMinutes?: number; nowUtc?: string; window?: ForecastWindow },
   io: CacheIo = new FsCacheIo(),
 ): Promise<CacheResult> {
   const maxAgeMinutes = opts?.maxAgeMinutes ?? DEFAULT_MAX_AGE_MINUTES;
   const nowUtc = opts?.nowUtc ?? new Date().toISOString();
   const nowMs = Date.parse(nowUtc);
-  const key = cacheKey(provider.id, location.latitude, location.longitude);
+  const key = cacheKey(provider.id, location.latitude, location.longitude, opts?.window);
 
   const raw = await io.read(key);
   const envelope = parseEnvelope(raw);
@@ -99,7 +106,7 @@ export async function cachedForecast(
   }
 
   try {
-    const forecast = await provider.getForecast(location);
+    const forecast = await provider.getForecast(location, opts?.window);
     await io.write(key, JSON.stringify({ fetchedAtUtc: nowUtc, forecast } satisfies Envelope));
     return { forecast, stale: false };
   } catch (error) {

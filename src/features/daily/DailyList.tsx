@@ -13,12 +13,23 @@ interface DailyListProps {
 }
 
 const DAY_LABEL_WIDTH = 3;
+const PRECIP_CHIP_MIN_PCT = 20;
 
 interface RowParts {
   head: string;
   lo: number;
   hi: number;
   precip: string | null;
+}
+
+function precipChip(day: DailyPoint): string | null {
+  const pct = day.precipProbabilityMaxPct;
+  if (pct === null || pct < PRECIP_CHIP_MIN_PCT) return null;
+  return `☂ ${formatPct(pct)}`;
+}
+
+export function anyPrecipChip(days: DailyPoint[], showPrecip: boolean): boolean {
+  return showPrecip && days.some((day) => precipChip(day) !== null);
 }
 
 function rowParts(day: DailyPoint, showPrecip: boolean): RowParts {
@@ -28,10 +39,7 @@ function rowParts(day: DailyPoint, showPrecip: boolean): RowParts {
     head: `${label.padEnd(DAY_LABEL_WIDTH)} ${glyph} `,
     lo: day.tempMinC,
     hi: day.tempMaxC,
-    precip:
-      showPrecip && day.precipProbabilityMaxPct !== null
-        ? `☂ ${formatPct(day.precipProbabilityMaxPct)}`
-        : null,
+    precip: showPrecip ? precipChip(day) : null,
   };
 }
 
@@ -72,9 +80,10 @@ export function DailyList({ days, units, columns, width, showPrecip = true }: Da
 
   const weekMin = Math.min(...days.map((d) => d.tempMinC));
   const weekMax = Math.max(...days.map((d) => d.tempMaxC));
+  const showChips = anyPrecipChip(days, showPrecip);
 
   const colWidth = Math.floor(width / columns);
-  const fixedWidth = DAY_LABEL_WIDTH + 3 + 4 + 4 + (showPrecip ? 7 : 0);
+  const fixedWidth = DAY_LABEL_WIDTH + 3 + 4 + 4 + (showChips ? 7 : 0);
   const barWidth = Math.max(2, colWidth - fixedWidth);
 
   if (columns === 1) {
@@ -83,7 +92,7 @@ export function DailyList({ days, units, columns, width, showPrecip = true }: Da
         {days.map((day) => (
           <DailyRow
             key={day.dateLocal}
-            parts={rowParts(day, showPrecip)}
+            parts={rowParts(day, showChips)}
             units={units}
             barWidth={barWidth}
             weekMin={weekMin}
@@ -105,7 +114,7 @@ export function DailyList({ days, units, columns, width, showPrecip = true }: Da
           {pair.map((day) => (
             <box key={day.dateLocal} flexDirection="row" width={colWidth} flexShrink={0}>
               <DailyRow
-                parts={rowParts(day, showPrecip)}
+                parts={rowParts(day, showChips)}
                 units={units}
                 barWidth={barWidth}
                 weekMin={weekMin}

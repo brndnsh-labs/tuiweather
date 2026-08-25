@@ -71,9 +71,9 @@ export function RangeBar({ lo, hi, weekMin, weekMax, width, palette }: RangeBarP
   const right = TRACK.repeat(Math.max(0, width - end));
   return (
     <box flexDirection="row">
-      {left ? <text fg={palette.fgDim}>{left}</text> : null}
+      {left ? <text fg={palette.border}>{left}</text> : null}
       {fill ? <text fg={fillFg}>{fill}</text> : null}
-      {right ? <text fg={palette.fgDim}>{right}</text> : null}
+      {right ? <text fg={palette.border}>{right}</text> : null}
     </box>
   );
 }

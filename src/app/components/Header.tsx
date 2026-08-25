@@ -47,19 +47,17 @@ export function Header({
   }
 
   return (
-    <box flexDirection="column">
+    <box flexDirection="row" gap={2}>
       <text fg={palette.accent}>{label}</text>
-      <box flexDirection="row" gap={2}>
-        {coords ? (
-          <text fg={palette.fgDim}>
-            {`${coords.latitude.toFixed(1)}°, ${coords.longitude.toFixed(1)}°`}
-          </text>
-        ) : null}
-        {fetchedAtMs !== undefined ? (
-          <text fg={palette.fgDim}>{formatUpdatedAgo(fetchedAtMs, nowMs)}</text>
-        ) : null}
-        {stale ? <text fg={palette.warn}>stale</text> : null}
-      </box>
+      {coords ? (
+        <text fg={palette.fgDim}>
+          {`${coords.latitude.toFixed(1)}°, ${coords.longitude.toFixed(1)}°`}
+        </text>
+      ) : null}
+      {fetchedAtMs !== undefined ? (
+        <text fg={palette.fgDim}>{formatUpdatedAgo(fetchedAtMs, nowMs)}</text>
+      ) : null}
+      {stale ? <text fg={palette.warn}>stale</text> : null}
     </box>
   );
 }

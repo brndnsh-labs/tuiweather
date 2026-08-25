@@ -24,6 +24,8 @@ import { handleKey, type KeymapApi } from "./keymap";
 import { appStore, type WeatherStore } from "./store";
 
 const SIDEBAR_WIDTH = 26;
+/** Width budgeted for the slick-font hero digits when laying out the details grid beside it. */
+const HERO_RESERVE = 22;
 
 interface AppProps {
   store?: WeatherStore;
@@ -89,18 +91,32 @@ function MainContent({ tier, width, forecast, nowUtc, units }: MainContentProps)
     );
   }
 
-  if (tier === "sm") {
+  if (tier === "sm" || tier === "md") {
+    const showDetails = tier === "md";
     return (
-      <scrollbox flexGrow={1} focused viewportCulling={false}>
+      <scrollbox flexGrow={1} focused viewportCulling={false} scrollbarOptions={{ visible: false }}>
         <box flexDirection="column" gap={1}>
-          <Hero obs={forecast.current} units={units} compact />
+          {showDetails ? (
+            <box flexDirection="row" gap={2}>
+              <Hero obs={forecast.current} units={units} />
+              <DetailsGrid
+                obs={forecast.current}
+                today={forecast.daily[0]}
+                utcOffsetSeconds={forecast.utcOffsetSeconds}
+                units={units}
+                colWidth={Math.max(10, Math.floor((width - HERO_RESERVE) / 2))}
+              />
+            </box>
+          ) : (
+            <Hero obs={forecast.current} units={units} compact />
+          )}
           <NowcastBanner nowcast={nowcast} hideWhenDry width={width} />
           <HourlyStrip
             points={forecast.hourly}
             nowUtc={nowUtc}
             utcOffsetSeconds={forecast.utcOffsetSeconds}
             units={units}
-            maxPoints={12}
+            maxPoints={showDetails ? 48 : 12}
             width={width}
           />
           <text fg={palette.fgDim}>{sectionRule(`${forecast.daily.length} day`, width)}</text>
@@ -109,7 +125,7 @@ function MainContent({ tier, width, forecast, nowUtc, units }: MainContentProps)
             units={units}
             columns={2}
             width={width}
-            showPrecip={false}
+            showPrecip={!showDetails}
           />
         </box>
       </scrollbox>
@@ -118,22 +134,22 @@ function MainContent({ tier, width, forecast, nowUtc, units }: MainContentProps)
 
   return (
     <box flexDirection="column" flexGrow={1} gap={1}>
-      <Hero obs={forecast.current} units={units} />
-      {tier === "lg" ? (
+      <box flexDirection="row" gap={2}>
+        <Hero obs={forecast.current} units={units} />
         <DetailsGrid
           obs={forecast.current}
           today={forecast.daily[0]}
           utcOffsetSeconds={forecast.utcOffsetSeconds}
           units={units}
-          colWidth={Math.max(10, Math.floor(width / 2))}
+          colWidth={Math.max(10, Math.floor((width - HERO_RESERVE) / 2))}
         />
-      ) : null}
+      </box>
       <HourlyStrip
         points={forecast.hourly}
         nowUtc={nowUtc}
         utcOffsetSeconds={forecast.utcOffsetSeconds}
         units={units}
-        maxPoints={24}
+        maxPoints={48}
         width={width}
       />
       <text fg={palette.fgDim}>{sectionRule(`${forecast.daily.length} day`, width)}</text>

@@ -9,8 +9,25 @@ import {
   formatTemp,
   formatVisibility,
   formatWind,
+  tempWarmthT,
   uvLabel,
 } from "../../src/lib/weather/format";
+
+describe("tempWarmthT", () => {
+  test("freezing maps to fully cold", () => {
+    expect(tempWarmthT(0)).toBe(0);
+    expect(tempWarmthT(-15)).toBe(0);
+  });
+
+  test("35 °C and above maps to fully warm", () => {
+    expect(tempWarmthT(35)).toBe(1);
+    expect(tempWarmthT(41)).toBe(1);
+  });
+
+  test("midpoint is halfway between cold and warm", () => {
+    expect(tempWarmthT(17.5)).toBeCloseTo(0.5);
+  });
+});
 
 describe("convertTempC", () => {
   test("freezing point", () => {

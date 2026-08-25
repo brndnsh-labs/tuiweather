@@ -98,6 +98,16 @@ describe("cacheKey", () => {
     expect(KEY.endsWith(".json")).toBe(true);
     expect(KEY).toMatch(/^[0-9a-f]{64}\.json$/);
   });
+
+  test("forecast window participates in the key", () => {
+    expect(cacheKey("stub", 45.5202, -122.6765, { forecastDays: 7 })).not.toBe(KEY);
+    expect(cacheKey("stub", 45.5202, -122.6765, { forecastDays: 7, forecastHours: 24 })).not.toBe(
+      cacheKey("stub", 45.5202, -122.6765, { forecastDays: 7, forecastHours: 48 }),
+    );
+    expect(cacheKey("stub", 45.5202, -122.6765, { forecastDays: 7 })).toBe(
+      cacheKey("stub", 45.5204, -122.6765, { forecastDays: 7 }),
+    );
+  });
 });
 
 describe("cachedForecast", () => {

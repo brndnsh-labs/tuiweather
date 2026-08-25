@@ -75,3 +75,7 @@ Hard-won knowledge from building this UI against `@opentui/react` 0.5.x. Re-chec
 - **zustand v5: `create` vs `createStore`.** `create<T>()(fn)` returns a store that doubles as a React hook (components call it selector-style) while still exposing `getState()`/`setState()` for imperative use; vanilla `createStore` returns only the imperative form. Our store instance is passed as a prop and used both ways.
 - **The ascii-font tiny font lacks a degree glyph.** Never route `°` through font-based rendering; plain `text` elements handle it fine.
 - **`scrollbox` needs `viewportCulling={false}` under char-frame capture**, otherwise captured frames nondeterministically drop rows outside the culled window and goldens flake.
+- **Text at exactly the container width can wrap its last glyph** onto an extra row, silently shifting everything below. Keep single-line strings one column narrower than their box (see `seriesWidthFor`).
+- **Build char grids per character, not per slot.** `cells[i] = "10a"` makes `join("")` emit three chars for one slot and shifts the rest of the row right; write `label[k]` into individual slots instead (see `hourLabelsRow`).
+- **Hide a scrollbox's scrollbar with `scrollbarOptions={{ visible: false }}`.** The default indicator renders as a solid block column that reads like a rendering glitch in captured frames.
+- **`ascii-font` accepts two-tone colors.** Pass `color={[primary, secondary]}`; glyph segments tagged `<c1>`/`<c2>` in the font data pick up each entry (e.g. `slick` digits vs its minus sign).

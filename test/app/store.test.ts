@@ -58,12 +58,20 @@ async function makeConfigDir(toml: string): Promise<string> {
 function stubFetcher(
   forecast?: NormalizedForecast,
   failWith?: ProviderError,
-): ForecastFetcher & { calls: { locations: string[]; maxAges: number[] } } {
-  const calls = { locations: [] as string[], maxAges: [] as number[] };
+): ForecastFetcher & { calls: { locations: string[]; maxAges: number[]; windows: unknown[] } } {
+  const calls = {
+    locations: [] as string[],
+    maxAges: [] as number[],
+    windows: [] as unknown[],
+  };
   return Object.assign(
-    (location: { latitude: number; longitude: number }, opts: { maxAgeMinutes: number }) => {
+    (
+      location: { latitude: number; longitude: number },
+      opts: { maxAgeMinutes: number; window: unknown },
+    ) => {
       calls.locations.push(`${location.latitude},${location.longitude}`);
       calls.maxAges.push(opts.maxAgeMinutes);
+      calls.windows.push(opts.window);
       if (failWith) return Promise.reject(failWith);
       return Promise.resolve({ forecast: forecast ?? makeForecast(), stale: false });
     },
@@ -118,6 +126,36 @@ describe("store", () => {
     expect(fetcher.calls.locations).toEqual(["51.5072,-0.1276"]);
     expect(store.getState().forecastBySlug.london?.forecast.current.temperatureC).toBe(18);
     expect(store.getState().loadingSlugs).toEqual({});
+  });
+
+  test("passes the configured forecast window to the fetcher", async () => {
+    const dir = await makeConfigDir(CONFIG_TOML);
+    const fetcher = stubFetcher();
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: fetcher,
+    });
+
+    await store.getState().init();
+
+    expect(fetcher.calls.windows).toEqual([{ forecastDays: 7, forecastHours: 24 }]);
+  });
+
+  test("honors daily_days and hourly_hours config overrides", async () => {
+    const toml = CONFIG_TOML.replace(
+      "refresh_minutes = 10\n",
+      "refresh_minutes = 10\ndaily_days = 10\nhourly_hours = 48\n",
+    );
+    const dir = await makeConfigDir(toml);
+    const fetcher = stubFetcher();
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: fetcher,
+    });
+
+    await store.getState().init();
+
+    expect(fetcher.calls.windows).toEqual([{ forecastDays: 10, forecastHours: 48 }]);
   });
 
   test("init falls back to the first location when no default is set", async () => {

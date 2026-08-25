@@ -5,7 +5,7 @@ export const SPARKLINE_RAMP = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", 
 const EMPTY_CHAR = "–";
 const FLAT_IDX = 3;
 
-function resample(values: number[], width: number): number[] {
+export function resample(values: number[], width: number): number[] {
   if (width === values.length) return values;
   const out: number[] = [];
   for (let j = 0; j < width; j++) {

@@ -1,4 +1,4 @@
-import { Sparkline } from "../../components/Sparkline";
+import { resample, Sparkline } from "../../components/Sparkline";
 import { formatHourLabel, type Units } from "../../lib/weather/format";
 import type { HourlyPoint } from "../../lib/weather/types";
 import { usePalette } from "../../theme/tokens";
@@ -17,11 +17,21 @@ const RAIN_RAMP = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"] as co
 const DRY_CHAR = "░";
 const TEMP_LABEL = "temp ";
 const RAIN_LABEL = "rain ";
+const LABEL_GUTTER = TEMP_LABEL.length;
+/** Widening beyond this many cells per point just smears the series into plateaus. */
+const MAX_CELLS_PER_POINT = 3;
 
 export function sliceUpcoming(points: HourlyPoint[], nowUtc: string, max: number): HourlyPoint[] {
   const nowMs = Date.parse(nowUtc);
   const upcoming = points.filter((p) => Date.parse(p.timeUtc) >= nowMs);
   return upcoming.slice(0, Math.max(0, max));
+}
+
+export function seriesWidthFor(pointCount: number, width: number): number {
+  // One spare column: text sized to exactly the container width wraps its
+  // last glyph onto an extra row in the char renderer.
+  const maxWidth = Math.max(1, width - LABEL_GUTTER - 1);
+  return Math.max(1, Math.min(pointCount * MAX_CELLS_PER_POINT, maxWidth));
 }
 
 export function precipBars(values: number[]): string {
@@ -43,17 +53,24 @@ export function sectionRule(label: string, width: number): string {
   return prefix + "─".repeat(width - prefix.length);
 }
 
-function hourLabelsRow(points: HourlyPoint[], utcOffsetSeconds: number, width: number): string {
-  if (points.length === 0) return "";
-  const step = Math.max(1, Math.ceil(points.length / 5));
-  const cells = new Array<string>(points.length).fill(" ");
-  for (let i = 0; i < points.length; i += step) {
-    const point = points[i];
+export function hourLabelsRow(
+  points: HourlyPoint[],
+  utcOffsetSeconds: number,
+  seriesWidth: number,
+): string {
+  if (points.length === 0 || seriesWidth <= 0) return "";
+  const chars = new Array<string>(seriesWidth).fill(" ");
+  const step = Math.max(3, Math.floor(seriesWidth / 6));
+  for (let c = 0; c < seriesWidth; c += step) {
+    const idx = Math.min(points.length - 1, Math.floor(((c + 0.5) / seriesWidth) * points.length));
+    const point = points[idx];
     if (!point) continue;
     const label = formatHourLabel(point.timeUtc, utcOffsetSeconds);
-    cells[i] = label.slice(0, Math.min(step, width - i));
+    for (let k = 0; k < label.length && c + k < seriesWidth; k++) {
+      chars[c + k] = label[k] ?? " ";
+    }
   }
-  return cells.join("").slice(0, width);
+  return `${" ".repeat(LABEL_GUTTER)}${chars.join("")}`;
 }
 
 export function HourlyStrip({
@@ -69,7 +86,7 @@ export function HourlyStrip({
   const window = sliceUpcoming(points, nowUtc, maxPoints);
   if (window.length === 0 || width < 6) return null;
 
-  const seriesWidth = Math.min(window.length, Math.max(1, width - TEMP_LABEL.length));
+  const seriesWidth = seriesWidthFor(window.length, width);
   const tempValues = window.map((p) => p.temperatureC);
   const precipValues = window.map((p) => p.precipMm);
 
@@ -82,10 +99,10 @@ export function HourlyStrip({
       </box>
       <box flexDirection="row">
         <text fg={palette.fgDim}>{RAIN_LABEL}</text>
-        <text fg={palette.accent}>{precipBars(precipValues).slice(0, seriesWidth)}</text>
+        <text fg={palette.accent}>{precipBars(resample(precipValues, seriesWidth))}</text>
       </box>
       {labels ? (
-        <text fg={palette.fgDim}>{hourLabelsRow(window, utcOffsetSeconds, width)}</text>
+        <text fg={palette.fgDim}>{hourLabelsRow(window, utcOffsetSeconds, seriesWidth)}</text>
       ) : null}
     </box>
   );

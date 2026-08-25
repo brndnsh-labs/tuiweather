@@ -40,6 +40,19 @@ export function convertTempC(c: number, units: Units): number {
   return units === "imperial" ? (c * 9) / 5 + 32 : c;
 }
 
+const TEMP_WARMTH_FLOOR_C = 0;
+const TEMP_WARMTH_CEIL_C = 35;
+
+/**
+ * Normalized cold→warm position for coloring the hero temperature:
+ * 0 at/below freezing, 1 at/above 35 °C, linear in between.
+ */
+export function tempWarmthT(celsius: number): number {
+  const span = TEMP_WARMTH_CEIL_C - TEMP_WARMTH_FLOOR_C;
+  const t = (celsius - TEMP_WARMTH_FLOOR_C) / span;
+  return Math.max(0, Math.min(1, t));
+}
+
 export function formatTemp(c: number | null, units: Units): string {
   if (c === null) return EN_DASH;
   return `${Math.round(convertTempC(c, units))}°`;

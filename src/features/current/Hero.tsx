@@ -1,10 +1,11 @@
+import { lerpHex } from "../../components/RangeBar";
 import { conditionGlyph, conditionLabel } from "../../lib/providers/openmeteo/wmo";
 import {
   convertTempC,
   formatTemp,
   formatWind,
+  tempWarmthT,
   type Units,
-  uvLabel,
 } from "../../lib/weather/format";
 import type { CurrentObs } from "../../lib/weather/types";
 import { usePalette } from "../../theme/tokens";
@@ -60,36 +61,20 @@ export function Hero({ obs, units, compact = false, mini = false }: HeroProps) {
     );
   }
 
+  const tempFg = lerpHex(palette.tempCold, palette.tempWarm, tempWarmthT(obs.temperatureC));
+
   return (
-    <box flexDirection="column">
-      <box flexDirection="row" alignItems="flex-end">
-        <ascii-font text={bigTempDigits(obs, units)} font="tiny" color={palette.tempWarm} />
-        <text fg={palette.fgDim}>°</text>
+    <box flexDirection="column" flexShrink={0}>
+      <box flexDirection="row" alignItems="flex-start">
+        <ascii-font text={bigTempDigits(obs, units)} font="slick" color={[tempFg, palette.fgDim]} />
+        <text fg={tempFg}>°</text>
       </box>
-      <box flexDirection="row" gap={1}>
-        <text fg={palette.fg}>
-          {`${conditionGlyph(obs.condition)} ${conditionLabel(obs.condition)} · feels like ${formatTemp(
-            obs.apparentC,
-            units,
-          )}`}
-        </text>
-      </box>
-      <StatLine
-        dim={palette.fgDim}
-        parts={[
-          `↑ ${formatWind(obs.windSpeedKmh, obs.windDirectionDeg, units)}`,
-          `humidity ${Math.round(obs.humidityPct)}%`,
-          obs.dewPointC === null ? null : `dew pt ${formatTemp(obs.dewPointC, units)}`,
-        ]}
-      />
-      <StatLine
-        dim={palette.fgDim}
-        parts={[
-          obs.uvIndex === null ? "uv --" : `uv ${Math.round(obs.uvIndex)} ${uvLabel(obs.uvIndex)}`,
-          "vis --",
-          obs.pressureHpa === null ? null : `${Math.round(obs.pressureHpa)} hPa`,
-        ]}
-      />
+      <text fg={palette.fg}>
+        {`${conditionGlyph(obs.condition)} ${conditionLabel(obs.condition)} · feels like ${formatTemp(
+          obs.apparentC,
+          units,
+        )}`}
+      </text>
     </box>
   );
 }

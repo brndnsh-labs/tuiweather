@@ -55,6 +55,7 @@ const DAILY_VARIABLES = [
 
 export interface ForecastOptions {
   forecastDays?: number;
+  forecastHours?: number;
   pastHours?: number;
   pastMinutely15?: number;
   forecastMinutely15?: number;
@@ -75,6 +76,9 @@ export function buildForecastUrl(location: GeoPoint, opts: ForecastOptions = {})
     past_minutely_15: String(opts.pastMinutely15 ?? 8),
     forecast_minutely_15: String(opts.forecastMinutely15 ?? 12),
   });
+  if (opts.forecastHours !== undefined) {
+    params.set("forecast_hours", String(opts.forecastHours));
+  }
   return `${FORECAST_ENDPOINT}?${params.toString()}`;
 }
 
