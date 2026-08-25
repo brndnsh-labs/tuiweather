@@ -8,6 +8,7 @@ import { HourlyStrip, sectionRule, sliceUpcoming } from "../features/hourly/Hour
 import { NowcastBanner } from "../features/nowcast/NowcastBanner";
 import { FirstRun } from "../features/onboarding/FirstRun";
 import { SearchOverlay } from "../features/search/SearchOverlay";
+import type { TuiConfig } from "../lib/config/schema";
 import { conditionGlyph } from "../lib/providers/openmeteo/wmo";
 import { deriveNowcast } from "../lib/weather/derive";
 import { formatTemp } from "../lib/weather/format";
@@ -52,6 +53,7 @@ interface MainContentProps {
   forecast: NormalizedForecast;
   nowUtc: string;
   units: "metric" | "imperial";
+  panels: TuiConfig["panels"];
 }
 
 function XsChips({
@@ -69,7 +71,7 @@ function XsChips({
   );
 }
 
-function MainContent({ tier, width, forecast, nowUtc, units }: MainContentProps) {
+function MainContent({ tier, width, forecast, nowUtc, units, panels }: MainContentProps) {
   const palette = usePalette();
   const nowcast = deriveNowcast(forecast, nowUtc);
 
@@ -78,15 +80,15 @@ function MainContent({ tier, width, forecast, nowUtc, units }: MainContentProps)
     return (
       <box flexDirection="column" gap={1}>
         <Hero obs={forecast.current} units={units} mini />
-        <NowcastBanner nowcast={nowcast} hideWhenDry width={width} />
-        {tempValues.length > 0 ? (
+        {panels.nowcast ? <NowcastBanner nowcast={nowcast} hideWhenDry width={width} /> : null}
+        {panels.hourly && tempValues.length > 0 ? (
           <Sparkline
             values={tempValues}
             width={Math.min(tempValues.length, width)}
             palette={palette}
           />
         ) : null}
-        <XsChips forecast={forecast} units={units} width={width} />
+        {panels.daily ? <XsChips forecast={forecast} units={units} width={width} /> : null}
       </box>
     );
   }
@@ -96,7 +98,7 @@ function MainContent({ tier, width, forecast, nowUtc, units }: MainContentProps)
     return (
       <scrollbox flexGrow={1} focused viewportCulling={false} scrollbarOptions={{ visible: false }}>
         <box flexDirection="column" gap={1}>
-          {showDetails ? (
+          {showDetails && panels.details ? (
             <box flexDirection="row" gap={2}>
               <Hero obs={forecast.current} units={units} />
               <DetailsGrid
@@ -110,23 +112,29 @@ function MainContent({ tier, width, forecast, nowUtc, units }: MainContentProps)
           ) : (
             <Hero obs={forecast.current} units={units} compact />
           )}
-          <NowcastBanner nowcast={nowcast} hideWhenDry width={width} />
-          <HourlyStrip
-            points={forecast.hourly}
-            nowUtc={nowUtc}
-            utcOffsetSeconds={forecast.utcOffsetSeconds}
-            units={units}
-            maxPoints={showDetails ? 48 : 12}
-            width={width}
-          />
-          <text fg={palette.fgDim}>{sectionRule(`${forecast.daily.length} day`, width)}</text>
-          <DailyList
-            days={forecast.daily}
-            units={units}
-            columns={2}
-            width={width}
-            showPrecip={!showDetails}
-          />
+          {panels.nowcast ? <NowcastBanner nowcast={nowcast} hideWhenDry width={width} /> : null}
+          {panels.hourly ? (
+            <HourlyStrip
+              points={forecast.hourly}
+              nowUtc={nowUtc}
+              utcOffsetSeconds={forecast.utcOffsetSeconds}
+              units={units}
+              maxPoints={showDetails ? 48 : 12}
+              width={width}
+            />
+          ) : null}
+          {panels.daily ? (
+            <>
+              <text fg={palette.fgDim}>{sectionRule(`${forecast.daily.length} day`, width)}</text>
+              <DailyList
+                days={forecast.daily}
+                units={units}
+                columns={2}
+                width={width}
+                showPrecip={!showDetails}
+              />
+            </>
+          ) : null}
         </box>
       </scrollbox>
     );
@@ -136,24 +144,32 @@ function MainContent({ tier, width, forecast, nowUtc, units }: MainContentProps)
     <box flexDirection="column" flexGrow={1} gap={1}>
       <box flexDirection="row" gap={2}>
         <Hero obs={forecast.current} units={units} />
-        <DetailsGrid
-          obs={forecast.current}
-          today={forecast.daily[0]}
+        {panels.details ? (
+          <DetailsGrid
+            obs={forecast.current}
+            today={forecast.daily[0]}
+            utcOffsetSeconds={forecast.utcOffsetSeconds}
+            units={units}
+            colWidth={Math.max(10, Math.floor((width - HERO_RESERVE) / 2))}
+          />
+        ) : null}
+      </box>
+      {panels.hourly ? (
+        <HourlyStrip
+          points={forecast.hourly}
+          nowUtc={nowUtc}
           utcOffsetSeconds={forecast.utcOffsetSeconds}
           units={units}
-          colWidth={Math.max(10, Math.floor((width - HERO_RESERVE) / 2))}
+          maxPoints={48}
+          width={width}
         />
-      </box>
-      <HourlyStrip
-        points={forecast.hourly}
-        nowUtc={nowUtc}
-        utcOffsetSeconds={forecast.utcOffsetSeconds}
-        units={units}
-        maxPoints={48}
-        width={width}
-      />
-      <text fg={palette.fgDim}>{sectionRule(`${forecast.daily.length} day`, width)}</text>
-      <DailyList days={forecast.daily} units={units} columns={1} width={width} />
+      ) : null}
+      {panels.daily ? (
+        <>
+          <text fg={palette.fgDim}>{sectionRule(`${forecast.daily.length} day`, width)}</text>
+          <DailyList days={forecast.daily} units={units} columns={1} width={width} />
+        </>
+      ) : null}
     </box>
   );
 }
@@ -258,6 +274,7 @@ export function App(props: AppProps = {}) {
         forecast={forecast}
         nowUtc={nowUtc}
         units={config.units}
+        panels={config.panels}
       />
     ) : (
       <text fg={palette.fgDim}>{tier}</text>
