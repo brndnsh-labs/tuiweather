@@ -1,7 +1,7 @@
 import { createCliRenderer } from "@opentui/core";
 import { createRoot } from "@opentui/react";
 import { App } from "./app/App";
-import { buildOneLine } from "./app/oneline";
+import { buildJsonLine, buildOneLine } from "./app/oneline";
 import { appStore } from "./app/store";
 import type { CliArgs } from "./cli";
 import { HELP_TEXT, parseArgs, USAGE, VERSION } from "./cli";
@@ -18,25 +18,45 @@ function stderr(message: string): void {
 function resolveSlugFromConfig(
   config: TuiConfig,
   locationArg: string | null,
-): { slug: string; latitude: number; longitude: number } | { error: string } {
+): { slug: string; label: string; latitude: number; longitude: number } | { error: string } {
   if (locationArg !== null) {
     const match = config.locations.find((loc) => loc.slug === locationArg);
     if (!match) return { error: `unknown location "${locationArg}"` };
-    return { slug: match.slug, latitude: match.latitude, longitude: match.longitude };
+    return {
+      slug: match.slug,
+      label: match.label,
+      latitude: match.latitude,
+      longitude: match.longitude,
+    };
   }
   const fallback =
     config.locations.find((loc) => loc.slug === config.default_location) ?? config.locations[0];
   if (!fallback) return { error: "no locations configured" };
-  return { slug: fallback.slug, latitude: fallback.latitude, longitude: fallback.longitude };
+  return {
+    slug: fallback.slug,
+    label: fallback.label,
+    latitude: fallback.latitude,
+    longitude: fallback.longitude,
+  };
 }
 
-async function runOneLine(locationArg: string | null): Promise<number> {
+async function runOneLine(args: CliArgs): Promise<number> {
   const config = await loadConfig();
-  const resolved = resolveSlugFromConfig(config, locationArg);
-  if ("error" in resolved) {
-    const hint = config.locations.length === 0 ? "; run tuiweather to set one up" : "";
-    stderr(`${resolved.error}${hint}`);
-    return 2;
+  let latitude: number;
+  let longitude: number;
+  let label: string | null = null;
+  if (args.latLon) {
+    ({ latitude, longitude } = args.latLon);
+  } else {
+    const resolved = resolveSlugFromConfig(config, args.location);
+    if ("error" in resolved) {
+      const hint = config.locations.length === 0 ? "; run tuiweather to set one up" : "";
+      stderr(`${resolved.error}${hint}`);
+      return 2;
+    }
+    latitude = resolved.latitude;
+    longitude = resolved.longitude;
+    label = resolved.label;
   }
   const provider: WeatherProvider = {
     id: OPENMETEO_PROVIDER_ID,
@@ -44,10 +64,17 @@ async function runOneLine(locationArg: string | null): Promise<number> {
   };
   const { forecast } = await cachedForecast(
     provider,
-    { latitude: resolved.latitude, longitude: resolved.longitude },
+    { latitude, longitude },
     { maxAgeMinutes: config.refresh_minutes },
   );
-  process.stdout.write(`${buildOneLine(forecast, config.units, new Date().toISOString())}\n`);
+  const nowUtc = new Date().toISOString();
+  if (args.json) {
+    process.stdout.write(
+      `${JSON.stringify(buildJsonLine(forecast, { label, latitude, longitude }, config.units, nowUtc))}\n`,
+    );
+  } else {
+    process.stdout.write(`${buildOneLine(forecast, config.units, nowUtc)}\n`);
+  }
   return 0;
 }
 
@@ -87,7 +114,7 @@ async function main(): Promise<number> {
     return 0;
   }
   try {
-    if (args.oneLine) return await runOneLine(args.location);
+    if (args.oneLine || args.json) return await runOneLine(args);
     return await runTui(args.location);
   } catch (e) {
     stderr(e instanceof Error ? e.message : String(e));
