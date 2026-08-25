@@ -1,0 +1,94 @@
+// the-cycle bindings for this repo.
+// Everything repo-specific lives here; the skills in configured harness trees are rendered
+// from shared templates and should not be hand-edited (`cycle check` will tell you
+// if they have been). Re-render with `cycle update` after changing this file.
+{
+  "repo": {
+    "name": "tuiweather",
+    "slug": "brndnsh-labs/tuiweather",
+    "human": "Brandon"
+  },
+  "profile": "lean",
+  "backend": "github",
+  "backend_overrides": {
+    "auto_merge": true
+  },
+  "harnesses": [
+    "codex",
+    "opencode",
+    "claude"
+  ],
+  "tracker": {
+    "description": "**GitHub issues** (`brndnsh-labs/tuiweather`)",
+    "statuses": [
+      {
+        "name": "status:ready",
+        "meaning": "scoped + pickable",
+        "action": "`/next` ranks & picks; `/implement`/`/cycle` build"
+      },
+      {
+        "name": "status:in-progress",
+        "meaning": "being built",
+        "action": "don't re-pick"
+      },
+      {
+        "name": "status:in-review",
+        "meaning": "built, under review / PR open",
+        "action": "don't re-pick"
+      },
+      {
+        "name": "status:blocked",
+        "meaning": "blocked on a dependency",
+        "action": "skip; name the blocker"
+      },
+      {
+        "name": "status:needs-decision",
+        "meaning": "blocked on a human call",
+        "action": "surface it; **don't build**"
+      }
+    ],
+    "status": {
+      "pickable": "status:ready",
+      "active": "status:in-progress",
+      "done": "status:in-review",
+      "decision": "status:needs-decision"
+    },
+    "ranking": "**milestone first** (a real numbered epic beats no milestone), then **issue number** (lower first)",
+    "milestones": []
+  },
+  "routing": {
+    "model": "Use the active harness's default model unless the task explicitly requires another.",
+    "executor_default": "orchestrator-inline"
+  },
+  "gates": {
+    "typecheck": "bun run typecheck",
+    "lint": "bun run lint",
+    "test": "bun run test",
+    "build": "bun run build"
+  },
+  "deps": {
+    "has_manager": true,
+    "outdated": "bun outdated",
+    "audit": "bun audit",
+    "audit_fix": "",
+    "update": "bun update",
+    "install": "bun install",
+    "lockfile": "bun.lock",
+    "manifests": [
+      "package.json"
+    ]
+  },
+  "brakes": [
+    "user-config schema & migrations",
+    "secrets handling",
+    "release/publish plumbing",
+    "anything destructive or irreversible"
+  ],
+  "branch": {
+    "minor_edits_direct": true
+  },
+  "deploy": {
+    "test": "",
+    "prod": ""
+  }
+}

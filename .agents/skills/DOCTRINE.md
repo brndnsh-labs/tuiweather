@@ -1,0 +1,389 @@
+<!-- cycle:rendered template=DOCTRINE.md.tmpl hash=b7855b849fd7 — managed by the-cycle; edit the template, not this file -->
+# Pipeline doctrine (shared)
+
+Single source of truth for the rules the tuiweather work-loop skills share. A skill that says
+"see DOCTRINE §X" means *this* file. **If this isn't already in your context, read it once** —
+within a session the read amortizes across every pipeline skill you run.
+
+Reconcile here, not in the skills: when a rule changes, edit this file, not the skills that
+restate it. The skills hold only their *unique* procedure.
+
+# Posture
+
+Small, opinionated codebase where the gates do most of the reviewing — tight changes win.
+
+Correctness invariants are product features: metric internally, absolute time everywhere, terminal alignment at every width. Violations are bugs, not style nits.
+
+Dependencies stay minimal; every addition is a decision someone defends, not an accident that accumulates.
+
+AGENTS.md records hard-won OpenTUI knowledge and is ground truth for UI work — when it and instinct disagree, it wins until verified otherwise.
+
+---
+
+## §1 Tracker & readiness
+
+The tracker is **GitHub issues** (`brndnsh-labs/tuiweather`). A **story = an issue**: its **body** holds
+Why / Touches / Acceptance; routing lives in its **labels** (§3). **Milestones = epics.**
+
+**"The board" is the open issue list** — there is no separate artifact to keep in sync, and
+nothing to be on or off. Status is one `status:*` label on the issue itself.
+
+| Status label | Meaning | Pipeline action |
+| --- | --- | --- |
+| `status:ready` | scoped + pickable | `/next` ranks & picks; `/implement`/`/cycle` build |
+| `status:in-progress` | being built | don't re-pick |
+| `status:in-review` | built, under review / PR open | don't re-pick |
+| `status:blocked` | blocked on a dependency | skip; name the blocker |
+| `status:needs-decision` | blocked on a human call | surface it; **don't build** |
+| *(none)* | the idea pile — filed but not scheduled | triage/scope it first; don't pick |
+
+After a successful status transition, exactly one `status:*` label remains. The ordered write
+clears the whole set before adding the target, so there is a brief unlabeled intermediate event
+but never overlapping status values. Outside that in-flight transition, **no label is a real
+state**, not a gap — it's every issue still waiting on a §10.5 certainty call (a review-carved
+observation, §2; a finding the filer couldn't confidently route), and that untriaged pile is where
+triage starts.
+
+**Ranking pickable work** (`/next`): **milestone first** (a real numbered epic beats no milestone), then **issue number** (lower first).
+
+**A closed issue is "done."** `Closes #<n>` closes the issue on merge, and that close *is* the
+completion record — there is no `status:done`, because a second source of truth can disagree with
+the close and will eventually go stale. Status labels route **open** issues only; the last one may
+remain as the issue's final open-state history after closure, but the open-only board ignores it.
+The pipeline writes `status:in-review` when the PR opens, then lets the merge finish the
+story. Reopening starts a new routing decision: explicitly set the next status; never infer it
+from the retained label.
+
+**A stale-*open* issue may already be shipped.** An umbrella/parent issue's slices often ship
+under sibling-numbered PRs that never reference the umbrella's own number — `git log --grep=#<n>`
+finds nothing even though the work is done. Before building a pickable-looking issue, trace
+whether the described *behavior* already exists in live code (`git log -S"<symbol>"`, read the
+actual function) — don't trust issue-number absence in history as proof no work has happened.
+
+# Tracker readiness
+
+- No milestones in use yet — effective ranking falls back to issue number.
+- A `status:ready` issue carries acceptance criteria or a repro inline; if the scoping lives only in a comment thread, finish scoping before flipping it ready.
+- Titles follow conventional commits (`feat:`, `fix:`, `chore:`) — the release script generates the changelog from merged titles verbatim.
+- Bug reports name the terminal emulator and column width where relevant; rendering behavior is breakpoint-dependent.
+
+## §2 Labels
+
+- **`finding`** — review debt, diff-coupled; **should trend to empty**. A cycle must not *grow*
+  this set as a side effect — escalate only with Brandon's nod (§5).
+- **`scout`** — provenance stamp on issues filed by a `/scout` sweep, so their origin stays
+  visible later. Additive only; doesn't change routing.
+
+**An issue carved from a review's out-of-scope observation arrives unrouted by design** — no
+routing values set. Don't treat that as under-specification: routing is decided by the *picking*
+skill at `/cycle` time, from what the diff actually touches, not at filing time.
+
+## §3 Routing
+
+- **Model:** Use the active harness's default model unless the task explicitly requires another.
+- **Executor:** **`orchestrator-inline` by default** — the main thread builds directly,
+  keeping accumulated context. **Spawn parallel agents only for
+  independent mechanical work** (the same change across several files); keep shared-file edits
+  (indexes, schema) and the validation gates on the main thread.
+- **Reviewer** (`/review` routes by the diff):
+  - The **inline correctness pass** — any non-trivial diff. The orchestrator reviews the diff
+    itself (logic, edges, error paths, contracts, invariants). The heavyweight `/code-review` is
+    **human-triggered** — the loop cannot invoke it; offer it on a large or risky diff and leave
+    the call to Brandon.
+  - **`/security-review`** — **additionally**, whenever the diff touches user-config schema & migrations, secrets handling, release/publish plumbing, anything destructive or irreversible.
+  - A **second-model angle** (a different model family or tier from the implementer) is a cheap
+    way to catch same-prior blind spots on a meaty diff.
+
+**Re-verify agent claims:** a spawned agent's "gates green / tests pass" is a *claim*. Re-run the
+gates **yourself** before trusting it — a spawned "all green" has failed in a clean shell before.
+
+## §4 Gates
+
+Local, before handing to `/review` or `/done` (never proceed over a red gate):
+
+```
+bun run typecheck
+bun run lint
+bun run test
+bun run build
+```
+
+# Gates
+
+What each gate is for, beyond the command:
+
+- **typecheck** (`tsc --noEmit`, strict) — catches unit and time-semantics violations expressible in types. Non-null assertions require a proven-safe justification comment.
+- **lint** (`biome check` = lint + format) — formatting drift fails CI outright; `bun run fmt` before pushing, don't fix on merge.
+- **test** (`bun test`) — new behavior ships with tests; bug fixes ship with a regression test. No network: HTTP lives as fixtures under `test/fixtures/`. Goldens update only via `bun test -u` and are reviewed line by line — a `.snap` diff must be visually intentional.
+- **build** (`bun run build`) — the shipped artifact must bundle standalone with `@opentui/core-*` external; CI runs it inside the same required `verify` job.
+
+Repo rules around gates:
+
+- All gates green **twice consecutively** before merge (flake guard — don't waive it).
+- CI installs with `--frozen-lockfile`: manifest changes must carry `bun.lock` updates in the same PR.
+
+## §5 Judgment calls & autonomy
+
+**Default: run the whole chain unattended** for self-contained, gate-verifiable, non-destructive
+stories; Brandon reviews the *result*. **Tier does not gate autonomy** — it only picks the
+executor's model. What gates a pause is a **judgment call**.
+
+**Stop and surface — the always-brake set:**
+- **user-config schema & migrations** — Brandon wants to *see* these even when the cycle could proceed.
+- **secrets handling** — Brandon wants to *see* these even when the cycle could proceed.
+- **release/publish plumbing** — Brandon wants to *see* these even when the cycle could proceed.
+- **anything destructive or irreversible** — Brandon wants to *see* these even when the cycle could proceed.
+- A review finding needs a **design decision**, is **P0**, or **contradicts a memory note**.
+- An **implementation choice is genuinely ambiguous** with no obvious default — surface options +
+  a recommendation, don't guess.
+- **Gates/CI red**, an agent returned **Blocked**, or a spawned "green" that doesn't reproduce.
+
+When the work is well-specified, run it. When in doubt about a *decision*, surface it.
+
+**Findings get actioned, not parked:** `/patch` fix-now is the default (P0/P1/bounded-P2); too-big
+= *escalate* to a `finding` issue with Brandon's nod, never a silent defer. An implementer's
+own "out of scope, defer to follow-up" tag does **not** override this — if the deferred item would
+falsify the story's stated `Acceptance:` criterion, it's in scope regardless of the tag.
+
+**Plans are status updates, not confirmation gates.** Every pipeline skill presents its plan
+(`## Plan` / `## Cycle plan` / `## Review plan` / `## Patch plan`) before acting — that's for
+visibility, so Brandon can see and redirect. It is **not** a "Proceed?" prompt to wait on.
+Present the plan, then continue in the same turn unless the plan *itself* surfaces a judgment call
+from this section. This applies whether a skill is driven by `/cycle` or invoked directly.
+
+**The autonomous safe set (`/burndown`).** The unattended grinders operate on the **negation of the
+always-brake set**: an item is safe only if it is *none* of the classes above AND is
+well-specified, small-to-medium, single-area, and **gate-verifiable** (provable by §4). When
+unsure, **exclude and surface** — a mis-graded autonomous merge costs trust; a skipped-safe item
+only costs throughput.
+
+**The fast path (`/implement` → `/review` → `/done`).** Ceremony should scale with risk, not apply
+uniformly. A story is fast-path eligible only when it is **all** of: touches **one or two files**,
+every one of them **docs and/or config** (no application/library code), the change is
+**deterministic** — the diff would be the same no matter who wrote it — and §4's gates can **prove**
+it, and it is **none** of the always-brake classes above. When unsure, it is **not** eligible; fall
+back to the normal flow. A mis-graded fast path costs more than the ceremony it was meant to save.
+
+On the fast path, `/implement` fetches the issue once, states a **one-sentence plan** in place of
+the full `## Plan` block, skips task-list/subagent ceremony, makes the edit, runs §4's gates, and
+emits a **verification receipt** instead of a separate narrative report:
+
+```
+## Verification receipt
+**Issue:** #<n>
+**Files:** <changed files, exhaustive>
+**Diff fingerprint:** <first 12 hex chars of sha256(`git diff -- <files>`)>
+**Gates:**
+- `bun run typecheck` — <PASS/FAIL>
+- `bun run lint` — <PASS/FAIL>
+- `bun run test` — <PASS/FAIL>
+- `bun run build` — <PASS/FAIL>
+```
+
+`/review` and `/done` may **consume** that receipt — skipping the reads and re-derivations it
+already proves — but only while a **freshly recomputed** fingerprint over the same file list still
+matches the one in the receipt and every gate in it reads PASS. A stale fingerprint (the tree
+changed since), a missing receipt (a new session, or a normal-path `/implement`), or any gate
+reading FAIL all mean the same thing: fall back to that skill's normal verification, silently and
+without complaint — a receipt is an optimization a skill can always live without, never a
+requirement it depends on.
+
+The fast path still performs tracker status, branch policy, §4's gates, and normal delivery safety
+in full; it compresses **ceremony and duplicate reads**, never the checks themselves. Each phase
+still answers its own question — implement proves acceptance, review looks for what implement's own
+proof can't see (missed defects, contradictory wording, unintended edits), patch resolves what
+review finds, done handles delivery and freshness — the receipt lets a later phase skip *re-proving*
+an earlier one's answer, not skip asking its own question.
+
+# Judgment calls
+
+- Golden diff you can't visually explain → stop. Never `-u` your way back to green.
+- New dependency → stop and justify; additions require a case in the PR description.
+
+What the §5 brake names mean here:
+
+- **user-config schema & migrations** — a `schema_version` bump requires a migration; writes to `~/.config/tuiweather/config.toml` stay atomic (tmp + rename).
+- **secrets handling** — keys resolve env var > config file and are never logged or embedded in error messages (reserved for future providers; Open-Meteo needs none today).
+- **release/publish plumbing** — `scripts/release.sh`, `.github/workflows/release.yml`, npm publish; public and effectively irreversible once tagged.
+
+Also surface before building:
+
+- Adding a weather provider or touching the WMO table → propose the normalize plan (fixtures, instant conversion) first; WMO codes may exist only under `src/lib/providers/<provider>/`.
+- Changing breakpoint tiers or the glyph set → user-visible contract; flag it in the issue before building.
+
+## §6 Merge guard
+
+The pipeline pushes + opens PRs. **Auto-merge SAFE stories** (none of §5's always-brake classes,
+AND green CI); **a judgment-call story's PR is left open for Brandon's manual merge** —
+report "ready for your merge: <url>" + *why* it's gated.
+
+**Server-side auto-merge is enabled here**, and the forge enforces the required checks — so queue
+the merge and let it do the waiting:
+
+```bash
+gh pr merge "<pr>" --auto --squash
+```
+
+It cannot merge early: `--auto` waits until the repo's merge requirements are satisfied, and with
+required status checks configured those requirements *are* the checks. Prefer this to a
+client-side poll — enforcement survives a killed session, a crashed harness, or a denied background
+command, and it costs no polling quota.
+
+If it errors `Auto merge is not allowed for this repository`, the forge setting was turned off:
+the declaration in `.cycle/config.jsonc` is now a lie. Re-enable it, or drop
+`backend_overrides.auto_merge` and fall back to the poll guard. `cycle check --verify-forge`
+catches that drift before it bites.
+
+Closing rides on the PR body's `Closes #<n>` keyword — GitHub fires it anywhere in the body
+regardless of surrounding prose (§8), so a multi-phase PR must never place that token next to an
+issue number it shouldn't close.
+
+**Reading a red gate.** Logs come from `gh run view "<run>" --log`.
+`gh run view "<run>" --log-failed`
+narrows one run to its failed steps, but it does **not** search backwards: list the runs first
+(`gh run list`) and pass the id of the one that actually failed. A red CI is diagnosable, so **"retry and see" is not
+an acceptable first move** — read the log, then decide transient-vs-real. §5 still makes an
+unexplained red a hard stop.
+
+After a safe merge: **sync local main** (`git checkout main && git fetch origin && git reset --hard
+origin/main`) and prune the branch.
+
+**The harness's own auto-mode classifier can independently deny the merge command**, even
+on a safe story with everything above satisfied. That's an environment-level permission gate, not a
+pipeline judgment call, and no skill text can route around it. If it fires: report the open,
+CI-pending PR and ask Brandon for a one-turn approval to re-run the merge (or to
+merge it himself). Don't treat the denial as a §5 pause, and don't retry with `--no-verify` or
+other workarounds.
+
+# Merge guard
+
+Merging to `main` ships nothing. There is no continuous deployment.
+
+1. Releases are cut manually by Brandon from clean synced `main`: `./scripts/release.sh <major|minor|patch>`.
+2. The script runs the release gates, bumps `package.json`, prepends a changelog section generated from conventional commits, tags `vX.Y.Z`, and atomically pushes the release commit and tag.
+3. The `release` workflow then prepares exact artifacts, publishes to npm via OIDC trusted publishing, and attaches standalone binaries + checksums to the GitHub release.
+
+Agents never run `release.sh`, never push tags, never bump versions — see the release-path brake in §5. Deep reference: [docs/RELEASING.md](../../docs/RELEASING.md).
+
+## §7 Tracker mechanics
+
+Routing values are labels on the issue. `gh issue list --state open --json number,title,labels,milestone,url` is the entire read path: it returns
+`number`, `title`, `labels`, `milestone` and `url` for every open issue, and because it queries
+issues directly it carries open/closed state intrinsically — there is nothing to intersect, and
+no way for a stale row to linger.
+
+- **Read the tracker:** `gh issue list --state open --json number,title,labels,milestone,url` (one label: `gh issue list --state open --label "<label>" --json number,title,labels,milestone,url`)
+- **Read one issue:** `gh issue view "<n>" --json number,title,state,url,labels,milestone,body`
+- **Write a routing value:** `gh issue edit "<n>" --remove-label "status:ready,status:in-progress,status:in-review,status:blocked,status:needs-decision" && gh issue edit "<n>" --add-label "<status:label>"` — clears the status set,
+  then sets this one in an explicitly ordered second call. Non-status labels: `gh issue edit "<n>" --add-label "<label>"` ·
+  `gh issue edit "<n>" --remove-label "<label>"`
+- **Bulk writes:** an ordinary loop, one call per issue. These are REST calls against the
+  5,000/hr core pool, not GraphQL points, so there is nothing to batch around.
+- **Issue/PR ops:** `gh issue create --title "<title>" --body "<body>" --label "<label>"` · `gh issue comment "<n>" --body "<text>"` ·
+  `gh issue close "<n>"` · `gh pr create --head "<branch>" --base main --title "<title>" --body "<body>"`
+
+A status label that doesn't exist in the repo makes `gh` **fail loudly** — that is the intended
+behavior. Create the label rather than working around the error, and never invent a status value
+that isn't in the §1 table.
+
+**Confirm unreachable, then STOP.** A first transport or OS-permission failure can be the harness
+sandbox rather than the tracker. When the error is compatible with a sandbox restriction and the
+harness exposes a policy-supported escalation or approval path, retry the **exact same read once**
+through that path — same target and arguments, with no weakened authentication or command. Stop if
+that retry fails, `gh` is unauthenticated, the API rejects the authenticated request, or no allowed
+escalation path exists. Never loop, guess tracker state, or substitute cached data.
+
+## §8 Commit & PR conventions
+
+- **Conventional Commit** (`feat(scope)` / `fix` / `docs` / `chore` / `test`), scoped to the area;
+  body names the story. Include `Co-Authored-By` only when the active runtime explicitly supplies
+  a truthful identity for this work. Otherwise omit it. Never infer an identity from repo config,
+  the harness/product name, a model name, or a historical commit.
+- **`git add <explicit paths>` — never `-A` / `.`**. Never `--no-verify`; never amend; never
+  **force**-push.
+- **PR:** base `main`, a "what shipped + which findings were actioned" narrative as the body,
+  **with `Closes #<n>`** (closing the issue is the done-signal), title = the Conventional-Commit
+  subject. PR bodies end with:
+  ```
+  🤖 Generated with [Codex CLI](https://developers.openai.com/codex/cli)
+  ```
+- The `Closes/Fixes/Resolves #N` keyword fires **anywhere** in the body regardless of surrounding
+  prose — writing "Closes #844 is NOT set" still closes #844 — **except inside a code span or code
+  block, which suppresses it entirely.** Never backtick the token when the close is wanted, and
+  never leave it bare next to a number that shouldn't close. When carving one item out of a
+  multi-item umbrella issue, never put that token next to the umbrella's number at all, not even to
+  deny it — write "part of #844" instead.
+- Post a one-line issue comment linking the PR; the narrative lives in the PR body.
+
+## §9 Branch policy
+
+- **Issue work → a feature branch + PR**, always. Never build on `main`; `/implement` branches
+  (`git checkout -b <short-slug>`), reusing an epic branch if one exists.
+- **Minor tooling / skills / docs edits → straight to `main`**, no branch/PR.
+- **Branch off freshly-fetched `origin/main`, not local `main`.** A squash-merge PR is based
+  against `origin/main` HEAD, not your local HEAD — if local `main` carries commits never pushed to
+  origin, cutting a branch off it silently folds those unpushed commits into your feature's squash
+  commit (content survives, but loses its own commit identity). `git checkout main && git fetch
+  origin && git reset --hard origin/main` before branching avoids it; the tell after the fact is
+  `git pull --ff-only` refusing to fast-forward with local-ahead commits that aren't yours.
+- **Local branches don't clean up on their own.** The merge guard deletes the *remote* branch but
+  never the local one, and they pile up silently across sessions. Periodically: `git fetch --prune
+  origin`, confirm zero open PRs, then bulk `git branch -D` everything but `main` and the current
+  branch (`-D` because a squash-merged branch is never a literal ancestor, so plain `-d` refuses
+  every one) — safe, since the commits stay recoverable via reflog.
+
+## §10 Filing an issue
+
+Shared by `/scout` (machine-found) and `/intake` (human-described). Both *find or interview, then
+file* — neither fixes, branches, or merges.
+
+1. **Dedup first — and a rejection has memory.** Search open issues before filing; a
+   near-duplicate gets a comment on the existing issue, not a new one. Then check recently
+   *closed* issues too: a twin that was closed without shipping is a decision already made, and
+   re-filing it because the code it cites still exists is how a recurring sweep turns the queue
+   into a nag. Mention the match in the report; don't re-file it.
+2. **The bar is *actionable*.** An issue nobody could pick up and start is noise. If it can't be
+   stated as Why / Touches / Acceptance, it isn't ready to file — keep interviewing, or don't file.
+3. **Shape it so the smallest human input unlocks it.** Prefer a pre-drafted fix with a
+   yes/no decision over an open-ended question. A finding that arrives with the diff already
+   written costs Brandon one glance; the same finding as a paragraph costs a work session.
+4. **Body format:**
+   ```
+   **Why:** <the problem, and what's wrong today — with file:line evidence>
+   **Touches:** <files / surfaces>
+   **Fix (drafted):** <the concrete change — a diff, or the exact edit>
+   **Acceptance:** <the observable condition that means it's done>
+   ```
+   The **Fix** line is mandatory for a machine-found finding (`/scout` read the code; the draft
+   is the point) and best-effort for a human-described idea (`/intake` interviews toward it but
+   files without it when the idea is scope, not a defect).
+5. **Classify by kind, route by certainty.** Kind labels (`bug`, `area:*`, §2's stamps) record
+   what you know — set them freely. The `status:*` label is a **certainty call**, made at filing
+   time, with three outcomes:
+   - **Deterministic** — the fix would be the same no matter who wrote it, and §4's gates can
+     prove it → `status:ready`. That is real scheduling: an unattended grinder may
+     build it (§5), so the bar is "this exact diff should ship," not "something here should change."
+   - **Interpretive** — a judgment call anywhere in it, however small → `status:needs-decision`,
+     **with the fix pre-drafted** (rule 3) so the decision costs one glance, not a work session.
+   - **Unsure → no status label.** It lands in the untriaged pile (§1) for a human look — the
+     filing-time twin of §5's "when unsure, exclude and surface."
+
+   On a §5 brake surface, test the **direction of the change, not the surface it touches**. A
+   finding there is deterministic only when it *tightens* — more validation, more redaction,
+   stricter gates, fewer accepted inputs — **and** §4's gates can demonstrate both the tightening
+   and that nothing legitimate was lost. Anything that loosens, exempts, widens, or re-opens is
+   **never** deterministic, however small the diff: certainty and safety are different axes, and
+   pickable requires both.
+
+   The second half of that test is load-bearing, because tightening is not automatically safe. A
+   redaction rule greedy enough to eat the evidence a validator needs, or a gate strict enough to
+   reject legitimate traffic, fails *closed* — which is the quiet direction, and the one that
+   hides. Pickable means the gates prove both halves; if they can only prove the tightening, it is
+   interpretive.
+
+   A brake entry describing an **irreversible action** rather than a code change — running a
+   destructive verb, writing to production — has no direction to test and never becomes pickable.
+6. **Budget.** Filing zero is a success. A sweep that files 20 low-grade issues has made the queue
+   worse, not better. Cap a focused pass at **3–5** findings; a multi-lens sweep caps *per lens* and
+   stays in single digits overall. Rank by (impact × how-actionable) and file only the top ones —
+   mention the rest in the report without filing.
