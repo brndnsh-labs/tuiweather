@@ -170,7 +170,16 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
           const config = await loadConfig(deps.configPath);
           const slug = resolveDefaultSlug(config, explicitSlug);
           set({ config, activeSlug: slug, initStatus: "ready" });
-          if (slug) await get().loadForecast(slug);
+          if (slug) {
+            await get().loadForecast(slug);
+            if (!disposed) {
+              void Promise.allSettled(
+                config.locations
+                  .filter((loc) => loc.slug !== slug)
+                  .map((loc) => get().loadForecast(loc.slug)),
+              );
+            }
+          }
           scheduleRefreshLoop();
         } catch (e) {
           set({ initStatus: "error", lastActionError: errorMessage(e) });
