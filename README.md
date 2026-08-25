@@ -15,15 +15,19 @@ Keyboard-driven terminal weather app: Dark Sky-style rain nowcasting, hourly and
 
 ## Install
 
-The npm bootstrap package is available as `tuiweather@0.0.0` while the first supported release is prepared. Install the preview channel with Bun:
+Install globally with npm:
 
 ```sh
-bun install --global tuiweather@next
+npm install --global tuiweather
 ```
 
-Standalone binaries will be attached beginning with v0.1.0.
+or with Bun:
 
-Download a standalone binary from [GitHub Releases](https://github.com/brndnsh-labs/tuiweather/releases).
+```sh
+bun install --global tuiweather
+```
+
+Standalone binaries for macOS and Linux are attached to each [GitHub release](https://github.com/brndnsh-labs/tuiweather/releases).
 
 ### macOS Gatekeeper
 
