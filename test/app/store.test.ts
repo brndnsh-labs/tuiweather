@@ -123,7 +123,7 @@ describe("store", () => {
 
     expect(store.getState().activeSlug).toBe("london");
     expect(store.getState().config.units).toBe("metric");
-    expect(fetcher.calls.locations).toEqual(["51.5072,-0.1276"]);
+    expect(fetcher.calls.locations).toEqual(["51.5072,-0.1276", "45.5202,-122.6765"]);
     expect(store.getState().forecastBySlug.london?.forecast.current.temperatureC).toBe(18);
     expect(store.getState().loadingSlugs).toEqual({});
   });
@@ -138,7 +138,10 @@ describe("store", () => {
 
     await store.getState().init();
 
-    expect(fetcher.calls.windows).toEqual([{ forecastDays: 7, forecastHours: 24 }]);
+    expect(fetcher.calls.windows).toEqual([
+      { forecastDays: 7, forecastHours: 24 },
+      { forecastDays: 7, forecastHours: 24 },
+    ]);
   });
 
   test("honors daily_days and hourly_hours config overrides", async () => {
@@ -155,7 +158,10 @@ describe("store", () => {
 
     await store.getState().init();
 
-    expect(fetcher.calls.windows).toEqual([{ forecastDays: 10, forecastHours: 48 }]);
+    expect(fetcher.calls.windows).toEqual([
+      { forecastDays: 10, forecastHours: 48 },
+      { forecastDays: 10, forecastHours: 48 },
+    ]);
   });
 
   test("init falls back to the first location when no default is set", async () => {
@@ -186,6 +192,70 @@ describe("store", () => {
     expect(store.getState().config.locations).toEqual([]);
     expect(store.getState().activeSlug).toBeNull();
     expect(fetcher.calls.locations).toEqual([]);
+  });
+
+  test("init populates forecastBySlug for every configured location", async () => {
+    const dir = await makeConfigDir(CONFIG_TOML);
+    const temps = new Map<string, number>([
+      ["51.5072,-0.1276", 11],
+      ["45.5202,-122.6765", 22],
+    ]);
+    const calls: string[] = [];
+    const fetcher: ForecastFetcher = (location) => {
+      const key = `${location.latitude},${location.longitude}`;
+      calls.push(key);
+      return Promise.resolve({ forecast: makeForecast(temps.get(key)), stale: false });
+    };
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: fetcher,
+    });
+
+    await store.getState().init();
+
+    expect(calls).toEqual(["51.5072,-0.1276", "45.5202,-122.6765"]);
+    expect(Object.keys(store.getState().forecastBySlug).sort()).toEqual(["london", "portland"]);
+    expect(store.getState().forecastBySlug.london?.forecast.current.temperatureC).toBe(11);
+    expect(store.getState().forecastBySlug.portland?.forecast.current.temperatureC).toBe(22);
+    expect(store.getState().loadingSlugs).toEqual({});
+    store.getState().dispose();
+  });
+
+  test("init resolves before slow prefetches of non-active locations finish", async () => {
+    const dir = await makeConfigDir(CONFIG_TOML);
+    const gates = new Map<
+      string,
+      (result: { forecast: NormalizedForecast; stale: boolean }) => void
+    >();
+    const fetcher: ForecastFetcher = (location) => {
+      const key = `${location.latitude},${location.longitude}`;
+      if (key === "51.5072,-0.1276") {
+        return Promise.resolve({ forecast: makeForecast(11), stale: false });
+      }
+      return new Promise((resolve) => {
+        gates.set(key, resolve);
+      });
+    };
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: fetcher,
+    });
+
+    await store.getState().init();
+
+    expect(store.getState().activeSlug).toBe("london");
+    expect(store.getState().forecastBySlug.london?.forecast.current.temperatureC).toBe(11);
+    expect(store.getState().forecastBySlug.portland).toBeUndefined();
+    expect(store.getState().loadingSlugs.portland).toBe(true);
+
+    const release = gates.get("45.5202,-122.6765");
+    if (!release) throw new Error("prefetch for portland never started");
+    release({ forecast: makeForecast(22), stale: false });
+    await Promise.resolve();
+
+    expect(store.getState().forecastBySlug.portland?.forecast.current.temperatureC).toBe(22);
+    expect(store.getState().loadingSlugs).toEqual({});
+    store.getState().dispose();
   });
 
   test("completeOnboarding atomically saves units and the first default location", async () => {
@@ -446,18 +516,19 @@ describe("store auto-refresh", () => {
 
     await store.getState().init();
     expect(store.getState().activeSlug).toBe("london");
-    expect(fetcher.calls.length).toBe(1);
-    expect(timers.pending()).toBe(1);
-
-    await timers.advance(PERIOD_MS - 1);
-    expect(fetcher.calls.length).toBe(1);
-
-    await timers.advance(1);
+    // init fetched london plus prefetched portland; only the loop adds more.
     expect(fetcher.calls.length).toBe(2);
     expect(timers.pending()).toBe(1);
 
-    await timers.advance(PERIOD_MS);
+    await timers.advance(PERIOD_MS - 1);
+    expect(fetcher.calls.length).toBe(2);
+
+    await timers.advance(1);
     expect(fetcher.calls.length).toBe(3);
+    expect(timers.pending()).toBe(1);
+
+    await timers.advance(PERIOD_MS);
+    expect(fetcher.calls.length).toBe(4);
     expect(timers.pending()).toBe(1);
 
     store.getState().dispose();
