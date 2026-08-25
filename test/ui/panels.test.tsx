@@ -67,10 +67,11 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 async function frameFor(
   toml: string,
   forecast: NormalizedForecast = fixtureForecast(),
+  width = 80,
 ): Promise<string> {
   const store = await makeStore(toml, forecast);
   const setup = await testRender(<App store={store} nowMs={Date.parse(NOW)} nowUtc={NOW} />, {
-    width: 80,
+    width,
     height: 24,
   });
   try {
@@ -123,7 +124,7 @@ describe("panels config toggles", () => {
     expect(frame).toContain("temp ");
   });
 
-  test("panels.nowcast=true shows a wet-now banner", async () => {
+  test("panels.nowcast=true shows a wet-now banner with its bucket strip", async () => {
     const forecast = {
       ...fixtureForecast(),
       minutely15: [
@@ -155,6 +156,39 @@ describe("panels config toggles", () => {
     };
     const frame = await frameFor(configToml({}), forecast);
     expect(frame).toContain("Rain stopping");
+    // Series from the bucket containing 16:15 (labeled 16:30, [16:15,16:30)):
+    // [0.2, 0] → moderate ▅ then dry ▁, on the row right below the sentence.
+    const lines = frame.split("\n");
+    const bannerIdx = lines.findIndex((line) => line.includes("Rain stopping"));
+    expect(lines[bannerIdx + 1]).toContain("▅▁");
+  });
+
+  test("dry period renders neither banner nor strip", async () => {
+    const frame = await frameFor(configToml({}));
+    expect(frame).not.toContain("▔");
+  });
+
+  test("xs keeps the wet banner prose-only (no strip row)", async () => {
+    const forecast = {
+      ...fixtureForecast(),
+      minutely15: [
+        {
+          startUtc: "2026-08-24T16:15:00.000Z",
+          endUtc: "2026-08-24T16:30:00.000Z",
+          precipMm: 0.6,
+          probabilityPct: 80,
+        },
+        {
+          startUtc: "2026-08-24T16:30:00.000Z",
+          endUtc: "2026-08-24T16:45:00.000Z",
+          precipMm: 0.05,
+          probabilityPct: 60,
+        },
+      ],
+    };
+    const frame = await frameFor(configToml({}), forecast, 40);
+    expect(frame).toContain("Rain for at least 2 hr");
+    expect(frame).not.toContain("█▃");
   });
 
   test("panels.nowcast=false suppresses even a wet-now banner", async () => {
