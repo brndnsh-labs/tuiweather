@@ -250,7 +250,11 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
       toggleUnits: async () => {
         const config = get().config;
         const units: TuiConfig["units"] = config.units === "metric" ? "imperial" : "metric";
-        const next: TuiConfig = { ...config, units };
+        const next: TuiConfig = {
+          ...config,
+          units,
+          unit_prefs: { temp: units, wind: units, precip: units, pressure: units },
+        };
         set({ config: next });
         await saveConfig(next, deps.configPath).catch((e: unknown) => {
           set({ lastActionError: errorMessage(e) });
@@ -301,6 +305,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
         const next: TuiConfig = {
           ...config,
           units,
+          unit_prefs: { temp: units, wind: units, precip: units, pressure: units },
           default_location: slug,
           locations: [finalEntry],
         };

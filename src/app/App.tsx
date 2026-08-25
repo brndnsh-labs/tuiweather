@@ -8,7 +8,8 @@ import { HourlyStrip, sectionRule, sliceUpcoming } from "../features/hourly/Hour
 import { NowcastBanner } from "../features/nowcast/NowcastBanner";
 import { FirstRun } from "../features/onboarding/FirstRun";
 import { SearchOverlay } from "../features/search/SearchOverlay";
-import type { TuiConfig } from "../lib/config/schema";
+import type { DisplayPrefs, TuiConfig } from "../lib/config/schema";
+import { resolveDisplayPrefs } from "../lib/config/schema";
 import { conditionGlyph } from "../lib/providers/openmeteo/wmo";
 import { deriveNowcast } from "../lib/weather/derive";
 import { formatTemp } from "../lib/weather/format";
@@ -52,26 +53,28 @@ interface MainContentProps {
   width: number;
   forecast: NormalizedForecast;
   nowUtc: string;
-  units: "metric" | "imperial";
+  prefs: DisplayPrefs;
   panels: TuiConfig["panels"];
 }
 
 function XsChips({
   forecast,
-  units,
+  prefs,
   width,
 }: {
   forecast: NormalizedForecast;
-  units: "metric" | "imperial";
+  prefs: DisplayPrefs;
   width: number;
 }) {
   const palette = usePalette();
   return (
-    <text fg={palette.fg}>{truncateTo(dailyChips(forecast.daily, units), Math.max(0, width))}</text>
+    <text fg={palette.fg}>
+      {truncateTo(dailyChips(forecast.daily, prefs.temp), Math.max(0, width))}
+    </text>
   );
 }
 
-function MainContent({ tier, width, forecast, nowUtc, units, panels }: MainContentProps) {
+function MainContent({ tier, width, forecast, nowUtc, prefs, panels }: MainContentProps) {
   const palette = usePalette();
   const nowcast = deriveNowcast(forecast, nowUtc);
 
@@ -79,7 +82,7 @@ function MainContent({ tier, width, forecast, nowUtc, units, panels }: MainConte
     const tempValues = sliceUpcoming(forecast.hourly, nowUtc, 12).map((p) => p.temperatureC);
     return (
       <box flexDirection="column" gap={1}>
-        <Hero obs={forecast.current} units={units} mini />
+        <Hero obs={forecast.current} prefs={prefs} mini />
         {panels.nowcast ? <NowcastBanner nowcast={nowcast} hideWhenDry width={width} /> : null}
         {panels.hourly && tempValues.length > 0 ? (
           <Sparkline
@@ -88,7 +91,7 @@ function MainContent({ tier, width, forecast, nowUtc, units, panels }: MainConte
             palette={palette}
           />
         ) : null}
-        {panels.daily ? <XsChips forecast={forecast} units={units} width={width} /> : null}
+        {panels.daily ? <XsChips forecast={forecast} prefs={prefs} width={width} /> : null}
       </box>
     );
   }
@@ -100,17 +103,17 @@ function MainContent({ tier, width, forecast, nowUtc, units, panels }: MainConte
         <box flexDirection="column" gap={1}>
           {showDetails && panels.details ? (
             <box flexDirection="row" gap={2}>
-              <Hero obs={forecast.current} units={units} />
+              <Hero obs={forecast.current} prefs={prefs} />
               <DetailsGrid
                 obs={forecast.current}
                 today={forecast.daily[0]}
                 utcOffsetSeconds={forecast.utcOffsetSeconds}
-                units={units}
+                prefs={prefs}
                 colWidth={Math.max(10, Math.floor((width - HERO_RESERVE) / 2))}
               />
             </box>
           ) : (
-            <Hero obs={forecast.current} units={units} compact />
+            <Hero obs={forecast.current} prefs={prefs} compact />
           )}
           {panels.nowcast ? (
             <NowcastBanner
@@ -126,7 +129,7 @@ function MainContent({ tier, width, forecast, nowUtc, units, panels }: MainConte
               points={forecast.hourly}
               nowUtc={nowUtc}
               utcOffsetSeconds={forecast.utcOffsetSeconds}
-              units={units}
+              prefs={prefs}
               maxPoints={showDetails ? 48 : 12}
               width={width}
             />
@@ -136,7 +139,7 @@ function MainContent({ tier, width, forecast, nowUtc, units, panels }: MainConte
               <text fg={palette.fgDim}>{sectionRule(`${forecast.daily.length} day`, width)}</text>
               <DailyList
                 days={forecast.daily}
-                units={units}
+                prefs={prefs}
                 columns={2}
                 width={width}
                 showPrecip={!showDetails}
@@ -151,13 +154,13 @@ function MainContent({ tier, width, forecast, nowUtc, units, panels }: MainConte
   return (
     <box flexDirection="column" flexGrow={1} gap={1}>
       <box flexDirection="row" gap={2}>
-        <Hero obs={forecast.current} units={units} />
+        <Hero obs={forecast.current} prefs={prefs} />
         {panels.details ? (
           <DetailsGrid
             obs={forecast.current}
             today={forecast.daily[0]}
             utcOffsetSeconds={forecast.utcOffsetSeconds}
-            units={units}
+            prefs={prefs}
             colWidth={Math.max(10, Math.floor((width - HERO_RESERVE) / 2))}
           />
         ) : null}
@@ -167,7 +170,7 @@ function MainContent({ tier, width, forecast, nowUtc, units, panels }: MainConte
           points={forecast.hourly}
           nowUtc={nowUtc}
           utcOffsetSeconds={forecast.utcOffsetSeconds}
-          units={units}
+          prefs={prefs}
           maxPoints={48}
           width={width}
         />
@@ -175,7 +178,7 @@ function MainContent({ tier, width, forecast, nowUtc, units, panels }: MainConte
       {panels.daily ? (
         <>
           <text fg={palette.fgDim}>{sectionRule(`${forecast.daily.length} day`, width)}</text>
-          <DailyList days={forecast.daily} units={units} columns={1} width={width} />
+          <DailyList days={forecast.daily} prefs={prefs} columns={1} width={width} />
         </>
       ) : null}
     </box>
@@ -203,6 +206,7 @@ export function App(props: AppProps = {}) {
 
   const isDay = entry?.forecast.current.isDay ?? true;
   const palette = useMemo(() => resolvePalette(config.theme, isDay), [config.theme, isDay]);
+  const prefs = useMemo(() => resolveDisplayPrefs(config), [config]);
 
   useEffect(() => {
     void store.getState().init(props.initialSlug);
@@ -259,6 +263,7 @@ export function App(props: AppProps = {}) {
       }
       clockUtc={entry?.forecast.current.timeUtc}
       utcOffsetSeconds={entry?.forecast.utcOffsetSeconds ?? 0}
+      timeFormat={prefs.timeFormat}
       tier={tier === "lg" || tier === "md" ? undefined : tier}
       fetchedAtMs={entry?.fetchedAtMs}
       stale={stale}
@@ -281,7 +286,7 @@ export function App(props: AppProps = {}) {
         width={mainWidth}
         forecast={forecast}
         nowUtc={nowUtc}
-        units={config.units}
+        prefs={prefs}
         panels={config.panels}
       />
     ) : (
@@ -324,7 +329,7 @@ export function App(props: AppProps = {}) {
             const tail = locEntry
               ? ` ${conditionGlyph(locEntry.forecast.current.condition)} ${formatTemp(
                   locEntry.forecast.current.temperatureC,
-                  config.units,
+                  prefs.temp,
                 )}`
               : "";
             return (

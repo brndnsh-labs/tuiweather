@@ -1,5 +1,7 @@
 export type Units = "metric" | "imperial";
 
+export type TimeFormat = "12h" | "24h";
+
 const COMPASS_16 = [
   "N",
   "NNE",
@@ -85,20 +87,31 @@ export function formatVisibility(meters: number | null, units: Units): string {
   return `${Number.parseFloat((meters / M_PER_KM).toFixed(1))} km`;
 }
 
-export function formatClock(isoUtc: string, utcOffsetSeconds: number): string {
+export function formatClock(
+  isoUtc: string,
+  utcOffsetSeconds: number,
+  timeFormat: TimeFormat,
+): string {
   const shifted = shiftUtc(isoUtc, utcOffsetSeconds);
   const hours = shifted.getUTCHours();
   const minutes = shifted.getUTCMinutes();
   if (Number.isNaN(hours) || Number.isNaN(minutes)) return EN_DASH;
+  const mm = String(minutes).padStart(2, "0");
+  if (timeFormat === "24h") return `${String(hours).padStart(2, "0")}:${mm}`;
   const h12 = hours % 12 === 0 ? 12 : hours % 12;
   const meridiem = hours < 12 ? "AM" : "PM";
-  return `${h12}:${String(minutes).padStart(2, "0")} ${meridiem}`;
+  return `${h12}:${mm} ${meridiem}`;
 }
 
-export function formatHourLabel(isoUtc: string, utcOffsetSeconds: number): string {
+export function formatHourLabel(
+  isoUtc: string,
+  utcOffsetSeconds: number,
+  timeFormat: TimeFormat,
+): string {
   const shifted = shiftUtc(isoUtc, utcOffsetSeconds);
   const hours = shifted.getUTCHours();
   if (Number.isNaN(hours)) return EN_DASH;
+  if (timeFormat === "24h") return String(hours).padStart(2, "0");
   const h12 = hours % 12 === 0 ? 12 : hours % 12;
   return `${h12}${hours < 12 ? "a" : "p"}`;
 }

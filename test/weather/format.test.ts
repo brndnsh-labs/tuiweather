@@ -136,43 +136,75 @@ describe("formatPct", () => {
 });
 
 describe("formatClock", () => {
-  test("positive offset: 06:07Z at UTC+9 is 3:07 PM local", () => {
-    expect(formatClock("2026-08-24T06:07:00Z", 9 * 3600)).toBe("3:07 PM");
+  test("12h: positive offset: 06:07Z at UTC+9 is 3:07 PM local", () => {
+    expect(formatClock("2026-08-24T06:07:00Z", 9 * 3600, "12h")).toBe("3:07 PM");
   });
 
-  test("negative offset crosses midnight backwards: 06:07Z at UTC-7 is 11:07 PM", () => {
-    expect(formatClock("2026-08-24T06:07:00Z", -7 * 3600)).toBe("11:07 PM");
+  test("12h: negative offset crosses midnight backwards: 06:07Z at UTC-7 is 11:07 PM", () => {
+    expect(formatClock("2026-08-24T06:07:00Z", -7 * 3600, "12h")).toBe("11:07 PM");
   });
 
-  test("noon edge renders 12 PM", () => {
-    expect(formatClock("2026-08-24T03:00:00Z", 9 * 3600)).toBe("12:00 PM");
+  test("12h: noon edge renders 12 PM", () => {
+    expect(formatClock("2026-08-24T03:00:00Z", 9 * 3600, "12h")).toBe("12:00 PM");
   });
 
-  test("early morning renders 1 AM without leading zero", () => {
-    expect(formatClock("2026-08-24T16:00:00Z", 9 * 3600)).toBe("1:00 AM");
+  test("12h: early morning renders 1 AM without leading zero", () => {
+    expect(formatClock("2026-08-24T16:00:00Z", 9 * 3600, "12h")).toBe("1:00 AM");
   });
 
-  test("midnight renders 12 AM", () => {
-    expect(formatClock("2026-08-24T00:00:00Z", 0)).toBe("12:00 AM");
+  test("12h: midnight renders 12 AM", () => {
+    expect(formatClock("2026-08-24T00:00:00Z", 0, "12h")).toBe("12:00 AM");
+  });
+
+  test("24h: afternoon renders zero-padded HH:MM", () => {
+    expect(formatClock("2026-08-24T14:05:00Z", 0, "24h")).toBe("14:05");
+  });
+
+  test("24h: positive offset keeps local wall time", () => {
+    expect(formatClock("2026-08-24T06:07:00Z", 9 * 3600, "24h")).toBe("15:07");
+  });
+
+  test("24h: negative offset crossing midnight wraps below 00", () => {
+    expect(formatClock("2026-08-24T06:07:00Z", -7 * 3600, "24h")).toBe("23:07");
+  });
+
+  test("24h: midnight and noon render 00:00 and 12:00", () => {
+    expect(formatClock("2026-08-24T00:00:00Z", 0, "24h")).toBe("00:00");
+    expect(formatClock("2026-08-24T03:00:00Z", 9 * 3600, "24h")).toBe("12:00");
   });
 });
 
 describe("formatHourLabel", () => {
-  test("afternoon hour", () => {
-    expect(formatHourLabel("2026-08-24T14:07:00Z", 0)).toBe("2p");
+  test("12h: afternoon hour", () => {
+    expect(formatHourLabel("2026-08-24T14:07:00Z", 0, "12h")).toBe("2p");
   });
 
-  test("midnight hour renders 12a", () => {
-    expect(formatHourLabel("2026-08-24T00:30:00Z", 0)).toBe("12a");
+  test("12h: midnight hour renders 12a", () => {
+    expect(formatHourLabel("2026-08-24T00:30:00Z", 0, "12h")).toBe("12a");
   });
 
-  test("noon hour renders 12p", () => {
-    expect(formatHourLabel("2026-08-24T12:00:00Z", 0)).toBe("12p");
+  test("12h: noon hour renders 12p", () => {
+    expect(formatHourLabel("2026-08-24T12:00:00Z", 0, "12h")).toBe("12p");
   });
 
-  test("offset can push label across midnight", () => {
-    expect(formatHourLabel("2026-08-24T15:07:00Z", 9 * 3600)).toBe("12a");
-    expect(formatHourLabel("2026-08-24T05:07:00Z", -7 * 3600)).toBe("10p");
+  test("12h: offset can push label across midnight", () => {
+    expect(formatHourLabel("2026-08-24T15:07:00Z", 9 * 3600, "12h")).toBe("12a");
+    expect(formatHourLabel("2026-08-24T05:07:00Z", -7 * 3600, "12h")).toBe("10p");
+  });
+
+  test("24h: labels are zero-padded two-digit hours", () => {
+    expect(formatHourLabel("2026-08-24T14:07:00Z", 0, "24h")).toBe("14");
+    expect(formatHourLabel("2026-08-24T05:07:00Z", 0, "24h")).toBe("05");
+  });
+
+  test("24h: midnight and noon render 00 and 12", () => {
+    expect(formatHourLabel("2026-08-24T00:30:00Z", 0, "24h")).toBe("00");
+    expect(formatHourLabel("2026-08-24T12:00:00Z", 0, "24h")).toBe("12");
+  });
+
+  test("24h: offsets wrap across midnight", () => {
+    expect(formatHourLabel("2026-08-24T15:07:00Z", 9 * 3600, "24h")).toBe("00");
+    expect(formatHourLabel("2026-08-24T15:07:00Z", -16 * 3600, "24h")).toBe("23");
   });
 });
 

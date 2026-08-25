@@ -1,5 +1,6 @@
 import { resample, Sparkline } from "../../components/Sparkline";
-import { formatHourLabel, type Units } from "../../lib/weather/format";
+import type { DisplayPrefs } from "../../lib/config/schema";
+import { formatHourLabel, type TimeFormat } from "../../lib/weather/format";
 import type { HourlyPoint } from "../../lib/weather/types";
 import { usePalette } from "../../theme/tokens";
 
@@ -7,7 +8,7 @@ interface HourlyStripProps {
   points: HourlyPoint[];
   nowUtc: string;
   utcOffsetSeconds: number;
-  units: Units;
+  prefs: DisplayPrefs;
   maxPoints?: number;
   width: number;
   labels?: boolean;
@@ -57,6 +58,7 @@ export function hourLabelsRow(
   points: HourlyPoint[],
   utcOffsetSeconds: number,
   seriesWidth: number,
+  timeFormat: TimeFormat,
 ): string {
   if (points.length === 0 || seriesWidth <= 0) return "";
   const chars = new Array<string>(seriesWidth).fill(" ");
@@ -65,7 +67,7 @@ export function hourLabelsRow(
     const idx = Math.min(points.length - 1, Math.floor(((c + 0.5) / seriesWidth) * points.length));
     const point = points[idx];
     if (!point) continue;
-    const label = formatHourLabel(point.timeUtc, utcOffsetSeconds);
+    const label = formatHourLabel(point.timeUtc, utcOffsetSeconds, timeFormat);
     for (let k = 0; k < label.length && c + k < seriesWidth; k++) {
       chars[c + k] = label[k] ?? " ";
     }
@@ -77,6 +79,7 @@ export function HourlyStrip({
   points,
   nowUtc,
   utcOffsetSeconds,
+  prefs,
   maxPoints = 24,
   width,
   labels = true,
@@ -102,7 +105,9 @@ export function HourlyStrip({
         <text fg={palette.accent}>{precipBars(resample(precipValues, seriesWidth))}</text>
       </box>
       {labels ? (
-        <text fg={palette.fgDim}>{hourLabelsRow(window, utcOffsetSeconds, seriesWidth)}</text>
+        <text fg={palette.fgDim}>
+          {hourLabelsRow(window, utcOffsetSeconds, seriesWidth, prefs.timeFormat)}
+        </text>
       ) : null}
     </box>
   );

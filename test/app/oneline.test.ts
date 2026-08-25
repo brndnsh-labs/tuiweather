@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { buildJsonLine, buildOneLine } from "../../src/app/oneline";
+import type { DisplayPrefs } from "../../src/lib/config/schema";
 import { conditionGlyph } from "../../src/lib/providers/openmeteo/wmo";
 import type {
   CurrentObs,
@@ -12,6 +13,28 @@ const NOW = "2026-08-24T12:00:00.000Z";
 const NOW_MINUS_10MIN = "2026-08-24T11:50:00.000Z";
 const MIN_MS = 60_000;
 const SEGMENT_SEP = " · ";
+
+function prefsOf(
+  units: "metric" | "imperial",
+  overrides: Partial<DisplayPrefs> = {},
+): DisplayPrefs {
+  return {
+    temp: units,
+    wind: units,
+    precip: units,
+    pressure: units,
+    timeFormat: units === "imperial" ? "12h" : "24h",
+    ...overrides,
+  };
+}
+
+const IMPERIAL = prefsOf("imperial");
+const METRIC = prefsOf("metric");
+const MIXED = prefsOf("imperial", {
+  temp: "metric",
+  precip: "metric",
+  timeFormat: "24h",
+});
 
 function bucket(startOffsetMin: number, precipMm: number): PrecipInterval {
   const startMs = Date.parse(NOW) + startOffsetMin * MIN_MS;
@@ -83,11 +106,15 @@ function makeForecast(overrides: ForecastOverrides = {}): NormalizedForecast {
 
 describe("buildOneLine", () => {
   test("dry nowcast omitted; imperial baseline", () => {
-    expect(buildOneLine(makeForecast(), "imperial", NOW)).toBe("☀ 72° fl70 · 58°–75° · ↘6mph nw");
+    expect(buildOneLine(makeForecast(), IMPERIAL, NOW)).toBe("☀ 72° fl70 · 58°–75° · ↘6mph nw");
   });
 
   test("metric rendering converts every segment", () => {
-    expect(buildOneLine(makeForecast(), "metric", NOW)).toBe("☀ 22° fl21 · 14°–24° · ↘10km/h nw");
+    expect(buildOneLine(makeForecast(), METRIC, NOW)).toBe("☀ 22° fl21 · 14°–24° · ↘10km/h nw");
+  });
+
+  test("mixed prefs render metric temps with imperial wind", () => {
+    expect(buildOneLine(makeForecast(), MIXED, NOW)).toBe("☀ 22° fl21 · 14°–24° · ↘6mph nw");
   });
 
   test("starting rain shows minutes until onset", () => {
@@ -95,7 +122,7 @@ describe("buildOneLine", () => {
       current: { condition: "rain" },
       minutely15: [bucket(-15, 0), bucket(0, 0), bucket(15, 0.5), bucket(30, 0.2)],
     });
-    expect(buildOneLine(forecast, "imperial", NOW)).toBe(
+    expect(buildOneLine(forecast, IMPERIAL, NOW)).toBe(
       `${conditionGlyph("rain")} 72° fl70 · ☂ in 15min · 58°–75° · ↘6mph nw`,
     );
   });
@@ -105,7 +132,7 @@ describe("buildOneLine", () => {
     const forecast = makeForecast({
       minutely15: [bucket(-30, 0.5), bucket(-15, 0.4), bucket(0, 0), bucket(15, 0.3)],
     });
-    expect(buildOneLine(forecast, "imperial", NOW_MINUS_10MIN)).toBe(
+    expect(buildOneLine(forecast, IMPERIAL, NOW_MINUS_10MIN)).toBe(
       "☀ 72° fl70 · ☂ 10min · 58°–75° · ↘6mph nw",
     );
   });
@@ -114,14 +141,12 @@ describe("buildOneLine", () => {
     const forecast = makeForecast({
       minutely15: [bucket(-30, 0.5), bucket(-15, 0.4), bucket(0, 0.6)],
     });
-    const line = buildOneLine(forecast, "imperial", NOW_MINUS_10MIN);
+    const line = buildOneLine(forecast, IMPERIAL, NOW_MINUS_10MIN);
     expect(line.split(SEGMENT_SEP)).toEqual(["☀ 72° fl70", "☂", "58°–75°", "↘6mph nw"]);
   });
 
   test("empty daily list drops the hi–lo segment", () => {
-    expect(buildOneLine(makeForecast({ daily: [] }), "imperial", NOW)).toBe(
-      "☀ 72° fl70 · ↘6mph nw",
-    );
+    expect(buildOneLine(makeForecast({ daily: [] }), IMPERIAL, NOW)).toBe("☀ 72° fl70 · ↘6mph nw");
   });
 
   test("sub-freezing temperatures keep signs and degree marks", () => {
@@ -130,7 +155,7 @@ describe("buildOneLine", () => {
         current: { temperatureC: -5.4, apparentC: -8 },
         daily: [dailyPoint({ tempMinC: -9, tempMaxC: -1 })],
       }),
-      "imperial",
+      IMPERIAL,
       NOW,
     );
     expect(line.startsWith("☀ 22° fl18")).toBe(true);
@@ -144,7 +169,7 @@ describe("buildJsonLine", () => {
     const json = buildJsonLine(
       forecast,
       { label: "Portland", latitude: 45.52, longitude: -122.68 },
-      "imperial",
+      IMPERIAL,
       NOW,
     );
     expect(json.location).toEqual({ label: "Portland", latitude: 45.52, longitude: -122.68 });
@@ -155,7 +180,7 @@ describe("buildJsonLine", () => {
     expect(json.today).toEqual({ minC: 14.4444, maxC: 23.8889 });
     expect(json.wind).toEqual({ speedKmh: 9.6563, dirDeg: 315, gustKmh: null });
     expect(json.nowcast).toEqual({ kind: "dry" });
-    expect(json.line).toBe(buildOneLine(forecast, "imperial", NOW));
+    expect(json.line).toBe(buildOneLine(forecast, IMPERIAL, NOW));
     expect(JSON.parse(JSON.stringify(json))).toEqual(json);
   });
 
@@ -171,7 +196,7 @@ describe("buildJsonLine", () => {
     const json = buildJsonLine(
       forecast,
       { label: null, latitude: 1.5, longitude: 2.5 },
-      "metric",
+      METRIC,
       NOW,
     );
     expect(json.nowcast).toEqual({ kind: "starting", startsInMin: 15, intensity: "heavy" });
@@ -181,7 +206,8 @@ describe("buildJsonLine", () => {
   });
 
   test("line field is byte-identical to plain one-line output for the same run", () => {
-    for (const units of ["metric", "imperial"] as const) {
+    const prefSets: DisplayPrefs[] = [IMPERIAL, METRIC, MIXED];
+    for (const prefs of prefSets) {
       const forecast = makeForecast({
         minutely15: [bucket(-30, 0.5), bucket(-15, 0.4), bucket(0, 0)],
       });
@@ -189,10 +215,10 @@ describe("buildJsonLine", () => {
       const json = buildJsonLine(
         forecast,
         { label: null, latitude: 45.52, longitude: -122.68 },
-        units,
+        prefs,
         nowUtc,
       );
-      expect(json.line).toBe(buildOneLine(forecast, units, nowUtc));
+      expect(json.line).toBe(buildOneLine(forecast, prefs, nowUtc));
     }
   });
 });

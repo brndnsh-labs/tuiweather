@@ -1,23 +1,18 @@
 import { lerpHex } from "../../components/RangeBar";
+import type { DisplayPrefs } from "../../lib/config/schema";
 import { conditionGlyph, conditionLabel } from "../../lib/providers/openmeteo/wmo";
-import {
-  convertTempC,
-  formatTemp,
-  formatWind,
-  tempWarmthT,
-  type Units,
-} from "../../lib/weather/format";
+import { convertTempC, formatTemp, formatWind, tempWarmthT } from "../../lib/weather/format";
 import type { CurrentObs } from "../../lib/weather/types";
 import { usePalette } from "../../theme/tokens";
 
 interface HeroProps {
   obs: CurrentObs;
-  units: Units;
+  prefs: DisplayPrefs;
   compact?: boolean;
   mini?: boolean;
 }
 
-function bigTempDigits(obs: CurrentObs, units: Units): string {
+function bigTempDigits(obs: CurrentObs, units: DisplayPrefs["temp"]): string {
   return String(Math.round(convertTempC(obs.temperatureC, units)));
 }
 
@@ -27,15 +22,15 @@ function StatLine({ parts, dim }: { parts: (string | null)[]; dim: string }) {
   return <text fg={dim}>{joined}</text>;
 }
 
-export function Hero({ obs, units, compact = false, mini = false }: HeroProps) {
+export function Hero({ obs, prefs, compact = false, mini = false }: HeroProps) {
   const palette = usePalette();
 
   if (mini) {
     return (
       <box flexDirection="row" gap={1}>
-        <text fg={palette.tempWarm}>{formatTemp(obs.temperatureC, units)}</text>
+        <text fg={palette.tempWarm}>{formatTemp(obs.temperatureC, prefs.temp)}</text>
         <text fg={palette.fg}>
-          {`${conditionLabel(obs.condition)} · fl ${formatTemp(obs.apparentC, units)}`}
+          {`${conditionLabel(obs.condition)} · fl ${formatTemp(obs.apparentC, prefs.temp)}`}
         </text>
       </box>
     );
@@ -45,15 +40,15 @@ export function Hero({ obs, units, compact = false, mini = false }: HeroProps) {
     return (
       <box flexDirection="column">
         <box flexDirection="row" gap={1}>
-          <text fg={palette.tempWarm}>{`${formatTemp(obs.temperatureC, units)}`}</text>
+          <text fg={palette.tempWarm}>{`${formatTemp(obs.temperatureC, prefs.temp)}`}</text>
           <text fg={palette.fg}>
-            {`${conditionLabel(obs.condition)} · feels like ${formatTemp(obs.apparentC, units)}`}
+            {`${conditionLabel(obs.condition)} · feels like ${formatTemp(obs.apparentC, prefs.temp)}`}
           </text>
         </box>
         <StatLine
           dim={palette.fgDim}
           parts={[
-            formatWind(obs.windSpeedKmh, obs.windDirectionDeg, units),
+            formatWind(obs.windSpeedKmh, obs.windDirectionDeg, prefs.wind),
             `humidity ${Math.round(obs.humidityPct)}%`,
           ]}
         />
@@ -66,13 +61,17 @@ export function Hero({ obs, units, compact = false, mini = false }: HeroProps) {
   return (
     <box flexDirection="column" flexShrink={0}>
       <box flexDirection="row" alignItems="flex-start">
-        <ascii-font text={bigTempDigits(obs, units)} font="slick" color={[tempFg, palette.fgDim]} />
+        <ascii-font
+          text={bigTempDigits(obs, prefs.temp)}
+          font="slick"
+          color={[tempFg, palette.fgDim]}
+        />
         <text fg={tempFg}>°</text>
       </box>
       <text fg={palette.fg}>
         {`${conditionGlyph(obs.condition)} ${conditionLabel(obs.condition)} · feels like ${formatTemp(
           obs.apparentC,
-          units,
+          prefs.temp,
         )}`}
       </text>
     </box>

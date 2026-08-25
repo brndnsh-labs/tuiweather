@@ -1,4 +1,4 @@
-import { formatClock } from "../../lib/weather/format";
+import { formatClock, type TimeFormat } from "../../lib/weather/format";
 import { usePalette } from "../../theme/tokens";
 
 export function formatUpdatedAgo(fetchedAtMs: number, nowMs: number): string {
@@ -19,6 +19,7 @@ interface HeaderProps {
   coords?: { latitude: number; longitude: number } | undefined;
   clockUtc?: string | undefined;
   utcOffsetSeconds?: number | undefined;
+  timeFormat: TimeFormat;
   tier?: "xs" | "sm" | "md" | "lg" | undefined;
   fetchedAtMs?: number | undefined;
   stale?: boolean | undefined;
@@ -30,6 +31,7 @@ export function Header({
   coords,
   clockUtc,
   utcOffsetSeconds = 0,
+  timeFormat,
   tier,
   fetchedAtMs,
   stale = false,
@@ -38,7 +40,8 @@ export function Header({
   const palette = usePalette();
 
   if (tier === "sm" || tier === "xs") {
-    const clock = clockUtc !== undefined ? formatClock(clockUtc, utcOffsetSeconds) : "--:--";
+    const clock =
+      clockUtc !== undefined ? formatClock(clockUtc, utcOffsetSeconds, timeFormat) : "--:--";
     return (
       <box flexDirection="row">
         <text fg={palette.fg}>{`${label} · ${clock} · ${tier}`}</text>

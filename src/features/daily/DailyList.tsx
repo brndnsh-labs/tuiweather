@@ -1,4 +1,5 @@
 import { RangeBar } from "../../components/RangeBar";
+import type { DisplayPrefs } from "../../lib/config/schema";
 import { conditionGlyph } from "../../lib/providers/openmeteo/wmo";
 import { formatDayLabel, formatPct, formatTemp, type Units } from "../../lib/weather/format";
 import type { DailyPoint } from "../../lib/weather/types";
@@ -6,7 +7,7 @@ import { usePalette } from "../../theme/tokens";
 
 interface DailyListProps {
   days: DailyPoint[];
-  units: Units;
+  prefs: DisplayPrefs;
   columns: 1 | 2;
   width: number;
   showPrecip?: boolean;
@@ -45,13 +46,13 @@ function rowParts(day: DailyPoint, showPrecip: boolean): RowParts {
 
 function DailyRow({
   parts,
-  units,
+  temp,
   barWidth,
   weekMin,
   weekMax,
 }: {
   parts: RowParts;
-  units: Units;
+  temp: DisplayPrefs["temp"];
   barWidth: number;
   weekMin: number;
   weekMax: number;
@@ -60,7 +61,7 @@ function DailyRow({
   return (
     <box flexDirection="row">
       <text fg={palette.fgDim}>{parts.head}</text>
-      <text fg={palette.fg}>{formatTemp(parts.lo, units)}</text>
+      <text fg={palette.fg}>{formatTemp(parts.lo, temp)}</text>
       <RangeBar
         lo={parts.lo}
         hi={parts.hi}
@@ -69,13 +70,13 @@ function DailyRow({
         width={barWidth}
         palette={palette}
       />
-      <text fg={palette.fg}>{formatTemp(parts.hi, units)}</text>
+      <text fg={palette.fg}>{formatTemp(parts.hi, temp)}</text>
       {parts.precip !== null ? <text fg={palette.accent}>{` ${parts.precip}`}</text> : null}
     </box>
   );
 }
 
-export function DailyList({ days, units, columns, width, showPrecip = true }: DailyListProps) {
+export function DailyList({ days, prefs, columns, width, showPrecip = true }: DailyListProps) {
   if (days.length === 0 || width < 12) return null;
 
   const weekMin = Math.min(...days.map((d) => d.tempMinC));
@@ -93,7 +94,7 @@ export function DailyList({ days, units, columns, width, showPrecip = true }: Da
           <DailyRow
             key={day.dateLocal}
             parts={rowParts(day, showChips)}
-            units={units}
+            temp={prefs.temp}
             barWidth={barWidth}
             weekMin={weekMin}
             weekMax={weekMax}
@@ -115,7 +116,7 @@ export function DailyList({ days, units, columns, width, showPrecip = true }: Da
             <box key={day.dateLocal} flexDirection="row" width={colWidth} flexShrink={0}>
               <DailyRow
                 parts={rowParts(day, showChips)}
-                units={units}
+                temp={prefs.temp}
                 barWidth={barWidth}
                 weekMin={weekMin}
                 weekMax={weekMax}

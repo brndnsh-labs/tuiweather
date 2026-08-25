@@ -58,18 +58,24 @@ describe("seriesWidthFor", () => {
 
 describe("hourLabelsRow", () => {
   test("is a fixed-width row including the gutter", () => {
-    const row = hourLabelsRow(hourlyPoints(48), -25200, 70);
+    const row = hourLabelsRow(hourlyPoints(48), -25200, 70, "12h");
     expect(row.length).toBe(75);
   });
 
   test("aligns labels under the resampled series", () => {
-    const row = hourLabelsRow(hourlyPoints(48), -25200, 70);
+    const row = hourLabelsRow(hourlyPoints(48), -25200, 70, "12h");
     expect(row.startsWith(" ".repeat(5))).toBe(true);
     expect(row.slice(5, 8)).toBe("10a");
   });
 
+  test("24h labels render two-digit hours", () => {
+    const row = hourLabelsRow(hourlyPoints(48), -25200, 70, "24h");
+    expect(row.slice(5, 7)).toBe("10");
+    expect(row).toContain("00");
+  });
+
   test("empty input renders an empty row", () => {
-    expect(hourLabelsRow([], 0, 40)).toBe("");
+    expect(hourLabelsRow([], 0, 40, "12h")).toBe("");
   });
 });
 
