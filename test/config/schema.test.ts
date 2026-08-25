@@ -1,7 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { DEFAULT_CONFIG, tuiConfigSchema } from "../../src/lib/config/schema";
+import {
+  DEFAULT_CONFIG,
+  migrateConfig,
+  resolveDisplayPrefs,
+  type TuiConfig,
+  tuiConfigSchema,
+} from "../../src/lib/config/schema";
 
-const base = { schema_version: 1 };
+const base = { schema_version: 2 };
 
 function location(slug: string) {
   return { slug, label: "L", latitude: 0, longitude: 0 };
@@ -15,6 +21,13 @@ describe("tuiConfigSchema", () => {
   test("empty document applies all defaults", () => {
     const cfg = tuiConfigSchema.parse(base);
     expect(cfg.units).toBe("imperial");
+    expect(cfg.time_format).toBe("auto");
+    expect(cfg.unit_prefs).toEqual({
+      temp: "imperial",
+      wind: "imperial",
+      precip: "imperial",
+      pressure: "imperial",
+    });
     expect(cfg.refresh_minutes).toBe(10);
     expect(cfg.theme).toBe("auto");
     expect(cfg.daily_days).toBe(7);
@@ -23,15 +36,17 @@ describe("tuiConfigSchema", () => {
     expect(cfg.locations).toEqual([]);
   });
 
-  test("DEFAULT_CONFIG matches parsed defaults", () => {
+  test("DEFAULT_CONFIG matches parsed defaults at version 2", () => {
     expect(DEFAULT_CONFIG).toEqual(tuiConfigSchema.parse(base));
+    expect(DEFAULT_CONFIG.schema_version).toBe(2);
     expect(DEFAULT_CONFIG.locations).toEqual([]);
   });
 
   test("full valid document parses verbatim", () => {
     const cfg = tuiConfigSchema.parse({
-      schema_version: 1,
-      units: "metric",
+      schema_version: 2,
+      time_format: "24h",
+      unit_prefs: { temp: "metric", wind: "imperial", precip: "metric", pressure: "metric" },
       refresh_minutes: 5,
       theme: "day",
       daily_days: 10,
@@ -43,7 +58,9 @@ describe("tuiConfigSchema", () => {
         { slug: "oslo", label: "Oslo, Norway", latitude: 59.9139, longitude: 10.7522 },
       ],
     });
-    expect(cfg.units).toBe("metric");
+    expect(cfg.time_format).toBe("24h");
+    expect(cfg.unit_prefs.temp).toBe("metric");
+    expect(cfg.unit_prefs.wind).toBe("imperial");
     expect(cfg.refresh_minutes).toBe(5);
     expect(cfg.theme).toBe("day");
     expect(cfg.daily_days).toBe(10);
@@ -54,19 +71,40 @@ describe("tuiConfigSchema", () => {
     expect(cfg.locations).toHaveLength(2);
   });
 
+  test("partial unit prefs fall back per-field to the legacy units scalar", () => {
+    const cfg = tuiConfigSchema.parse({
+      ...base,
+      units: "metric",
+      unit_prefs: { wind: "imperial" },
+    });
+    expect(cfg.unit_prefs.temp).toBe("metric");
+    expect(cfg.unit_prefs.wind).toBe("imperial");
+    expect(cfg.unit_prefs.precip).toBe("metric");
+    expect(cfg.unit_prefs.pressure).toBe("metric");
+  });
+
+  test("a fully absent matrix derives every field and the scalar from temp", () => {
+    const cfg = tuiConfigSchema.parse({ ...base, unit_prefs: { temp: "metric" } });
+    expect(cfg.units).toBe("metric");
+    expect(cfg.unit_prefs.wind).toBe("imperial");
+  });
+
   test("partial panels inherit defaults", () => {
     const cfg = tuiConfigSchema.parse({ ...base, panels: { hourly: false } });
     expect(cfg.panels).toEqual({ nowcast: true, details: true, hourly: false, daily: true });
   });
 
-  test("rejects bad units and theme", () => {
+  test("rejects bad units, time_format, and theme", () => {
     rejects({ ...base, units: "kelvin" });
+    rejects({ ...base, time_format: "sunrise" });
+    rejects({ ...base, unit_prefs: { temp: "kelvin" } });
     rejects({ ...base, theme: "system" });
   });
 
-  test("rejects schema_version other than 1", () => {
-    rejects({ schema_version: 2 });
-    rejects({ schema_version: "1" });
+  test("rejects schema_version other than 2", () => {
+    rejects({ schema_version: 3 });
+    rejects({ schema_version: "2" });
+    rejects({});
   });
 
   test("rejects out-of-range daily_days", () => {
@@ -152,5 +190,98 @@ describe("tuiConfigSchema", () => {
       locations: [location("portland")],
     });
     expect(cfg.default_location).toBe("portland");
+  });
+});
+
+describe("resolveDisplayPrefs", () => {
+  test("auto follows imperial temperature to a 12h clock", () => {
+    const prefs = resolveDisplayPrefs(tuiConfigSchema.parse(base));
+    expect(prefs).toEqual({
+      temp: "imperial",
+      wind: "imperial",
+      precip: "imperial",
+      pressure: "imperial",
+      timeFormat: "12h",
+    });
+  });
+
+  test("auto follows metric temperature to a 24h clock", () => {
+    const prefs = resolveDisplayPrefs(tuiConfigSchema.parse({ ...base, units: "metric" }));
+    expect(prefs.timeFormat).toBe("24h");
+    expect(prefs.temp).toBe("metric");
+  });
+
+  test("explicit time_format wins over auto derivation", () => {
+    const imperial24 = resolveDisplayPrefs(
+      tuiConfigSchema.parse({ ...base, units: "imperial", time_format: "24h" }),
+    );
+    expect(imperial24.timeFormat).toBe("24h");
+    const metric12 = resolveDisplayPrefs(
+      tuiConfigSchema.parse({ ...base, units: "metric", time_format: "12h" }),
+    );
+    expect(metric12.timeFormat).toBe("12h");
+  });
+
+  test("mixed prefs pass through untouched", () => {
+    const prefs = resolveDisplayPrefs(
+      tuiConfigSchema.parse({
+        ...base,
+        unit_prefs: { temp: "metric", wind: "imperial", precip: "metric", pressure: "imperial" },
+      }),
+    );
+    expect(prefs).toEqual({
+      temp: "metric",
+      wind: "imperial",
+      precip: "metric",
+      pressure: "imperial",
+      timeFormat: "24h",
+    });
+  });
+});
+
+describe("migrateConfig", () => {
+  test("promotes a v1 document to v2 with derived defaults", () => {
+    const cfg = migrateConfig({ schema_version: 1, units: "metric" });
+    expect(cfg.schema_version).toBe(2);
+    expect(cfg.units).toBe("metric");
+    expect(cfg.unit_prefs).toEqual({
+      temp: "metric",
+      wind: "metric",
+      precip: "metric",
+      pressure: "metric",
+    });
+    expect(cfg.time_format).toBe("auto");
+  });
+
+  test("explicit partial overrides win over derived legacy values", () => {
+    const cfg = migrateConfig({
+      schema_version: 1,
+      units: "imperial",
+      unit_prefs: { temp: "metric", precip: "metric" },
+    });
+    expect(cfg.unit_prefs.temp).toBe("metric");
+    expect(cfg.unit_prefs.wind).toBe("imperial");
+    expect(cfg.unit_prefs.precip).toBe("metric");
+    expect(cfg.unit_prefs.pressure).toBe("imperial");
+  });
+
+  test("still validates the migrated document", () => {
+    expect(() => migrateConfig({ schema_version: 1, units: "kelvin" })).toThrow();
+    expect(() => migrateConfig({ schema_version: 1, daily_days: 99 })).toThrow();
+  });
+
+  test("passes v2 documents through unchanged", () => {
+    const cfg = migrateConfig({ ...base, time_format: "12h" });
+    expect(cfg.time_format).toBe("12h");
+  });
+
+  test("parsed output re-parses idempotently", () => {
+    const cfg: TuiConfig = migrateConfig({
+      schema_version: 1,
+      units: "metric",
+      default_location: "oslo",
+      locations: [location("oslo")],
+    });
+    expect(tuiConfigSchema.parse(cfg)).toEqual(cfg);
   });
 });

@@ -12,11 +12,35 @@ import portlandFixture from "../fixtures/openmeteo/portland.json";
 const PORTLAND_FIXTURE_NOW = "2026-08-24T16:15:00.000Z";
 const PORTLAND_NOW_MS = Date.parse(PORTLAND_FIXTURE_NOW);
 
-const CONFIG_TOML = `schema_version = 1
+const IMPERIAL_12H_TOML = `schema_version = 1
 units = "imperial"
 refresh_minutes = 10
 theme = "night"
 default_location = "portland"
+
+[[locations]]
+slug = "portland"
+label = "Portland"
+latitude = 45.5202
+longitude = -122.6765
+
+[panels]
+nowcast = true
+details = true
+hourly = true
+daily = true
+`;
+
+const MIXED_24H_TOML = `schema_version = 2
+refresh_minutes = 10
+theme = "night"
+default_location = "portland"
+
+[units]
+temp = "metric"
+wind = "imperial"
+precip = "imperial"
+pressure = "imperial"
 
 [[locations]]
 slug = "portland"
@@ -46,10 +70,10 @@ function fixtureForecast() {
   return { ...forecast, fetchedAtUtc: PORTLAND_FIXTURE_NOW };
 }
 
-async function makeGoldenStore(): Promise<WeatherStore> {
+async function makeGoldenStore(configToml: string): Promise<WeatherStore> {
   const dir = await mkdtemp(join(tmpdir(), "tuiweather-golden-"));
   tmpDirs.push(dir);
-  await writeFile(join(dir, "config.toml"), CONFIG_TOML, "utf8");
+  await writeFile(join(dir, "config.toml"), configToml, "utf8");
   const forecast = fixtureForecast();
   const fetcher: ForecastFetcher = () => Promise.resolve({ forecast, stale: false });
   return createStoreInstance({
@@ -84,7 +108,7 @@ describe("golden frames", () => {
     ["xs 40x12", 40, 12],
   ] as const) {
     test(`portland fixture at ${name}`, async () => {
-      const store = await makeGoldenStore();
+      const store = await makeGoldenStore(IMPERIAL_12H_TOML);
       const setup = await testRender(
         <App store={store} nowMs={PORTLAND_NOW_MS} nowUtc={PORTLAND_FIXTURE_NOW} />,
         { width, height },
@@ -98,4 +122,38 @@ describe("golden frames", () => {
       }
     });
   }
+
+  test("portland fixture at md 80x24 with 24h clock and mixed units", async () => {
+    const store = await makeGoldenStore(MIXED_24H_TOML);
+    const setup = await testRender(
+      <App store={store} nowMs={PORTLAND_NOW_MS} nowUtc={PORTLAND_FIXTURE_NOW} />,
+      { width: 80, height: 24 },
+    );
+    try {
+      await setup.flush();
+      const frame = await waitUntilFrame(setup, (f) => f.includes("Portland"));
+      expect(frame).toContain("sunrise  06:22");
+      expect(frame).toContain("18°");
+      expect(frame).toContain("14 mph");
+      expect(frame).toMatchSnapshot("md 80x24 mixed 24h");
+    } finally {
+      await setup.renderer.destroy();
+    }
+  });
+
+  test("portland fixture at sm 60x20 with 24h header clock and mixed units", async () => {
+    const store = await makeGoldenStore(MIXED_24H_TOML);
+    const setup = await testRender(
+      <App store={store} nowMs={PORTLAND_NOW_MS} nowUtc={PORTLAND_FIXTURE_NOW} />,
+      { width: 60, height: 20 },
+    );
+    try {
+      await setup.flush();
+      const frame = await waitUntilFrame(setup, (f) => f.includes("09:15"));
+      expect(frame).toContain("7 mph");
+      expect(frame).toMatchSnapshot("sm 60x20 mixed 24h");
+    } finally {
+      await setup.renderer.destroy();
+    }
+  });
 });

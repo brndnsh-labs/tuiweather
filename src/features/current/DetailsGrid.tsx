@@ -1,9 +1,9 @@
+import type { DisplayPrefs } from "../../lib/config/schema";
 import {
   formatClock,
   formatTemp,
   formatVisibility,
   formatWind,
-  type Units,
   uvLabel,
 } from "../../lib/weather/format";
 import type { CurrentObs, DailyPoint } from "../../lib/weather/types";
@@ -13,7 +13,7 @@ interface DetailsGridProps {
   obs: CurrentObs;
   today?: DailyPoint;
   utcOffsetSeconds: number;
-  units: Units;
+  prefs: DisplayPrefs;
   colWidth?: number;
 }
 
@@ -29,15 +29,19 @@ function Cell({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function DetailsGrid({ obs, today, utcOffsetSeconds, units, colWidth }: DetailsGridProps) {
+export function DetailsGrid({ obs, today, utcOffsetSeconds, prefs, colWidth }: DetailsGridProps) {
   const humidity = `${Math.round(obs.humidityPct)}%`;
-  const dewPoint = obs.dewPointC === null ? "--" : formatTemp(obs.dewPointC, units);
+  const dewPoint = obs.dewPointC === null ? "--" : formatTemp(obs.dewPointC, prefs.temp);
   const pressure = obs.pressureHpa === null ? "--" : `${Math.round(obs.pressureHpa)} hPa`;
-  const gusts = obs.windGustKmh === null ? "--" : formatWind(obs.windGustKmh, null, units);
+  const gusts = obs.windGustKmh === null ? "--" : formatWind(obs.windGustKmh, null, prefs.wind);
   const uv = obs.uvIndex === null ? "--" : `${Math.round(obs.uvIndex)} ${uvLabel(obs.uvIndex)}`;
-  const visibility = formatVisibility(obs.visibilityM, units);
-  const sunrise = today?.sunriseUtc ? formatClock(today.sunriseUtc, utcOffsetSeconds) : "--";
-  const sunset = today?.sunsetUtc ? formatClock(today.sunsetUtc, utcOffsetSeconds) : "--";
+  const visibility = formatVisibility(obs.visibilityM, prefs.wind);
+  const sunrise = today?.sunriseUtc
+    ? formatClock(today.sunriseUtc, utcOffsetSeconds, prefs.timeFormat)
+    : "--";
+  const sunset = today?.sunsetUtc
+    ? formatClock(today.sunsetUtc, utcOffsetSeconds, prefs.timeFormat)
+    : "--";
 
   const halfWidth = colWidth ?? 20;
 

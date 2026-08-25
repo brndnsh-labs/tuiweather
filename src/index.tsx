@@ -6,7 +6,7 @@ import { appStore } from "./app/store";
 import type { CliArgs } from "./cli";
 import { HELP_TEXT, parseArgs, USAGE, VERSION } from "./cli";
 import { loadConfig } from "./lib/config/load";
-import type { TuiConfig } from "./lib/config/schema";
+import { resolveDisplayPrefs, type TuiConfig } from "./lib/config/schema";
 import { fetchForecast, OPENMETEO_PROVIDER_ID } from "./lib/providers/openmeteo/client";
 import type { WeatherProvider } from "./lib/providers/types";
 import { cachedForecast } from "./lib/weather/cache";
@@ -68,12 +68,13 @@ async function runOneLine(args: CliArgs): Promise<number> {
     { maxAgeMinutes: config.refresh_minutes },
   );
   const nowUtc = new Date().toISOString();
+  const prefs = resolveDisplayPrefs(config);
   if (args.json) {
     process.stdout.write(
-      `${JSON.stringify(buildJsonLine(forecast, { label, latitude, longitude }, config.units, nowUtc))}\n`,
+      `${JSON.stringify(buildJsonLine(forecast, { label, latitude, longitude }, prefs, nowUtc))}\n`,
     );
   } else {
-    process.stdout.write(`${buildOneLine(forecast, config.units, nowUtc)}\n`);
+    process.stdout.write(`${buildOneLine(forecast, prefs, nowUtc)}\n`);
   }
   return 0;
 }

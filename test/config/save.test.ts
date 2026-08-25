@@ -24,8 +24,9 @@ afterAll(async () => {
 
 function sampleConfig(): TuiConfig {
   return tuiConfigSchema.parse({
-    schema_version: 1,
-    units: "metric",
+    schema_version: 2,
+    time_format: "24h",
+    unit_prefs: { temp: "metric", wind: "imperial", precip: "metric", pressure: "imperial" },
     panels: { nowcast: true, details: false, hourly: true, daily: false },
     default_location: "portland",
     locations: [
@@ -70,11 +71,11 @@ describe("saveConfig", () => {
     const file = join(await tempDir(), "config.toml");
     await saveConfig(sampleConfig(), file);
     const next = sampleConfig();
-    next.units = "imperial";
+    next.time_format = "12h";
     next.refresh_minutes = 30;
     await saveConfig(next, file);
     const loaded = await loadConfig(file);
-    expect(loaded.units).toBe("imperial");
+    expect(loaded.time_format).toBe("12h");
     expect(loaded.refresh_minutes).toBe(30);
   });
 
@@ -87,24 +88,69 @@ describe("saveConfig", () => {
 
   test("round-trips a default-only config", async () => {
     const file = join(await tempDir(), "config.toml");
-    const original = tuiConfigSchema.parse({ schema_version: 1 });
+    const original = tuiConfigSchema.parse({ schema_version: 2 });
     await saveConfig(original, file);
     await expect(loadConfig(file)).resolves.toEqual(original);
   });
 
+  test("writes the units scalar when prefs are uniform and the full matrix otherwise", async () => {
+    const uniformFile = join(await tempDir(), "uniform.toml");
+    await saveConfig(tuiConfigSchema.parse({ schema_version: 2 }), uniformFile);
+    const uniformText = await readFile(uniformFile, "utf8");
+    expect(uniformText).toContain('units = "imperial"');
+    expect(uniformText).not.toContain("[units]");
+
+    const mixedFile = join(await tempDir(), "mixed.toml");
+    await saveConfig(sampleConfig(), mixedFile);
+    const mixedText = await readFile(mixedFile, "utf8");
+    expect(mixedText).not.toMatch(/^units =/m);
+    expect(mixedText).toContain("[units]");
+    expect(mixedText).toContain('temp = "metric"');
+    expect(mixedText).toContain('wind = "imperial"');
+    const reloaded = await loadConfig(mixedFile);
+    expect(reloaded.unit_prefs).toEqual(sampleConfig().unit_prefs);
+  });
+
+  test("refuses to persist a legacy version 1 document", async () => {
+    const file = join(await tempDir(), "config.toml");
+    const legacy = { ...sampleConfig(), schema_version: 1 } as unknown as TuiConfig;
+    await expect(saveConfig(legacy, file)).rejects.toThrow();
+  });
+
   test("places bare keys before [panels] and [[locations]] headers", async () => {
     const file = join(await tempDir(), "config.toml");
-    await saveConfig(sampleConfig(), file);
+    await saveConfig(
+      tuiConfigSchema.parse({
+        schema_version: 2,
+        default_location: "portland",
+        locations: [{ slug: "portland", label: "Portland", latitude: 0, longitude: 0 }],
+      }),
+      file,
+    );
     const text = await readFile(file, "utf8");
-    expect(text.match(/^schema_version = 1$/m)).not.toBeNull();
+    expect(text.match(/^schema_version = 2$/m)).not.toBeNull();
     const schemaAt = text.indexOf("schema_version");
     const unitsAt = text.indexOf("units =");
+    const timeAt = text.indexOf("time_format");
     const daysAt = text.indexOf("daily_days");
     const hoursAt = text.indexOf("hourly_hours");
     const panelsAt = text.indexOf("[panels]");
     const locationsAt = text.indexOf("[[locations]]");
-    for (const at of [unitsAt, daysAt, hoursAt]) expect(at).toBeGreaterThan(schemaAt);
+    for (const at of [timeAt, unitsAt, daysAt, hoursAt]) expect(at).toBeGreaterThan(schemaAt);
     expect(panelsAt).toBeGreaterThan(hoursAt);
+    expect(locationsAt).toBeGreaterThan(panelsAt);
+  });
+
+  test("keeps the [units] table header ahead of [panels]", async () => {
+    const file = join(await tempDir(), "config.toml");
+    await saveConfig(sampleConfig(), file);
+    const text = await readFile(file, "utf8");
+    const unitsTableAt = text.indexOf("[units]");
+    const hoursAt = text.indexOf("hourly_hours");
+    const panelsAt = text.indexOf("[panels]");
+    const locationsAt = text.indexOf("[[locations]]");
+    expect(unitsTableAt).toBeGreaterThan(hoursAt);
+    expect(panelsAt).toBeGreaterThan(unitsTableAt);
     expect(locationsAt).toBeGreaterThan(panelsAt);
   });
 });
@@ -132,7 +178,7 @@ describe("loadConfig", () => {
 
   test("rejects unsupported schema_version with issues", async () => {
     const file = join(await tempDir(), "future.toml");
-    await writeFile(file, "schema_version = 2\n");
+    await writeFile(file, "schema_version = 99\n");
     const error = await expectConfigError(loadConfig(file));
     expect(error.issues.length).toBeGreaterThan(0);
     expect(error.issues.some((issue) => issue.includes("schema_version"))).toBe(true);

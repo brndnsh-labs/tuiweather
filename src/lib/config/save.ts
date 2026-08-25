@@ -8,12 +8,18 @@ import { type TuiConfig, tuiConfigSchema } from "./schema";
 function serialize(config: TuiConfig): string {
   const doc: Record<string, unknown> = {
     schema_version: config.schema_version,
-    units: config.units,
+    time_format: config.time_format,
     refresh_minutes: config.refresh_minutes,
     theme: config.theme,
     daily_days: config.daily_days,
     hourly_hours: config.hourly_hours,
   };
+  // A TOML document cannot hold both `units = "..."` and a [units] table, so
+  // emit the scalar shorthand only when the matrix is uniform and matches it.
+  const prefs = config.unit_prefs;
+  const uniform =
+    prefs.temp === prefs.wind && prefs.wind === prefs.precip && prefs.precip === prefs.pressure;
+  doc.units = uniform && prefs.temp === config.units ? config.units : { ...prefs };
   if (config.default_location !== undefined) doc.default_location = config.default_location;
   doc.panels = { ...config.panels };
   doc.locations = config.locations.map((loc) => ({ ...loc }));

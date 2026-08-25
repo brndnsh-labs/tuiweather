@@ -1,6 +1,7 @@
+import type { DisplayPrefs } from "../lib/config/schema";
 import { conditionGlyph } from "../lib/providers/openmeteo/wmo";
 import { deriveNowcast, type Nowcast } from "../lib/weather/derive";
-import { formatTemp, formatWind, type Units } from "../lib/weather/format";
+import { formatTemp, formatWind } from "../lib/weather/format";
 import type { Condition, NormalizedForecast } from "../lib/weather/types";
 
 const SEPARATOR = " · ";
@@ -13,8 +14,8 @@ function windArrow(directionDegFrom: number): string {
   return ARROWS_8[idx] ?? "↑";
 }
 
-function windSegment(speedKmh: number, dirDeg: number, units: Units): string {
-  const formatted = formatWind(speedKmh, dirDeg, units);
+function windSegment(speedKmh: number, dirDeg: number, wind: DisplayPrefs["wind"]): string {
+  const formatted = formatWind(speedKmh, dirDeg, wind);
   const parts = formatted.split(" ");
   const speed = parts[0] ?? "";
   const unit = parts[1] ?? "";
@@ -22,10 +23,10 @@ function windSegment(speedKmh: number, dirDeg: number, units: Units): string {
   return `${windArrow(dirDeg)}${speed}${unit}${compass ? ` ${compass}` : ""}`;
 }
 
-function hiLoSegment(forecast: NormalizedForecast, units: Units): string {
+function hiLoSegment(forecast: NormalizedForecast, temp: DisplayPrefs["temp"]): string {
   const today = forecast.daily[0];
   if (!today) return "";
-  return `${formatTemp(today.tempMinC, units)}–${formatTemp(today.tempMaxC, units)}`;
+  return `${formatTemp(today.tempMinC, temp)}–${formatTemp(today.tempMaxC, temp)}`;
 }
 
 function nowcastSegment(forecast: NormalizedForecast, nowUtc: string): string {
@@ -42,15 +43,19 @@ function nowcastSegment(forecast: NormalizedForecast, nowUtc: string): string {
   }
 }
 
-export function buildOneLine(forecast: NormalizedForecast, units: Units, nowUtc: string): string {
+export function buildOneLine(
+  forecast: NormalizedForecast,
+  prefs: DisplayPrefs,
+  nowUtc: string,
+): string {
   const current = forecast.current;
   const glyph = conditionGlyph(current.condition);
-  const feelsLike = formatTemp(current.apparentC, units).replace("°", "");
+  const feelsLike = formatTemp(current.apparentC, prefs.temp).replace("°", "");
   const segments = [
-    `${glyph} ${formatTemp(current.temperatureC, units)} fl${feelsLike}`,
+    `${glyph} ${formatTemp(current.temperatureC, prefs.temp)} fl${feelsLike}`,
     nowcastSegment(forecast, nowUtc),
-    hiLoSegment(forecast, units),
-    windSegment(current.windSpeedKmh, current.windDirectionDeg, units),
+    hiLoSegment(forecast, prefs.temp),
+    windSegment(current.windSpeedKmh, current.windDirectionDeg, prefs.wind),
   ].filter((segment) => segment.length > 0);
   return segments.join(SEPARATOR);
 }
@@ -76,7 +81,7 @@ export interface OneLineJson {
 export function buildJsonLine(
   forecast: NormalizedForecast,
   location: JsonLocation,
-  units: Units,
+  prefs: DisplayPrefs,
   nowUtc: string,
 ): OneLineJson {
   const current = forecast.current;
@@ -94,6 +99,6 @@ export function buildJsonLine(
       dirDeg: current.windDirectionDeg,
       gustKmh: current.windGustKmh,
     },
-    line: buildOneLine(forecast, units, nowUtc),
+    line: buildOneLine(forecast, prefs, nowUtc),
   };
 }

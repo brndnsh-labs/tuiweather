@@ -1,9 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parse } from "smol-toml";
-import type { ZodError } from "zod";
+import { ZodError } from "zod";
 import { ConfigError } from "./errors";
-import { DEFAULT_CONFIG, type TuiConfig, tuiConfigSchema } from "./schema";
+import { DEFAULT_CONFIG, migrateConfig, type TuiConfig } from "./schema";
 
 export function defaultConfigPath(): string {
   const xdg = process.env.XDG_CONFIG_HOME?.trim();
@@ -47,13 +47,16 @@ export async function loadConfig(path?: string): Promise<TuiConfig> {
     throw new ConfigError(`invalid TOML in ${target}: ${shortReason(e)}`);
   }
 
-  const result = tuiConfigSchema.safeParse(raw);
-  if (!result.success) {
-    const issues = formatIssues(result.error);
-    if (result.error.issues.some((i) => i.path.length === 0 || i.path[0] === "schema_version")) {
+  let config: TuiConfig;
+  try {
+    config = migrateConfig(raw);
+  } catch (e) {
+    if (!(e instanceof ZodError)) throw e;
+    const issues = formatIssues(e);
+    if (e.issues.some((i) => i.path.length === 0 || i.path[0] === "schema_version")) {
       issues.push("hint: bare keys must appear before any [table] or [[array]] headers in TOML");
     }
     throw new ConfigError(`invalid config in ${target}: ${issues.length} issue(s)`, issues);
   }
-  return result.data;
+  return config;
 }
