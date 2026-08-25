@@ -112,7 +112,15 @@ function MainContent({ tier, width, forecast, nowUtc, units, panels }: MainConte
           ) : (
             <Hero obs={forecast.current} units={units} compact />
           )}
-          {panels.nowcast ? <NowcastBanner nowcast={nowcast} hideWhenDry width={width} /> : null}
+          {panels.nowcast ? (
+            <NowcastBanner
+              nowcast={nowcast}
+              hideWhenDry
+              width={width}
+              forecast={forecast}
+              nowUtc={nowUtc}
+            />
+          ) : null}
           {panels.hourly ? (
             <HourlyStrip
               points={forecast.hourly}

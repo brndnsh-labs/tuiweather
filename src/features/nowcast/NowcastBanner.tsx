@@ -1,10 +1,19 @@
-import { describeNowcast, type Nowcast } from "../../lib/weather/derive";
+import {
+  describeNowcast,
+  type Nowcast,
+  precipGlyph,
+  upcomingPrecipSeries,
+  WET_MM,
+} from "../../lib/weather/derive";
+import type { NormalizedForecast } from "../../lib/weather/types";
 import { usePalette } from "../../theme/tokens";
 
 interface NowcastBannerProps {
   nowcast: Nowcast;
   hideWhenDry?: boolean;
   width?: number;
+  forecast?: NormalizedForecast;
+  nowUtc?: string;
 }
 
 function middleTruncate(text: string, width: number): string {
@@ -15,7 +24,19 @@ function middleTruncate(text: string, width: number): string {
   return `${text.slice(0, head)}…${text.slice(text.length - tail)}`;
 }
 
-export function NowcastBanner({ nowcast, hideWhenDry = false, width }: NowcastBannerProps) {
+function stripFor(series: number[], width: number): string | null {
+  const shown = series.slice(0, width);
+  if (shown.length === 0 || !shown.some((mm) => mm >= WET_MM)) return null;
+  return shown.map((mm) => precipGlyph(mm)).join("");
+}
+
+export function NowcastBanner({
+  nowcast,
+  hideWhenDry = false,
+  width,
+  forecast,
+  nowUtc,
+}: NowcastBannerProps) {
   const palette = usePalette();
 
   if (nowcast.kind === "dry") {
@@ -27,5 +48,19 @@ export function NowcastBanner({ nowcast, hideWhenDry = false, width }: NowcastBa
 
   const fg = nowcast.kind === "ongoing" ? palette.accent : palette.warn;
   const raw = `▔ ${describeNowcast(nowcast)}`;
-  return <text fg={fg}>{width === undefined ? raw : middleTruncate(raw, width)}</text>;
+  const sentence = width === undefined ? raw : middleTruncate(raw, width);
+
+  const strip =
+    width === undefined || !forecast || !nowUtc
+      ? null
+      : stripFor(upcomingPrecipSeries(forecast, nowUtc), width);
+
+  if (!strip) return <text fg={fg}>{sentence}</text>;
+
+  return (
+    <box flexDirection="column">
+      <text fg={fg}>{sentence}</text>
+      <text fg={fg}>{strip}</text>
+    </box>
+  );
 }
