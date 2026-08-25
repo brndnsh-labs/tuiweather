@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildOneLine } from "../../src/app/oneline";
+import { buildJsonLine, buildOneLine } from "../../src/app/oneline";
 import { conditionGlyph } from "../../src/lib/providers/openmeteo/wmo";
 import type {
   CurrentObs,
@@ -135,5 +135,64 @@ describe("buildOneLine", () => {
     );
     expect(line.startsWith("☀ 22° fl18")).toBe(true);
     expect(line).toContain("16°–30°");
+  });
+});
+
+describe("buildJsonLine", () => {
+  test("metric values are canonical while line keeps configured units", () => {
+    const forecast = makeForecast();
+    const json = buildJsonLine(
+      forecast,
+      { label: "Portland", latitude: 45.52, longitude: -122.68 },
+      "imperial",
+      NOW,
+    );
+    expect(json.location).toEqual({ label: "Portland", latitude: 45.52, longitude: -122.68 });
+    expect(json.observedAtUtc).toBe(NOW);
+    expect(json.temperatureC).toBe(22.2222);
+    expect(json.apparentC).toBe(21.1111);
+    expect(json.condition).toBe("clear");
+    expect(json.today).toEqual({ minC: 14.4444, maxC: 23.8889 });
+    expect(json.wind).toEqual({ speedKmh: 9.6563, dirDeg: 315, gustKmh: null });
+    expect(json.nowcast).toEqual({ kind: "dry" });
+    expect(json.line).toBe(buildOneLine(forecast, "imperial", NOW));
+    expect(JSON.parse(JSON.stringify(json))).toEqual(json);
+  });
+
+  test("nowcast derives from buckets and daily/wind nulls propagate", () => {
+    const forecast = makeForecast({
+      current: {
+        condition: "rain",
+        windGustKmh: 41.8,
+      },
+      minutely15: [bucket(-15, 0), bucket(0, 0), bucket(15, 0.5), bucket(30, 0.2)],
+      daily: [],
+    });
+    const json = buildJsonLine(
+      forecast,
+      { label: null, latitude: 1.5, longitude: 2.5 },
+      "metric",
+      NOW,
+    );
+    expect(json.nowcast).toEqual({ kind: "starting", startsInMin: 15, intensity: "heavy" });
+    expect(json.condition).toBe("rain");
+    expect(json.wind).toEqual({ speedKmh: 9.6563, dirDeg: 315, gustKmh: 41.8 });
+    expect(json.today).toEqual({ minC: null, maxC: null });
+  });
+
+  test("line field is byte-identical to plain one-line output for the same run", () => {
+    for (const units of ["metric", "imperial"] as const) {
+      const forecast = makeForecast({
+        minutely15: [bucket(-30, 0.5), bucket(-15, 0.4), bucket(0, 0)],
+      });
+      const nowUtc = NOW_MINUS_10MIN;
+      const json = buildJsonLine(
+        forecast,
+        { label: null, latitude: 45.52, longitude: -122.68 },
+        units,
+        nowUtc,
+      );
+      expect(json.line).toBe(buildOneLine(forecast, units, nowUtc));
+    }
   });
 });

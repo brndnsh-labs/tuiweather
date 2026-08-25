@@ -1,7 +1,7 @@
 import { conditionGlyph } from "../lib/providers/openmeteo/wmo";
-import { deriveNowcast } from "../lib/weather/derive";
+import { deriveNowcast, type Nowcast } from "../lib/weather/derive";
 import { formatTemp, formatWind, type Units } from "../lib/weather/format";
-import type { NormalizedForecast } from "../lib/weather/types";
+import type { Condition, NormalizedForecast } from "../lib/weather/types";
 
 const SEPARATOR = " · ";
 
@@ -53,4 +53,47 @@ export function buildOneLine(forecast: NormalizedForecast, units: Units, nowUtc:
     windSegment(current.windSpeedKmh, current.windDirectionDeg, units),
   ].filter((segment) => segment.length > 0);
   return segments.join(SEPARATOR);
+}
+
+export interface JsonLocation {
+  label: string | null;
+  latitude: number;
+  longitude: number;
+}
+
+export interface OneLineJson {
+  location: JsonLocation;
+  observedAtUtc: string;
+  temperatureC: number;
+  apparentC: number;
+  condition: Condition;
+  nowcast: Nowcast;
+  today: { minC: number | null; maxC: number | null };
+  wind: { speedKmh: number; dirDeg: number; gustKmh: number | null };
+  line: string;
+}
+
+export function buildJsonLine(
+  forecast: NormalizedForecast,
+  location: JsonLocation,
+  units: Units,
+  nowUtc: string,
+): OneLineJson {
+  const current = forecast.current;
+  const today = forecast.daily[0];
+  return {
+    location,
+    observedAtUtc: current.timeUtc,
+    temperatureC: current.temperatureC,
+    apparentC: current.apparentC,
+    condition: current.condition,
+    nowcast: deriveNowcast(forecast, nowUtc),
+    today: today ? { minC: today.tempMinC, maxC: today.tempMaxC } : { minC: null, maxC: null },
+    wind: {
+      speedKmh: current.windSpeedKmh,
+      dirDeg: current.windDirectionDeg,
+      gustKmh: current.windGustKmh,
+    },
+    line: buildOneLine(forecast, units, nowUtc),
+  };
 }

@@ -77,6 +77,18 @@ Responses are cached on disk, so frequent invocations stay cheap; cached data ol
 One-line mode is non-interactive; if no location is configured yet, run `tuiweather` once to
 complete setup.
 
+For scripting without a configured location, pass explicit coordinates instead of `--location`
+(`--lat` −90..90 and `--lon` −180..180, required together). Add `--json` to print one line of
+compact JSON — temperatures, wind, nowcast, today's low/high, and the status line itself — for
+piping into `jq`:
+
+```sh
+tuiweather --one-line --lat 45.52 --lon -122.67 --json | jq .temperatureC
+```
+
+JSON values are always metric regardless of your configured units; the embedded `line` field
+matches the plain one-line output, which follows configured units.
+
 ## Configuration
 
 Config lives at `~/.config/tuiweather/config.toml` (respects `XDG_CONFIG_HOME`). Every field is optional unless marked required; unknown values fail validation with a descriptive error.
