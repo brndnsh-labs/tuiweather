@@ -6,7 +6,7 @@ interface HelpOverlayProps {
 }
 
 export const HELP_BOX_WIDTH = 46;
-const HELP_BOX_HEIGHT = 9;
+const HELP_BOX_HEIGHT = 10;
 
 export function HelpOverlay({ width, height }: HelpOverlayProps) {
   const palette = usePalette();
@@ -32,8 +32,11 @@ export function HelpOverlay({ width, height }: HelpOverlayProps) {
       <text fg={palette.fg} bg={palette.surface}>
         {"[ ] prev/next location   ? toggle help"}
       </text>
+      <text fg={palette.fg} bg={palette.surface}>
+        {"↑↓ scroll"}
+      </text>
       <text fg={palette.fgDim} bg={palette.surface}>
-        {"/ search"}
+        {"/ search     d delete (press twice)"}
       </text>
       <text fg={palette.fg} bg={palette.surface}>
         {"esc close"}

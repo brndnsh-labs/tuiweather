@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { testRender } from "@opentui/react/test-utils";
-import { App } from "../../src/app/App";
+import { App, estimateMainContentRows } from "../../src/app/App";
 import { createStoreInstance, type ForecastFetcher, type WeatherStore } from "../../src/app/store";
 import { normalizeForecast } from "../../src/lib/providers/openmeteo/normalize";
 import { forecastResponseSchema } from "../../src/lib/providers/openmeteo/schemas";
@@ -68,11 +68,12 @@ async function frameFor(
   toml: string,
   forecast: NormalizedForecast = fixtureForecast(),
   width = 80,
+  height = 24,
 ): Promise<string> {
   const store = await makeStore(toml, forecast);
   const setup = await testRender(<App store={store} nowMs={Date.parse(NOW)} nowUtc={NOW} />, {
     width,
-    height: 24,
+    height,
   });
   try {
     await setup.flush();
@@ -90,14 +91,80 @@ async function frameFor(
   }
 }
 
+describe("main overflow estimate", () => {
+  const ALL_PANELS = { nowcast: true, details: true, hourly: true, daily: true };
+
+  test("md fixture content exceeds an 80x24 viewport once chrome is added", () => {
+    const rows = estimateMainContentRows({
+      tier: "md",
+      width: 76,
+      forecast: fixtureForecast(),
+      panels: ALL_PANELS,
+      nowUtc: NOW,
+    });
+    expect(rows).toBe(23);
+    expect((rows ?? 0) + 6).toBeGreaterThan(24);
+  });
+
+  test("tier shapes change the estimate deterministically", () => {
+    const forecast = fixtureForecast();
+    const base = { width: 90, forecast, panels: ALL_PANELS, nowUtc: NOW };
+    expect(estimateMainContentRows({ ...base, tier: "lg" })).toBe(26);
+    expect(estimateMainContentRows({ ...base, tier: "sm" })).toBe(18);
+    expect(estimateMainContentRows({ ...base, tier: "xs" })).toBeNull();
+  });
+});
+
+describe("overflow hint", () => {
+  test("short md frame surfaces the bottom-right hint", async () => {
+    const frame = await frameFor(configToml({}));
+    expect(frame).toContain("↓ more");
+  });
+
+  test("very short frame still surfaces the hint", async () => {
+    const frame = await frameFor(configToml({}), fixtureForecast(), 80, 12);
+    expect(frame).toContain("↓ more");
+  });
+
+  test("tall frame hides the hint once content fits", async () => {
+    const frame = await frameFor(configToml({}), fixtureForecast(), 80, 60);
+    expect(frame).not.toContain("↓ more");
+  });
+});
+
 describe("panels config toggles", () => {
   test("default panels render hero, details, hourly, and daily sections", async () => {
     const frame = await frameFor(configToml({}));
     expect(frame).toContain("╭━━━╮");
     expect(frame).toContain("sunrise");
     expect(frame).toContain("temp ");
-    expect(frame).toContain("7 day");
-    expect(frame).toContain("Mon");
+    expect(frame).toContain("↓ more");
+  });
+
+  test("overflowing md panel reveals the daily section on scroll", async () => {
+    const store = await makeStore(configToml({}), fixtureForecast());
+    const setup = await testRender(<App store={store} nowMs={Date.parse(NOW)} nowUtc={NOW} />, {
+      width: 80,
+      height: 24,
+    });
+    try {
+      await setup.flush();
+      for (let i = 0; i < 40; i++) {
+        const frame = setup.captureCharFrame();
+        if (frame.includes("Portland") && i > 2) break;
+        await sleep(15);
+        await setup.flush().catch(() => undefined);
+      }
+      for (let i = 0; i < 12; i++) {
+        if (setup.captureCharFrame().includes("7 day")) return;
+        setup.mockInput.pressArrow("down");
+        await sleep(20);
+        await setup.flush().catch(() => undefined);
+      }
+      expect(setup.captureCharFrame()).toContain("7 day");
+    } finally {
+      await setup.renderer.destroy();
+    }
   });
 
   test("panels.details=false drops the details grid but keeps hero", async () => {
@@ -120,7 +187,7 @@ describe("panels config toggles", () => {
     const frame = await frameFor(configToml({ daily: false }));
     expect(frame).toContain("╭━━━╮");
     expect(frame).not.toContain("7 day");
-    expect(frame).not.toContain("Mon");
+    expect(frame).not.toContain("Mon ☀");
     expect(frame).toContain("temp ");
   });
 

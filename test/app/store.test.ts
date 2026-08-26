@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   createStoreInstance,
+  DELETE_ARM_TTL_MS,
   type ForecastFetcher,
   type RefreshTimerDeps,
 } from "../../src/app/store";
@@ -446,6 +447,100 @@ describe("store", () => {
 
     store.getState().toggleHelp();
     expect(store.getState().helpOpen).toBe(false);
+  });
+});
+
+describe("delete arm/confirm", () => {
+  async function armedStore() {
+    const dir = await makeConfigDir(CONFIG_TOML);
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: stubFetcher(),
+    });
+    await store.getState().init();
+    return store;
+  }
+
+  test("arm sets state that lazily expires after the ttl", async () => {
+    const store = await armedStore();
+    expect(store.getState().deleteArmedAtMs).toBeNull();
+
+    store.getState().armDelete();
+    const armedAt = store.getState().deleteArmedAtMs;
+    if (armedAt === null) throw new Error("armDelete did not record a timestamp");
+
+    expect(store.getState().deleteArmed(armedAt)).toBe(true);
+    expect(store.getState().deleteArmed(armedAt + DELETE_ARM_TTL_MS - 1)).toBe(true);
+    expect(store.getState().deleteArmed(armedAt + DELETE_ARM_TTL_MS)).toBe(false);
+  });
+
+  test("disarmDelete clears the armed state immediately", async () => {
+    const store = await armedStore();
+    store.getState().armDelete();
+    expect(store.getState().deleteArmedAtMs).not.toBeNull();
+
+    store.getState().disarmDelete();
+    expect(store.getState().deleteArmedAtMs).toBeNull();
+    expect(store.getState().deleteArmed(Date.now())).toBe(false);
+  });
+
+  test("second delete within the window deletes and clears the arm", async () => {
+    const store = await armedStore();
+    store.getState().armDelete();
+
+    await store.getState().deleteActiveLocation();
+
+    expect(store.getState().config.locations.map((loc) => loc.slug)).toEqual(["portland"]);
+    expect(store.getState().activeSlug).toBe("portland");
+    expect(store.getState().deleteArmedAtMs).toBeNull();
+  });
+
+  test("cycleLocation clears the armed state", async () => {
+    const store = await armedStore();
+    const before = store.getState().activeSlug;
+    store.getState().armDelete();
+    expect(store.getState().deleteArmedAtMs).not.toBeNull();
+
+    store.getState().cycleLocation(1);
+
+    expect(store.getState().activeSlug).not.toBe(before);
+    expect(store.getState().deleteArmedAtMs).toBeNull();
+  });
+
+  test("opening the search overlay disarms", async () => {
+    const store = await armedStore();
+    store.getState().armDelete();
+
+    store.getState().setOverlayOpen(true);
+
+    expect(store.getState().deleteArmedAtMs).toBeNull();
+  });
+
+  test("last-location guard holds while armed and still consumes the arm", async () => {
+    const singleTOML = CONFIG_TOML.replace(
+      `
+[[locations]]
+slug = "london"
+label = "London"
+latitude = 51.5072
+longitude = -0.1276
+`,
+      "\n",
+    ).replace('default_location = "london"', 'default_location = "portland"');
+    const dir = await makeConfigDir(singleTOML);
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: stubFetcher(),
+    });
+    await store.getState().init();
+    store.getState().armDelete();
+
+    await store.getState().deleteActiveLocation();
+
+    expect(store.getState().config.locations.map((loc) => loc.slug)).toEqual(["portland"]);
+    expect(store.getState().activeSlug).toBe("portland");
+    expect(store.getState().lastActionError).toBe("cannot delete the only location");
+    expect(store.getState().deleteArmedAtMs).toBeNull();
   });
 });
 

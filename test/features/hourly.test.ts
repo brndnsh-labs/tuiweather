@@ -1,11 +1,24 @@
 import { describe, expect, test } from "bun:test";
 import {
+  annotateRows,
+  buildTempAreaRows,
+  fitNotes,
   hourLabelsRow,
-  precipBars,
+  MIN_WIDE_AREA_SERIES_WIDTH,
+  PROB_SUMMARY_PCT,
+  peakProbability,
+  planTempNotes,
+  precipBarsAbsolute,
+  precipWindowKind,
+  segmentRow,
   seriesWidthFor,
   sliceUpcoming,
+  TEMP_AREA_ROWS_NARROW,
+  TEMP_AREA_ROWS_WIDE,
+  TRACE_MM,
+  windowIsDry,
 } from "../../src/features/hourly/HourlyStrip";
-import type { HourlyPoint } from "../../src/lib/weather/types";
+import type { Condition, HourlyPoint } from "../../src/lib/weather/types";
 
 const NOW = "2026-08-24T16:15:00.000Z";
 
@@ -25,6 +38,10 @@ function hourlyPoints(count: number, startUtc = "2026-08-24T17:00:00.000Z"): Hou
     uvIndex: null,
     isDay: true,
   }));
+}
+
+function withOverrides(point: HourlyPoint, overrides: Partial<HourlyPoint>): HourlyPoint {
+  return { ...point, ...overrides };
 }
 
 describe("sliceUpcoming", () => {
@@ -47,8 +64,13 @@ describe("seriesWidthFor", () => {
     expect(seriesWidthFor(48, 90)).toBe(84);
   });
 
-  test("caps upscaling so sparse series do not smear", () => {
-    expect(seriesWidthFor(4, 90)).toBe(12);
+  test("caps upscaling at two cells per point through twelve points", () => {
+    expect(seriesWidthFor(4, 90)).toBe(8);
+    expect(seriesWidthFor(12, 90)).toBe(24);
+  });
+
+  test("switches to three cells per point beyond twelve points", () => {
+    expect(seriesWidthFor(13, 90)).toBe(39);
   });
 
   test("reserves the label gutter plus one safety column", () => {
@@ -79,13 +101,234 @@ describe("hourLabelsRow", () => {
   });
 });
 
-describe("precipBars", () => {
-  test("dry windows render uniform track cells", () => {
-    expect(precipBars([0, 0, 0])).toBe("░░░");
+describe("precipBarsAbsolute", () => {
+  test("trace and negative amounts render blank space, never ░", () => {
+    expect(precipBarsAbsolute([0, 0.04, -0.3])).toBe("   ");
   });
 
-  test("wet values scale onto the ramp relative to the window max", () => {
-    expect(precipBars([0.1, 0.2])).toBe("▄█");
-    expect(precipBars([0.05, 0.1, 0.2])).toBe("▂▄█");
+  test("exact threshold boundaries map onto the documented ladder", () => {
+    const edges = [0.04, TRACE_MM, 0.15, 0.25, 0.5, 1, 2.5, 5, 10];
+    expect(precipBarsAbsolute(edges)).toBe(" ▁▂▃▄▅▆▇█");
+  });
+
+  test("bands group as light ▁▂, moderate ▃▄▅, heavy ▆▇, extreme █", () => {
+    expect(precipBarsAbsolute([0.06, 0.24])).toBe("▁▂");
+    expect(precipBarsAbsolute([0.26, 0.8, 2])).toBe("▃▄▅");
+    expect(precipBarsAbsolute([2.6, 6, 9.9])).toBe("▆▇▇");
+    expect(precipBarsAbsolute([12, 40])).toBe("██");
+  });
+
+  test("empty series renders an empty string", () => {
+    expect(precipBarsAbsolute([])).toBe("");
+  });
+});
+
+describe("windowIsDry", () => {
+  test("dry when every amount is under trace and every probability under threshold", () => {
+    expect(windowIsDry([0, 0.02, TRACE_MM - 0.01], [null, 10, PROB_SUMMARY_PCT - 1])).toBe(true);
+  });
+
+  test("wet when any amount reaches trace", () => {
+    expect(windowIsDry([0, TRACE_MM], [null, null])).toBe(false);
+  });
+
+  test("wet when any probability reaches the summary threshold even if all dry", () => {
+    expect(windowIsDry([0, 0], [5, PROB_SUMMARY_PCT])).toBe(false);
+  });
+});
+
+describe("precipWindowKind", () => {
+  const wetMm = [0.6, 0.6, 0.6, 0.6];
+
+  test("all-wet liquid window reads as rain", () => {
+    const conditions: Condition[] = ["rain", "drizzle", "heavy-rain"];
+    expect(precipWindowKind(conditions, wetMm.slice(0, 3))).toEqual({
+      label: "rain ",
+      glyph: "☂",
+    });
+  });
+
+  test("all-wet frozen window reads as snow across every frozen condition", () => {
+    for (const condition of ["snow", "heavy-snow", "sleet", "freezing-rain"] as const) {
+      expect(precipWindowKind([condition], [0.6])).toEqual({ label: "snow ", glyph: "❄" });
+    }
+  });
+
+  test("frozen at exactly half of wet points reads as snow", () => {
+    const conditions: Condition[] = ["snow", "snow", "rain", "rain"];
+    expect(precipWindowKind(conditions, wetMm)).toEqual({ label: "snow ", glyph: "❄" });
+  });
+
+  test("frozen below half of wet points reads as mixed precip", () => {
+    const conditions: Condition[] = ["sleet", "freezing-rain", "rain", "drizzle", "heavy-rain"];
+    expect(precipWindowKind(conditions, [0.6, 0.6, 0.6, 0.6, 0.6])).toEqual({
+      label: "prec ",
+      glyph: "☂",
+    });
+  });
+
+  test("dry hours with frozen conditions never tip a mostly-liquid window", () => {
+    expect(precipWindowKind(["snow", "snow", "rain"], [0, TRACE_MM - 0.01, 0.5])).toEqual({
+      label: "rain ",
+      glyph: "☂",
+    });
+  });
+
+  test("no wet points falls back to liquid even when conditions are frozen", () => {
+    expect(precipWindowKind(["heavy-snow", "snow"], [0, 0])).toEqual({
+      label: "rain ",
+      glyph: "☂",
+    });
+  });
+
+  test("empty window falls back to liquid", () => {
+    expect(precipWindowKind([], [])).toEqual({ label: "rain ", glyph: "☂" });
+  });
+});
+
+describe("peakProbability", () => {
+  const pts = hourlyPoints(4);
+
+  test("returns null when no probability reaches the summary threshold", () => {
+    const window = [
+      withOverrides(pts[0] as HourlyPoint, { precipProbabilityPct: 39 }),
+      withOverrides(pts[1] as HourlyPoint, { precipProbabilityPct: 0 }),
+      withOverrides(pts[2] as HourlyPoint, { precipProbabilityPct: null }),
+    ];
+    expect(peakProbability(window)).toBeNull();
+  });
+
+  test("picks the highest probability and its hour label source", () => {
+    const window = [
+      withOverrides(pts[0] as HourlyPoint, { precipProbabilityPct: 30 }),
+      withOverrides(pts[1] as HourlyPoint, { precipProbabilityPct: 65 }),
+      withOverrides(pts[2] as HourlyPoint, { precipProbabilityPct: 45 }),
+    ];
+    const peak = peakProbability(window);
+    expect(peak?.pct).toBe(65);
+    expect(peak?.point.timeUtc).toBe(pts[1]?.timeUtc);
+  });
+
+  test("resolves ties to the earliest point", () => {
+    const window = [
+      withOverrides(pts[0] as HourlyPoint, { precipProbabilityPct: 50 }),
+      withOverrides(pts[1] as HourlyPoint, { precipProbabilityPct: 80 }),
+      withOverrides(pts[2] as HourlyPoint, { precipProbabilityPct: 80 }),
+      withOverrides(pts[3] as HourlyPoint, { precipProbabilityPct: 70 }),
+    ];
+    const peak = peakProbability(window);
+    expect(peak?.pct).toBe(80);
+    expect(peak?.point.timeUtc).toBe(pts[1]?.timeUtc);
+  });
+});
+
+describe("buildTempAreaRows", () => {
+  test("emits exactly `rows` strings of exactly `width` cells", () => {
+    const rows = buildTempAreaRows([0, 5, 10], 4, 6);
+    expect(rows).toHaveLength(4);
+    for (const row of rows) expect(row).toHaveLength(6);
+  });
+
+  test("each column reads blank-above then fill-below, never blanks under fill", () => {
+    const rows = buildTempAreaRows([1, 7, 3, 9, 2, 5], 4, 12);
+    for (let c = 0; c < 12; c++) {
+      let seenFill = false;
+      for (const row of rows) {
+        const ch = row[c];
+        if (ch === undefined) continue;
+        if (ch !== " ") seenFill = true;
+        else expect(seenFill).toBe(false);
+      }
+    }
+  });
+
+  test("the peak column fills its top cell fully; the trough column stays blank on top", () => {
+    const rows = buildTempAreaRows([3, 9, 1], 4, 3);
+    expect(rows[0]?.[1]).toBe("█");
+    expect(rows[0]?.[2]).toBe(" ");
+  });
+
+  test("monotonic input yields non-decreasing per-column fill heights", () => {
+    const values = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    const rows = buildTempAreaRows(values, 4, values.length);
+    const filledAt = (c: number) => rows.filter((row) => row[c] !== " ").length;
+    for (let c = 1; c < values.length; c++) {
+      expect(filledAt(c)).toBeGreaterThanOrEqual(filledAt(c - 1));
+    }
+  });
+
+  test("flat series fills the lower half deterministically", () => {
+    const rows = buildTempAreaRows([5, 5, 5, 5], 4, 4);
+    expect(rows).toEqual(["    ", "    ", "████", "████"]);
+  });
+
+  test("degenerate dimensions return no rows", () => {
+    expect(buildTempAreaRows([], 4, 10)).toEqual([]);
+    expect(buildTempAreaRows([1, 2], 0, 10)).toEqual([]);
+    expect(buildTempAreaRows([1, 2], 4, 0)).toEqual([]);
+  });
+});
+
+describe("planTempNotes", () => {
+  test("places hi at the peak column on the top row, lo at the trough on the bottom row", () => {
+    const notes = planTempNotes([2, 9, 4, 1], 4, "metric");
+    expect(notes).toEqual([
+      { row: 0, col: 1, label: "9°" },
+      { row: 3, col: 3, label: "1°" },
+    ]);
+  });
+
+  test("labels honor display units via formatTemp", () => {
+    const notes = planTempNotes([0, 10], 2, "imperial");
+    expect(notes.map((n) => n.label)).toEqual(["50°", "32°"]);
+  });
+
+  test("empty series plans nothing", () => {
+    expect(planTempNotes([], 4, "metric")).toEqual([]);
+  });
+});
+
+describe("annotateRows", () => {
+  test("overlays a fitting note at its column", () => {
+    const rows = ["     ", "█████"];
+    expect(annotateRows(rows, [{ row: 0, col: 2, label: "85°" }])[0]).toBe("  85°");
+  });
+
+  test("drops notes that would overflow the row instead of wrapping them", () => {
+    const rows = ["  ██████"];
+    const drawn = annotateRows(rows, [{ row: 0, col: 6, label: "92°" }]);
+    expect(drawn[0]).toBe(rows[0]);
+    expect(fitNotes(rows, [{ row: 0, col: 6, label: "92°" }])).toEqual([]);
+  });
+
+  test("keeps a note that ends exactly at the last column", () => {
+    const rows = ["   █████"];
+    expect(fitNotes(rows, [{ row: 0, col: 5, label: "92°" }])).toHaveLength(1);
+    expect(annotateRows(rows, [{ row: 0, col: 5, label: "92°" }])[0]).toBe("   ██92°");
+  });
+
+  test("ignores notes pointing at missing rows", () => {
+    expect(annotateRows(["abc"], [{ row: 3, col: 0, label: "9°" }])).toEqual(["abc"]);
+  });
+});
+
+describe("segmentRow", () => {
+  test("splits annotated runs for dim styling beside accent fill", () => {
+    expect(segmentRow("  85°██", [{ row: 0, col: 2, label: "85°" }])).toEqual([
+      { text: "  ", dim: false },
+      { text: "85°", dim: true },
+      { text: "██", dim: false },
+    ]);
+  });
+
+  test("unmarked rows stay one accent run", () => {
+    expect(segmentRow("████", [])).toEqual([{ text: "████", dim: false }]);
+  });
+});
+
+describe("layout floors", () => {
+  test("narrow series width drops the chart to the short row count", () => {
+    expect(MIN_WIDE_AREA_SERIES_WIDTH).toBeGreaterThan(TEMP_AREA_ROWS_NARROW);
+    expect(TEMP_AREA_ROWS_NARROW).toBeLessThan(TEMP_AREA_ROWS_WIDE);
   });
 });

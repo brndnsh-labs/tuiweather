@@ -1,8 +1,9 @@
 import type { Palette } from "../theme/palette";
 
-const TRACK = "░";
-const FILL = "█";
+export const PAD_GLYPH = "·";
+export const FILL_GLYPH = "█";
 const MIN_BAR = 1;
+export const GRADIENT_STEPS = 8;
 
 function hexToRgb(hex: string): [number, number, number] {
   const body = hex.replace("#", "");
@@ -49,6 +50,62 @@ export function rangeBarSpan(
   };
 }
 
+export interface BarSegment {
+  text: string;
+  fg: string;
+}
+
+function quantizedStep(temp: number, weekMin: number, weekMax: number): number {
+  const span = weekMax - weekMin;
+  if (!Number.isFinite(temp) || !Number.isFinite(span) || span <= 0) {
+    return Math.round((GRADIENT_STEPS - 1) / 2);
+  }
+  const t = (Math.max(weekMin, Math.min(weekMax, temp)) - weekMin) / span;
+  return Math.round(Math.max(0, Math.min(1, t)) * (GRADIENT_STEPS - 1));
+}
+
+export function rangeBarSegments(
+  lo: number,
+  hi: number,
+  weekMin: number,
+  weekMax: number,
+  width: number,
+  cold: string,
+  warm: string,
+  padFg: string,
+): BarSegment[] {
+  const w = Math.max(1, Math.floor(width));
+  const { start, end } = rangeBarSpan(lo, hi, weekMin, weekMax, w);
+  const segments: BarSegment[] = [];
+  if (start > 0) segments.push({ text: PAD_GLYPH.repeat(start), fg: padFg });
+
+  const fillLen = Math.max(0, end - start);
+  if (fillLen > 0) {
+    let low = lo;
+    let high = hi;
+    if (high < low) [low, high] = [high, low];
+    const chunks: { from: number; to: number; step: number }[] = [];
+    for (let k = 0; k < fillLen; k++) {
+      const step = quantizedStep(low + ((high - low) * (k + 0.5)) / fillLen, weekMin, weekMax);
+      const last = chunks[chunks.length - 1];
+      if (last && last.step === step) {
+        last.to = k + 1;
+      } else {
+        chunks.push({ from: k, to: k + 1, step });
+      }
+    }
+    for (const chunk of chunks) {
+      segments.push({
+        text: FILL_GLYPH.repeat(chunk.to - chunk.from),
+        fg: lerpHex(cold, warm, chunk.step / (GRADIENT_STEPS - 1)),
+      });
+    }
+  }
+
+  if (end < w) segments.push({ text: PAD_GLYPH.repeat(w - end), fg: padFg });
+  return segments;
+}
+
 interface RangeBarProps {
   lo: number;
   hi: number;
@@ -59,21 +116,30 @@ interface RangeBarProps {
 }
 
 export function RangeBar({ lo, hi, weekMin, weekMax, width, palette }: RangeBarProps) {
-  const { start, end } = rangeBarSpan(lo, hi, weekMin, weekMax, width);
-  const midpoint = (lo + hi) / 2;
-  const frac =
-    weekMax > weekMin
-      ? (Math.max(weekMin, Math.min(weekMax, midpoint)) - weekMin) / (weekMax - weekMin)
-      : 0.5;
-  const fillFg = lerpHex(palette.tempCold, palette.tempWarm, frac);
-  const left = TRACK.repeat(start);
-  const fill = FILL.repeat(Math.max(0, end - start));
-  const right = TRACK.repeat(Math.max(0, width - end));
+  const segments = rangeBarSegments(
+    lo,
+    hi,
+    weekMin,
+    weekMax,
+    width,
+    palette.tempCold,
+    palette.tempWarm,
+    palette.fgDim,
+  );
+  let offset = 0;
   return (
     <box flexDirection="row">
-      {left ? <text fg={palette.border}>{left}</text> : null}
-      {fill ? <text fg={fillFg}>{fill}</text> : null}
-      {right ? <text fg={palette.border}>{right}</text> : null}
+      <text>
+        {segments.map((segment) => {
+          const key = offset;
+          offset += segment.text.length;
+          return (
+            <span key={key} fg={segment.fg}>
+              {segment.text}
+            </span>
+          );
+        })}
+      </text>
     </box>
   );
 }

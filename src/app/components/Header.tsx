@@ -1,4 +1,4 @@
-import { formatClock, type TimeFormat } from "../../lib/weather/format";
+import { formatClock, formatDayDate, type TimeFormat } from "../../lib/weather/format";
 import { usePalette } from "../../theme/tokens";
 
 export function formatUpdatedAgo(fetchedAtMs: number, nowMs: number): string {
@@ -42,9 +42,14 @@ export function Header({
   if (tier === "sm" || tier === "xs") {
     const clock =
       clockUtc !== undefined ? formatClock(clockUtc, utcOffsetSeconds, timeFormat) : "--:--";
+    const date =
+      tier === "sm" && clockUtc !== undefined
+        ? formatDayDate(clockUtc, utcOffsetSeconds, "short")
+        : undefined;
+    const line = [label, date, clock].filter((part) => part !== undefined).join(" · ");
     return (
       <box flexDirection="row">
-        <text fg={palette.fg}>{`${label} · ${clock} · ${tier}`}</text>
+        <text fg={palette.fg}>{line}</text>
       </box>
     );
   }
@@ -56,6 +61,9 @@ export function Header({
         <text fg={palette.fgDim}>
           {`${coords.latitude.toFixed(1)}°, ${coords.longitude.toFixed(1)}°`}
         </text>
+      ) : null}
+      {clockUtc !== undefined ? (
+        <text fg={palette.fgDim}>{formatDayDate(clockUtc, utcOffsetSeconds, "long")}</text>
       ) : null}
       {fetchedAtMs !== undefined ? (
         <text fg={palette.fgDim}>{formatUpdatedAgo(fetchedAtMs, nowMs)}</text>

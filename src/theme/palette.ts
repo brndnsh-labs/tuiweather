@@ -11,6 +11,7 @@ export interface Palette {
   tempWarm: string;
   border: string;
   surface: string;
+  rain: string;
 }
 
 export const NIGHT_PALETTE: Palette = {
@@ -24,6 +25,7 @@ export const NIGHT_PALETTE: Palette = {
   tempWarm: "#ff9e64",
   border: "#3b4261",
   surface: "#16161e",
+  rain: "#41a6b5",
 };
 
 export const DAY_PALETTE: Palette = {
@@ -37,6 +39,7 @@ export const DAY_PALETTE: Palette = {
   tempWarm: "#965027",
   border: "#a8b0d0",
   surface: "#f4f6fb",
+  rain: "#00807a",
 };
 
 export function resolvePalette(theme: "day" | "night" | "auto", isDay: boolean): Palette {

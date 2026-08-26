@@ -1,7 +1,13 @@
 import { RangeBar } from "../../components/RangeBar";
 import type { DisplayPrefs } from "../../lib/config/schema";
 import { conditionGlyph } from "../../lib/providers/openmeteo/wmo";
-import { formatDayLabel, formatPct, formatTemp, type Units } from "../../lib/weather/format";
+import {
+  formatDayLabel,
+  formatPct,
+  formatPrecip,
+  formatTemp,
+  type Units,
+} from "../../lib/weather/format";
 import type { DailyPoint } from "../../lib/weather/types";
 import { usePalette } from "../../theme/tokens";
 
@@ -15,6 +21,74 @@ interface DailyListProps {
 
 const DAY_LABEL_WIDTH = 3;
 const PRECIP_CHIP_MIN_PCT = 20;
+const TRACE_MM = 0.05;
+const CHIP_SEPARATOR = " · ";
+const BAR_MIN_WIDTH = 2;
+
+const CHIP_LEADING_SPACE = 1;
+const CHIP_PROB_MAX = "☂ 100%".length;
+/** formatPrecip worst cases: "1234.5 mm" (metric ≥1000mm), "10.00 in" (imperial ≥254mm). */
+const CHIP_AMOUNT_MAX = Math.max("12.5 mm".length, "0.31 in".length, "1234.5 mm".length);
+
+export const CHIP_PROB_ONLY_RESERVE = CHIP_LEADING_SPACE + CHIP_PROB_MAX;
+export const CHIP_FULL_RESERVE =
+  CHIP_LEADING_SPACE + CHIP_PROB_MAX + CHIP_SEPARATOR.length + CHIP_AMOUNT_MAX;
+
+const BASE_FIXED_WIDTH = DAY_LABEL_WIDTH + 3 + 4 + 4;
+
+export type PrecipChipTier = "none" | "prob" | "full";
+
+const TIER_LADDER: Record<PrecipChipTier, readonly PrecipChipTier[]> = {
+  full: ["full", "prob", "none"],
+  prob: ["prob", "none"],
+  none: ["none"],
+};
+
+const TIER_RESERVE: Record<PrecipChipTier, number> = {
+  full: CHIP_FULL_RESERVE,
+  prob: CHIP_PROB_ONLY_RESERVE,
+  none: 0,
+};
+
+function passesProbGate(day: DailyPoint): boolean {
+  const pct = day.precipProbabilityMaxPct;
+  return pct !== null && pct >= PRECIP_CHIP_MIN_PCT;
+}
+
+export function precipChip(day: DailyPoint, units: Units, withAmount = true): string | null {
+  if (!passesProbGate(day)) return null;
+  const prob = `☂ ${formatPct(day.precipProbabilityMaxPct)}`;
+  if (!withAmount || day.precipSumMm < TRACE_MM) return prob;
+  return `${prob}${CHIP_SEPARATOR}${formatPrecip(day.precipSumMm, units)}`;
+}
+
+export function anyPrecipChip(days: DailyPoint[], showPrecip: boolean): boolean {
+  return showPrecip && days.some(passesProbGate);
+}
+
+function chipCeiling(days: DailyPoint[], showPrecip: boolean): PrecipChipTier {
+  if (!anyPrecipChip(days, showPrecip)) return "none";
+  return days.some((d) => passesProbGate(d) && d.precipSumMm >= TRACE_MM) ? "full" : "prob";
+}
+
+export interface DailyListMetrics {
+  colWidth: number;
+  barWidth: number;
+  chipTier: PrecipChipTier;
+}
+
+export function dailyMetrics(
+  days: DailyPoint[],
+  opts: { width: number; columns: 1 | 2; showPrecip: boolean },
+): DailyListMetrics {
+  const colWidth = Math.floor(opts.width / opts.columns);
+  const ceiling = chipCeiling(days, opts.showPrecip);
+  for (const tier of TIER_LADDER[ceiling]) {
+    const barWidth = colWidth - BASE_FIXED_WIDTH - TIER_RESERVE[tier];
+    if (barWidth >= BAR_MIN_WIDTH) return { colWidth, barWidth, chipTier: tier };
+  }
+  return { colWidth, barWidth: BAR_MIN_WIDTH, chipTier: "none" };
+}
 
 interface RowParts {
   head: string;
@@ -23,24 +97,14 @@ interface RowParts {
   precip: string | null;
 }
 
-function precipChip(day: DailyPoint): string | null {
-  const pct = day.precipProbabilityMaxPct;
-  if (pct === null || pct < PRECIP_CHIP_MIN_PCT) return null;
-  return `☂ ${formatPct(pct)}`;
-}
-
-export function anyPrecipChip(days: DailyPoint[], showPrecip: boolean): boolean {
-  return showPrecip && days.some((day) => precipChip(day) !== null);
-}
-
-function rowParts(day: DailyPoint, showPrecip: boolean): RowParts {
+function rowParts(day: DailyPoint, units: Units, chipTier: PrecipChipTier): RowParts {
   const label = formatDayLabel(day.dateLocal);
   const glyph = conditionGlyph(day.condition);
   return {
     head: `${label.padEnd(DAY_LABEL_WIDTH)} ${glyph} `,
     lo: day.tempMinC,
     hi: day.tempMaxC,
-    precip: showPrecip ? precipChip(day) : null,
+    precip: chipTier === "none" ? null : precipChip(day, units, chipTier === "full"),
   };
 }
 
@@ -81,11 +145,7 @@ export function DailyList({ days, prefs, columns, width, showPrecip = true }: Da
 
   const weekMin = Math.min(...days.map((d) => d.tempMinC));
   const weekMax = Math.max(...days.map((d) => d.tempMaxC));
-  const showChips = anyPrecipChip(days, showPrecip);
-
-  const colWidth = Math.floor(width / columns);
-  const fixedWidth = DAY_LABEL_WIDTH + 3 + 4 + 4 + (showChips ? 7 : 0);
-  const barWidth = Math.max(2, colWidth - fixedWidth);
+  const { colWidth, barWidth, chipTier } = dailyMetrics(days, { width, columns, showPrecip });
 
   if (columns === 1) {
     return (
@@ -93,7 +153,7 @@ export function DailyList({ days, prefs, columns, width, showPrecip = true }: Da
         {days.map((day) => (
           <DailyRow
             key={day.dateLocal}
-            parts={rowParts(day, showChips)}
+            parts={rowParts(day, prefs.precip, chipTier)}
             temp={prefs.temp}
             barWidth={barWidth}
             weekMin={weekMin}
@@ -115,7 +175,7 @@ export function DailyList({ days, prefs, columns, width, showPrecip = true }: Da
           {pair.map((day) => (
             <box key={day.dateLocal} flexDirection="row" width={colWidth} flexShrink={0}>
               <DailyRow
-                parts={rowParts(day, showChips)}
+                parts={rowParts(day, prefs.precip, chipTier)}
                 temp={prefs.temp}
                 barWidth={barWidth}
                 weekMin={weekMin}

@@ -1,10 +1,20 @@
 import { useKeyboard, useRenderer } from "@opentui/react";
 import { type ReactNode, useEffect, useMemo } from "react";
+import { DAYLIGHT_MIN_WIDTH, DaylightBar } from "../components/DaylightBar";
 import { Sparkline } from "../components/Sparkline";
 import { DetailsGrid } from "../features/current/DetailsGrid";
 import { Hero } from "../features/current/Hero";
 import { DailyList, dailyChips } from "../features/daily/DailyList";
-import { HourlyStrip, sectionRule, sliceUpcoming } from "../features/hourly/HourlyStrip";
+import {
+  HourlyStrip,
+  MIN_WIDE_AREA_SERIES_WIDTH,
+  sectionRule,
+  seriesWidthFor,
+  sliceUpcoming,
+  TEMP_AREA_ROWS_NARROW,
+  TEMP_AREA_ROWS_WIDE,
+  windowIsDry,
+} from "../features/hourly/HourlyStrip";
 import { NowcastBanner } from "../features/nowcast/NowcastBanner";
 import { FirstRun } from "../features/onboarding/FirstRun";
 import { SearchOverlay } from "../features/search/SearchOverlay";
@@ -23,11 +33,97 @@ import { Header } from "./components/Header";
 import { HelpOverlay } from "./components/HelpOverlay";
 import { StatusArea } from "./components/StatusArea";
 import { handleKey, type KeymapApi } from "./keymap";
-import { appStore, type WeatherStore } from "./store";
+import { appStore, isDeleteArmed, type WeatherStore } from "./store";
 
 const SIDEBAR_WIDTH = 26;
 /** Width budgeted for the slick-font hero digits when laying out the details grid beside it. */
 const HERO_RESERVE = 22;
+
+const EMPTY_FORECAST_HINT = "no forecast loaded — press r to refresh";
+const SCROLL_HINT_MORE = "↓ more";
+
+const SLICK_HERO_ROWS = 7;
+const COMPACT_HERO_ROWS = 2;
+const DETAILS_GRID_ROWS = 4;
+const NOWCAST_BANNER_ROWS = 2;
+/** Error panel: border pair plus message and retry-hint rows. */
+const ERROR_PANEL_ROWS = 4;
+/** Hint line reserved under the scroll region when the overflow hint shows. */
+const OVERFLOW_HINT_ROWS = 1;
+/** Panel border pair plus the header/footer rows and their gaps around the main panel. */
+export const MAIN_CHROME_ROWS = 6;
+export interface MainOverflowInput {
+  tier: Tier;
+  width: number;
+  forecast: NormalizedForecast;
+  panels: TuiConfig["panels"];
+  nowUtc: string;
+}
+
+function heroRowsFor(tier: Tier, panels: TuiConfig["panels"]): number {
+  if (tier === "sm") return COMPACT_HERO_ROWS;
+  if (tier === "md" && !panels.details) return COMPACT_HERO_ROWS;
+  return Math.max(SLICK_HERO_ROWS, DETAILS_GRID_ROWS);
+}
+
+function hourlyRowsFor(
+  tier: Tier,
+  width: number,
+  forecast: NormalizedForecast,
+  panels: TuiConfig["panels"],
+  nowUtc: string,
+): number {
+  if (!panels.hourly || width < 6) return 0;
+  const maxPoints = tier === "sm" ? 12 : 48;
+  const window = sliceUpcoming(forecast.hourly, nowUtc, maxPoints);
+  if (window.length === 0) return 0;
+  const seriesWidth = seriesWidthFor(window.length, width);
+  const chartRows =
+    seriesWidth < MIN_WIDE_AREA_SERIES_WIDTH ? TEMP_AREA_ROWS_NARROW : TEMP_AREA_ROWS_WIDE;
+  const precipRows = windowIsDry(
+    window.map((p) => p.precipMm),
+    window.map((p) => p.precipProbabilityPct),
+  )
+    ? 0
+    : 1;
+  return 1 + chartRows + precipRows + 1;
+}
+
+/**
+ * Conservative estimate of main-panel content rows (sections + inter-section
+ * gaps). Null for xs, whose compact layout is sized to fit by construction.
+ * Hourly height mirrors the area-chart block via its exported row constants.
+ */
+export function estimateMainContentRows(input: MainOverflowInput): number | null {
+  const { tier, width, forecast, panels, nowUtc } = input;
+  if (tier === "xs") return null;
+
+  const sections: number[] = [heroRowsFor(tier, panels)];
+  const today = forecast.daily[0];
+  const sunriseMs = today?.sunriseUtc != null ? Date.parse(today.sunriseUtc) : NaN;
+  const sunsetMs = today?.sunsetUtc != null ? Date.parse(today.sunsetUtc) : NaN;
+  if (
+    panels.details === true &&
+    Number.isFinite(sunriseMs) &&
+    Number.isFinite(sunsetMs) &&
+    sunsetMs > sunriseMs &&
+    width - 1 >= DAYLIGHT_MIN_WIDTH - 1
+  ) {
+    sections.push(1);
+  }
+  if (tier !== "lg" && panels.nowcast && deriveNowcast(forecast, nowUtc).kind !== "dry") {
+    sections.push(NOWCAST_BANNER_ROWS);
+  }
+  const hourlyRows = hourlyRowsFor(tier, width, forecast, panels, nowUtc);
+  if (hourlyRows > 0) sections.push(hourlyRows);
+  if (panels.daily && forecast.daily.length > 0 && width >= 12) {
+    sections.push(1);
+    sections.push(tier === "lg" ? forecast.daily.length : Math.ceil(forecast.daily.length / 2));
+  }
+
+  const sectionRows = sections.reduce((sum, rows) => sum + rows, 0);
+  return sectionRows + Math.max(0, sections.length - 1);
+}
 
 interface AppProps {
   store?: WeatherStore;
@@ -55,6 +151,7 @@ interface MainContentProps {
   nowUtc: string;
   prefs: DisplayPrefs;
   panels: TuiConfig["panels"];
+  scrollHeight: number;
 }
 
 function XsChips({
@@ -74,9 +171,20 @@ function XsChips({
   );
 }
 
-function MainContent({ tier, width, forecast, nowUtc, prefs, panels }: MainContentProps) {
+function MainContent({
+  tier,
+  width,
+  forecast,
+  nowUtc,
+  prefs,
+  panels,
+  scrollHeight,
+}: MainContentProps) {
   const palette = usePalette();
   const nowcast = deriveNowcast(forecast, nowUtc);
+  const today = forecast.daily[0];
+  const showDaylight =
+    panels.details === true && today?.sunriseUtc != null && today?.sunsetUtc != null;
 
   if (tier === "xs") {
     const tempValues = sliceUpcoming(forecast.hourly, nowUtc, 12).map((p) => p.temperatureC);
@@ -99,7 +207,12 @@ function MainContent({ tier, width, forecast, nowUtc, prefs, panels }: MainConte
   if (tier === "sm" || tier === "md") {
     const showDetails = tier === "md";
     return (
-      <scrollbox flexGrow={1} focused viewportCulling={false} scrollbarOptions={{ visible: false }}>
+      <scrollbox
+        height={scrollHeight}
+        focused
+        viewportCulling={false}
+        scrollbarOptions={{ visible: false }}
+      >
         <box flexDirection="column" gap={1}>
           {showDetails && panels.details ? (
             <box flexDirection="row" gap={2}>
@@ -115,6 +228,16 @@ function MainContent({ tier, width, forecast, nowUtc, prefs, panels }: MainConte
           ) : (
             <Hero obs={forecast.current} prefs={prefs} compact />
           )}
+          {showDaylight && today ? (
+            <DaylightBar
+              sunriseUtc={today.sunriseUtc}
+              sunsetUtc={today.sunsetUtc}
+              nowUtc={nowUtc}
+              utcOffsetSeconds={forecast.utcOffsetSeconds}
+              width={width}
+              timeFormat={prefs.timeFormat}
+            />
+          ) : null}
           {panels.nowcast ? (
             <NowcastBanner
               nowcast={nowcast}
@@ -152,36 +275,53 @@ function MainContent({ tier, width, forecast, nowUtc, prefs, panels }: MainConte
   }
 
   return (
-    <box flexDirection="column" flexGrow={1} gap={1}>
-      <box flexDirection="row" gap={2}>
-        <Hero obs={forecast.current} prefs={prefs} />
-        {panels.details ? (
-          <DetailsGrid
-            obs={forecast.current}
-            today={forecast.daily[0]}
+    <scrollbox
+      height={scrollHeight}
+      focused
+      viewportCulling={false}
+      scrollbarOptions={{ visible: false }}
+    >
+      <box flexDirection="column" gap={1}>
+        <box flexDirection="row" gap={2}>
+          <Hero obs={forecast.current} prefs={prefs} />
+          {panels.details ? (
+            <DetailsGrid
+              obs={forecast.current}
+              today={forecast.daily[0]}
+              utcOffsetSeconds={forecast.utcOffsetSeconds}
+              prefs={prefs}
+              colWidth={Math.max(10, Math.floor((width - HERO_RESERVE) / 2))}
+            />
+          ) : null}
+        </box>
+        {showDaylight && today ? (
+          <DaylightBar
+            sunriseUtc={today.sunriseUtc}
+            sunsetUtc={today.sunsetUtc}
+            nowUtc={nowUtc}
             utcOffsetSeconds={forecast.utcOffsetSeconds}
-            prefs={prefs}
-            colWidth={Math.max(10, Math.floor((width - HERO_RESERVE) / 2))}
+            width={width}
+            timeFormat={prefs.timeFormat}
           />
         ) : null}
+        {panels.hourly ? (
+          <HourlyStrip
+            points={forecast.hourly}
+            nowUtc={nowUtc}
+            utcOffsetSeconds={forecast.utcOffsetSeconds}
+            prefs={prefs}
+            maxPoints={48}
+            width={width}
+          />
+        ) : null}
+        {panels.daily ? (
+          <>
+            <text fg={palette.fgDim}>{sectionRule(`${forecast.daily.length} day`, width)}</text>
+            <DailyList days={forecast.daily} prefs={prefs} columns={1} width={width} />
+          </>
+        ) : null}
       </box>
-      {panels.hourly ? (
-        <HourlyStrip
-          points={forecast.hourly}
-          nowUtc={nowUtc}
-          utcOffsetSeconds={forecast.utcOffsetSeconds}
-          prefs={prefs}
-          maxPoints={48}
-          width={width}
-        />
-      ) : null}
-      {panels.daily ? (
-        <>
-          <text fg={palette.fgDim}>{sectionRule(`${forecast.daily.length} day`, width)}</text>
-          <DailyList days={forecast.daily} prefs={prefs} columns={1} width={width} />
-        </>
-      ) : null}
-    </box>
+    </scrollbox>
   );
 }
 
@@ -200,6 +340,7 @@ export function App(props: AppProps = {}) {
   const overlayOpen = store((s) => s.overlayOpen);
   const forecastBySlug = store((s) => s.forecastBySlug);
   const lastActionError = store((s) => s.lastActionError);
+  const deleteArmedAtMs = store((s) => s.deleteArmedAtMs);
 
   const viewport = useViewport();
   const renderer = useRenderer();
@@ -219,6 +360,16 @@ export function App(props: AppProps = {}) {
   }, [store]);
 
   const quit = props.quit ?? (() => renderer.destroy());
+  const activeLocation =
+    activeSlug === null ? undefined : config.locations.find((loc) => loc.slug === activeSlug);
+  const label = activeLocation?.label ?? "tuiweather";
+  const nowMs = props.nowMs ?? Date.now();
+  const nowUtc = props.nowUtc ?? new Date(nowMs).toISOString();
+  const tier = viewport.tier;
+  const forecast = entry?.forecast;
+  const onboardingOpen = initStatus === "ready" && config.locations.length === 0;
+  const deleteArmed = isDeleteArmed(deleteArmedAtMs, nowMs);
+
   const api = useMemo<KeymapApi>(
     () => ({
       quit,
@@ -235,6 +386,9 @@ export function App(props: AppProps = {}) {
         );
       },
       openSearch: () => store.getState().setOverlayOpen(true),
+      deleteArmed: () => store.getState().deleteArmed(Date.now()),
+      armDelete: () => store.getState().armDelete(),
+      disarmDelete: () => store.getState().disarmDelete(),
       deleteActive: () => void store.getState().deleteActiveLocation(),
     }),
     [store, quit],
@@ -243,15 +397,6 @@ export function App(props: AppProps = {}) {
   useKeyboard((key) => {
     handleKey(key.name, api);
   });
-
-  const activeLocation =
-    activeSlug === null ? undefined : config.locations.find((loc) => loc.slug === activeSlug);
-  const label = activeLocation?.label ?? "tuiweather";
-  const nowMs = props.nowMs ?? Date.now();
-  const nowUtc = props.nowUtc ?? new Date(nowMs).toISOString();
-  const tier = viewport.tier;
-  const forecast = entry?.forecast;
-  const onboardingOpen = initStatus === "ready" && config.locations.length === 0;
 
   const header = (
     <Header
@@ -271,16 +416,53 @@ export function App(props: AppProps = {}) {
     />
   );
 
+  const staleBadge = stale && !loading && error === undefined;
+
   const status = (
-    <StatusArea loading={loading} error={error} stale={stale && !loading && error === undefined} />
+    <StatusArea
+      loading={loading}
+      error={error}
+      stale={staleBadge}
+      deleteArm={deleteArmed ? { label } : undefined}
+      width={viewport.width}
+    />
   );
 
   const footer = <Footer tier={tier} />;
 
   const mainWidth = tier === "lg" ? viewport.width - SIDEBAR_WIDTH - 4 : viewport.width - 4;
 
+  const forecastVisible = forecast !== undefined && !helpOpen && !overlayOpen;
+  const overflowEstimate =
+    forecastVisible && forecast
+      ? estimateMainContentRows({
+          tier,
+          width: mainWidth,
+          forecast,
+          panels: config.panels,
+          nowUtc,
+        })
+      : null;
+  const statusRows = deleteArmed
+    ? 1
+    : loading
+      ? 1
+      : error !== undefined
+        ? ERROR_PANEL_ROWS
+        : staleBadge
+          ? 1
+          : 0;
+  const statusBlock = statusRows > 0 ? statusRows + 1 : 0;
+  const showOverflowHint =
+    overflowEstimate !== null &&
+    viewport.height < overflowEstimate + MAIN_CHROME_ROWS + statusBlock;
+  const mainScrollHeight = Math.max(
+    1,
+    viewport.height - MAIN_CHROME_ROWS - statusBlock - (showOverflowHint ? OVERFLOW_HINT_ROWS : 0),
+  );
+
   const mainView =
-    forecast && !helpOpen && !overlayOpen ? (
+    forecast !== undefined && !helpOpen && !overlayOpen ? (
       <MainContent
         tier={tier}
         width={mainWidth}
@@ -288,9 +470,10 @@ export function App(props: AppProps = {}) {
         nowUtc={nowUtc}
         prefs={prefs}
         panels={config.panels}
+        scrollHeight={mainScrollHeight}
       />
     ) : (
-      <text fg={palette.fgDim}>{tier}</text>
+      <text fg={palette.fgDim}>{truncateTo(EMPTY_FORECAST_HINT, Math.max(0, mainWidth - 1))}</text>
     );
 
   const mainPanel = (
@@ -298,11 +481,16 @@ export function App(props: AppProps = {}) {
       border
       borderColor={palette.border}
       flexGrow={1}
-      title={`main · ${tier}`}
+      title="main"
       flexDirection="column"
       paddingX={1}
     >
       {mainView}
+      {showOverflowHint ? (
+        <box flexDirection="row" justifyContent="flex-end">
+          <text fg={palette.fgDim}>{SCROLL_HINT_MORE}</text>
+        </box>
+      ) : null}
     </box>
   );
 
