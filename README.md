@@ -53,7 +53,8 @@ Use `tuiweather --help` for command-line options and `tuiweather --version` to p
 | `[` / `]` | Previous / next location |
 | `u` | Toggle metric / imperial units |
 | `/` | Search locations |
-| `d` | Delete active location |
+| `d` | Delete active location (press twice to confirm) |
+| `↑` / `↓` | Scroll the main panel when content overflows |
 | `?` | Toggle help overlay |
 | `esc` | Close help overlay; quits otherwise |
 | `q` | Quit |

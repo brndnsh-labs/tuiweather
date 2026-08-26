@@ -386,6 +386,10 @@ describe("search overlay", () => {
       expect(store.getState().activeSlug).toBe("london");
 
       await setup.mockInput.pressKeys(["d"]);
+      await sleep(30);
+      expect(store.getState().deleteArmed(Date.now())).toBe(true);
+
+      await setup.mockInput.pressKeys(["d"]);
 
       await waitUntil(
         () => store.getState().activeSlug === "portland",
@@ -414,6 +418,11 @@ describe("search overlay", () => {
 
       await setup.mockInput.pressKeys(["d"]);
       await sleep(30);
+      expect(store.getState().lastActionError).toBeUndefined();
+      expect(store.getState().deleteArmed(Date.now())).toBe(true);
+
+      await setup.mockInput.pressKeys(["d"]);
+      await sleep(30);
 
       expect(store.getState().lastActionError).toBe("cannot delete the only location");
       expect(store.getState().activeSlug).toBe("portland");
@@ -434,6 +443,8 @@ describe("search overlay", () => {
       await setup.flush();
       await waitUntilFrame(setup, (f) => f.includes("London"));
 
+      await setup.mockInput.pressKeys(["d"]);
+      await sleep(30);
       await setup.mockInput.pressKeys(["d"]);
       await waitUntil(
         () => store.getState().activeSlug === "portland",

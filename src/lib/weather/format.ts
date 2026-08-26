@@ -23,6 +23,21 @@ const COMPASS_16 = [
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
+const MONTHS_SHORT = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+] as const;
+
 const EN_DASH = "–";
 const MM_PER_INCH = 25.4;
 const MPH_PER_KMH = 0.621371;
@@ -101,6 +116,20 @@ export function formatClock(
   const h12 = hours % 12 === 0 ? 12 : hours % 12;
   const meridiem = hours < 12 ? "AM" : "PM";
   return `${h12}:${mm} ${meridiem}`;
+}
+
+export function formatDayDate(
+  isoUtc: string,
+  utcOffsetSeconds: number,
+  style: "long" | "short",
+): string {
+  const shifted = shiftUtc(isoUtc, utcOffsetSeconds);
+  if (Number.isNaN(shifted.getTime())) return EN_DASH;
+  const weekday = WEEKDAYS[shifted.getUTCDay()] ?? EN_DASH;
+  const day = shifted.getUTCDate();
+  if (style === "short") return `${weekday} ${day}`;
+  const month = MONTHS_SHORT[shifted.getUTCMonth()] ?? EN_DASH;
+  return `${weekday} ${month} ${day}`;
 }
 
 export function formatHourLabel(

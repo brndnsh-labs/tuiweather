@@ -7,10 +7,13 @@ import { testRender } from "@opentui/react/test-utils";
 import { App } from "../../src/app/App";
 import type { WeatherStore } from "../../src/app/store";
 import { createStoreInstance, type ForecastFetcher } from "../../src/app/store";
+import { normalizeForecast } from "../../src/lib/providers/openmeteo/normalize";
+import { forecastResponseSchema } from "../../src/lib/providers/openmeteo/schemas";
 import { ProviderError } from "../../src/lib/providers/types";
 import type { CurrentObs, NormalizedForecast } from "../../src/lib/weather/types";
 import { MIN_WIDTH, tierFor } from "../../src/viewport/breakpoints";
 import { debounceTrailing } from "../../src/viewport/useViewport";
+import portlandFixture from "../fixtures/openmeteo/portland.json";
 
 const NOW = "2026-08-24T19:00:00.000Z";
 
@@ -212,7 +215,8 @@ describe("App shell", () => {
       const frame = await waitUntilFrame(setup, (f) => f.includes("Portland"));
       expect(frame).toContain("45.5°, -122.7°");
       expect(frame).not.toContain("●");
-      expect(frame).toContain("main · md");
+      expect(frame).toContain("┌─main");
+      expect(frame).not.toContain("· md");
       expect(frame).toContain("/ search");
     } finally {
       await setup.renderer.destroy();
@@ -228,7 +232,10 @@ describe("App shell", () => {
 
       setup.resize(70, 24);
       await sleep(160);
-      const frame = await waitUntilFrame(setup, (f) => f.includes("main · md"));
+      const frame = await waitUntilFrame(
+        setup,
+        (f) => f.includes("45.5°, -122.7°") && !f.includes("●"),
+      );
       expect(frame).not.toContain("●");
     } finally {
       await setup.renderer.destroy();
@@ -240,8 +247,9 @@ describe("App shell", () => {
     const setup = await testRender(<App store={store} />, { width: 50, height: 20 });
     try {
       await setup.flush();
-      const frame = await waitUntilFrame(setup, (f) => f.includes("· sm"));
+      const frame = await waitUntilFrame(setup, (f) => f.includes("Mon 24"));
       expect(frame).toContain("Portland");
+      expect(frame).not.toContain("· sm");
       expect(frame).not.toContain("/ search");
       expect(frame).toContain("r refresh");
     } finally {
@@ -254,9 +262,10 @@ describe("App shell", () => {
     const setup = await testRender(<App store={store} />, { width: 40, height: 16 });
     try {
       await setup.flush();
-      const frame = await waitUntilFrame(setup, (f) => f.includes("· xs"));
+      const frame = await waitUntilFrame(setup, (f) => f.includes("r u ? q"));
       expect(frame).not.toContain("search");
       expect(frame).not.toContain("refresh");
+      expect(frame).not.toContain("· xs");
       expect(frame).toContain("r u ? q");
     } finally {
       await setup.renderer.destroy();
@@ -374,6 +383,123 @@ describe("App shell", () => {
       await setup.flush();
       const frame = await waitUntilFrame(setup, (f) => f.includes("stale"));
       expect(frame).toContain("showing cached data");
+    } finally {
+      await setup.renderer.destroy();
+    }
+  });
+
+  test("empty main view prompts to refresh instead of naming the tier", async () => {
+    const failing: ForecastFetcher = () =>
+      Promise.reject(new ProviderError("openmeteo unreachable", "openmeteo"));
+    const store = await makeStore({ fetcher: failing });
+    const setup = await testRender(<App store={store} />, { width: 90, height: 24 });
+    try {
+      await setup.flush();
+      const frame = await waitUntilFrame(setup, (f) => f.includes("no forecast loaded"));
+      expect(frame).toContain("press r to refresh");
+      expect(frame).toContain("┌─main");
+      expect(frame).not.toContain("· md");
+    } finally {
+      await setup.renderer.destroy();
+    }
+  });
+
+  test("header shows the location-local long date on wide tiers", async () => {
+    const store = await makeStore();
+    const setup = await testRender(<App store={store} nowMs={Date.parse(NOW)} />, {
+      width: 90,
+      height: 24,
+    });
+    try {
+      await setup.flush();
+      const frame = await waitUntilFrame(setup, (f) => f.includes("Portland"));
+      expect(frame).toContain("Mon Aug 24");
+    } finally {
+      await setup.renderer.destroy();
+    }
+  });
+
+  test("sm header shows the short local date", async () => {
+    const store = await makeStore();
+    const setup = await testRender(<App store={store} nowMs={Date.parse(NOW)} />, {
+      width: 50,
+      height: 20,
+    });
+    try {
+      await setup.flush();
+      const frame = await waitUntilFrame(setup, (f) => f.includes("Mon 24"));
+      expect(frame).toContain("Mon 24 · ");
+    } finally {
+      await setup.renderer.destroy();
+    }
+  });
+
+  test("d arms delete and a second d confirms it", async () => {
+    const store = await makeStore();
+    let quits = 0;
+    const setup = await testRender(<App store={store} quit={() => quits++} />, {
+      width: 100,
+      height: 24,
+    });
+    try {
+      await setup.flush();
+      await waitUntilFrame(setup, (f) => f.includes("Portland"));
+
+      await setup.mockInput.pressKeys(["d"]);
+      await sleep(30);
+      await waitUntilFrame(setup, (f) => f.includes("press d again to delete Portland"));
+
+      await setup.mockInput.pressKeys(["d"]);
+      await sleep(30);
+      const deletedFrame = await waitUntilFrame(
+        setup,
+        (f) => !f.includes("press d again to delete"),
+      );
+      expect(deletedFrame).not.toContain("Portland");
+      expect(store.getState().config.locations.map((loc) => loc.slug)).toEqual(["london"]);
+      expect(quits).toBe(0);
+    } finally {
+      await setup.renderer.destroy();
+    }
+  });
+
+  test("overflow hint stays hidden when content fits a tall viewport", async () => {
+    const store = await makeStore();
+    const setup = await testRender(<App store={store} />, { width: 100, height: 48 });
+    try {
+      await setup.flush();
+      const frame = await waitUntilFrame(setup, (f) => f.includes("Portland"));
+      expect(frame).not.toContain("↓ more");
+    } finally {
+      await setup.renderer.destroy();
+    }
+  });
+});
+
+describe("scroll affordance", () => {
+  test("footer documents scrolling and the overflow hint is static", async () => {
+    const forecast = {
+      ...normalizeForecast(forecastResponseSchema.parse(portlandFixture)),
+      fetchedAtUtc: NOW,
+    };
+    const store = await makeStore({ fetcher: () => Promise.resolve({ forecast, stale: false }) });
+    const setup = await testRender(<App store={store} nowMs={Date.parse(NOW)} nowUtc={NOW} />, {
+      width: 80,
+      height: 24,
+    });
+    try {
+      await setup.flush();
+      const frame = await waitUntilFrame(setup, (f) => f.includes("Portland"));
+      expect(frame).toContain("↑↓ scroll");
+      expect(frame).toContain("↓ more");
+
+      for (let i = 0; i < 4; i++) {
+        setup.mockInput.pressArrow("down");
+        await sleep(15);
+        await setup.flush().catch(() => undefined);
+      }
+      expect(setup.captureCharFrame()).not.toContain("↑ back");
+      expect(setup.captureCharFrame()).toContain("↓ more");
     } finally {
       await setup.renderer.destroy();
     }

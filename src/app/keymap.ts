@@ -8,6 +8,9 @@ export interface KeymapApi {
   toggleHelp(): void;
   searchOpen(): boolean;
   openSearch(): void;
+  deleteArmed(): boolean;
+  armDelete(): void;
+  disarmDelete(): void;
   deleteActive(): void;
 }
 
@@ -48,7 +51,11 @@ export function handleKey(name: string, api: KeymapApi): void {
       api.openSearch();
       break;
     case "d":
-      api.deleteActive();
+      if (api.deleteArmed()) {
+        api.deleteActive();
+      } else {
+        api.armDelete();
+      }
       break;
     default:
       break;

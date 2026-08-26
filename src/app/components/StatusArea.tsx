@@ -17,14 +17,31 @@ function Spinner() {
   return <text>{SPINNER_FRAMES[frame] ?? "|"}</text>;
 }
 
+function truncate(text: string, width: number): string {
+  if (text.length <= width) return text;
+  return `${text.slice(0, Math.max(0, width - 1))}…`;
+}
+
 interface StatusAreaProps {
   loading: boolean;
   error: string | undefined;
   stale: boolean;
+  deleteArm?: { label: string } | undefined;
+  width?: number | undefined;
 }
 
-export function StatusArea({ loading, error, stale }: StatusAreaProps) {
+export function StatusArea({ loading, error, stale, deleteArm, width }: StatusAreaProps) {
   const palette = usePalette();
+
+  if (deleteArm !== undefined) {
+    const line = `press d again to delete ${deleteArm.label}`;
+    const budget = width === undefined ? line.length : Math.max(0, width - 1);
+    return (
+      <box flexDirection="row">
+        <text fg={palette.warn}>{truncate(line, budget)}</text>
+      </box>
+    );
+  }
 
   if (loading) {
     return (

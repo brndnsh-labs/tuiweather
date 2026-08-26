@@ -70,6 +70,13 @@ export function prodDeps(): Required<Pick<StoreDeps, "fetchForecast">> {
   return { fetchForecast: defaultFetcher };
 }
 
+/** Armed delete expires lazily after this long; no timers involved. */
+export const DELETE_ARM_TTL_MS = 4000;
+
+export function isDeleteArmed(armedAtMs: number | null, nowMs: number): boolean {
+  return armedAtMs !== null && nowMs >= armedAtMs && nowMs - armedAtMs < DELETE_ARM_TTL_MS;
+}
+
 export interface WeatherState {
   initStatus: "idle" | "loading" | "ready" | "error";
   config: TuiConfig;
@@ -81,6 +88,7 @@ export interface WeatherState {
   lastActionError: string | undefined;
   helpOpen: boolean;
   overlayOpen: boolean;
+  deleteArmedAtMs: number | null;
 
   init(explicitSlug?: string): Promise<void>;
   loadForecast(slug: string, opts?: { bypassCache?: boolean }): Promise<void>;
@@ -90,6 +98,9 @@ export interface WeatherState {
   toggleUnits(): Promise<void>;
   toggleHelp(): void;
   setOverlayOpen(open: boolean): void;
+  armDelete(): void;
+  disarmDelete(): void;
+  deleteArmed(nowMs: number): boolean;
   searchLocations(query: string): Promise<GeocodingResult[]>;
   addLocation(entry: LocationEntry): Promise<void>;
   completeOnboarding(entry: LocationEntry, units: TuiConfig["units"]): Promise<boolean>;
@@ -163,6 +174,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
       lastActionError: undefined,
       helpOpen: false,
       overlayOpen: false,
+      deleteArmedAtMs: null,
 
       init: async (explicitSlug?: string) => {
         set({ initStatus: "loading", lastActionError: undefined });
@@ -236,6 +248,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
       },
 
       cycleLocation: (delta: 1 | -1) => {
+        set({ deleteArmedAtMs: null });
         const locations = get().config.locations;
         if (locations.length === 0) return;
         const currentIdx = locations.findIndex((loc) => loc.slug === get().activeSlug);
@@ -263,7 +276,14 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
 
       toggleHelp: () => set((s) => ({ helpOpen: !s.helpOpen })),
 
-      setOverlayOpen: (open: boolean) => set({ overlayOpen: open }),
+      setOverlayOpen: (open: boolean) =>
+        set(open ? { overlayOpen: true, deleteArmedAtMs: null } : { overlayOpen: false }),
+
+      armDelete: () => set({ deleteArmedAtMs: Date.now() }),
+
+      disarmDelete: () => set({ deleteArmedAtMs: null }),
+
+      deleteArmed: (nowMs: number) => isDeleteArmed(get().deleteArmedAtMs, nowMs),
 
       searchLocations: (query: string) => geocoder(query),
 
@@ -324,6 +344,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
 
       deleteActiveLocation: async () => {
         const { config, activeSlug } = get();
+        set({ deleteArmedAtMs: null });
         if (!activeSlug) return;
         const locations = config.locations;
         if (locations.length <= 1) {

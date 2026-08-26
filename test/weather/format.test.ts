@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   convertTempC,
   formatClock,
+  formatDayDate,
   formatDayLabel,
   formatHourLabel,
   formatPct,
@@ -216,6 +217,30 @@ describe("formatDayLabel", () => {
   test("ordinary dates", () => {
     expect(formatDayLabel("2026-08-24")).toBe("Mon");
     expect(formatDayLabel("2026-01-01")).toBe("Thu");
+  });
+});
+
+describe("formatDayDate", () => {
+  test("long: weekday, abbreviated month, day of month in local wall time", () => {
+    expect(formatDayDate("2026-08-26T12:00:00Z", 0, "long")).toBe("Wed Aug 26");
+  });
+
+  test("negative offset shifts the calendar day backwards across midnight", () => {
+    expect(formatDayDate("2026-08-26T02:00:00Z", -7 * 3600, "long")).toBe("Tue Aug 25");
+  });
+
+  test("positive offset shifts the calendar day forwards across midnight", () => {
+    expect(formatDayDate("2026-08-26T15:30:00Z", 9 * 3600, "long")).toBe("Thu Aug 27");
+  });
+
+  test("short drops the month but keeps the shifted weekday", () => {
+    expect(formatDayDate("2026-08-26T12:00:00Z", 0, "short")).toBe("Wed 26");
+    expect(formatDayDate("2026-08-26T02:00:00Z", -7 * 3600, "short")).toBe("Tue 25");
+  });
+
+  test("unparseable instants render en dash", () => {
+    expect(formatDayDate("not-a-date", 0, "long")).toBe("–");
+    expect(formatDayDate("not-a-date", 0, "short")).toBe("–");
   });
 });
 

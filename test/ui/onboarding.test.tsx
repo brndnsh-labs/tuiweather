@@ -163,7 +163,7 @@ describe("first-run onboarding", () => {
 
       const weather = await waitUntilFrame(
         setup,
-        (frame) => frame.includes("Tokyo, jp") && frame.includes("main · md"),
+        (frame) => frame.includes("Tokyo, jp") && frame.includes("┌─main"),
       );
       expect(weather).not.toContain("find your first location");
       expect(store.getState().config.units).toBe("metric");
