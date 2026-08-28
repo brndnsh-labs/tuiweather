@@ -11,7 +11,7 @@ import {
 import { DEFAULT_CONFIG } from "../../src/lib/config/schema";
 import { ProviderError } from "../../src/lib/providers/types";
 import type { CurrentObs, NormalizedForecast } from "../../src/lib/weather/types";
-import { stubNullAirQualityFetcher } from "../helpers";
+import { stubNullAirQuality, stubNullAirQualityFetcher } from "../helpers";
 
 const NOW = "2026-08-24T12:00:00.000Z";
 
@@ -42,6 +42,8 @@ daily = true
 
 const NO_DEFAULT_TOML = CONFIG_TOML.replace('default_location = "london"\n', "");
 
+const NWS_TOML = CONFIG_TOML.replace("schema_version = 1", 'schema_version = 3\nprovider = "nws"');
+
 const tmpDirs: string[] = [];
 
 afterEach(async () => {
@@ -61,20 +63,24 @@ async function makeConfigDir(toml: string): Promise<string> {
 function stubFetcher(
   forecast?: NormalizedForecast,
   failWith?: ProviderError,
-): ForecastFetcher & { calls: { locations: string[]; maxAges: number[]; windows: unknown[] } } {
+): ForecastFetcher & {
+  calls: { locations: string[]; maxAges: number[]; windows: unknown[]; providers: unknown[] };
+} {
   const calls = {
     locations: [] as string[],
     maxAges: [] as number[],
     windows: [] as unknown[],
+    providers: [] as unknown[],
   };
   return Object.assign(
     (
       location: { latitude: number; longitude: number },
-      opts: { maxAgeMinutes: number; window: unknown },
+      opts: { maxAgeMinutes: number; window: unknown; provider?: string },
     ) => {
       calls.locations.push(`${location.latitude},${location.longitude}`);
       calls.maxAges.push(opts.maxAgeMinutes);
       calls.windows.push(opts.window);
+      calls.providers.push(opts.provider);
       if (failWith) return Promise.reject(failWith);
       return Promise.resolve({ forecast: forecast ?? makeForecast(), stale: false });
     },
@@ -114,6 +120,47 @@ function makeForecast(temperatureC = 18): NormalizedForecast {
 }
 
 describe("store", () => {
+  test("passes the configured provider id to both fetchers", async () => {
+    const dir = await makeConfigDir(NWS_TOML);
+    const fetcher = stubFetcher();
+    const aqCalls: unknown[] = [];
+    const aqFetcher = (
+      _location: { latitude: number; longitude: number },
+      opts?: { provider?: string },
+    ) => {
+      aqCalls.push(opts?.provider);
+      return Promise.resolve(stubNullAirQuality);
+    };
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: fetcher,
+      fetchAirQuality: aqFetcher,
+    });
+
+    await store.getState().init();
+
+    expect(store.getState().config.provider).toBe("nws");
+    expect(fetcher.calls.providers).toEqual(["nws", "nws"]);
+    expect(aqCalls).toEqual(["nws", "nws"]);
+    store.getState().dispose();
+  });
+
+  test("defaults the provider to openmeteo when config omits it", async () => {
+    const dir = await makeConfigDir(CONFIG_TOML);
+    const fetcher = stubFetcher();
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: fetcher,
+      fetchAirQuality: stubNullAirQualityFetcher,
+    });
+
+    await store.getState().init();
+
+    expect(store.getState().config.provider).toBe("openmeteo");
+    expect(fetcher.calls.providers).toEqual(["openmeteo", "openmeteo"]);
+    store.getState().dispose();
+  });
+
   test("init loads config and picks default_location", async () => {
     const dir = await makeConfigDir(CONFIG_TOML);
     const fetcher = stubFetcher();

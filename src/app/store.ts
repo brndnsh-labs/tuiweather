@@ -7,19 +7,18 @@ import { uniqueSlug } from "../features/search/SearchOverlay";
 import { loadConfig } from "../lib/config/load";
 import { saveConfig } from "../lib/config/save";
 import { DEFAULT_CONFIG, type TuiConfig } from "../lib/config/schema";
-import { fetchAirQuality } from "../lib/providers/openmeteo/aq";
-import { fetchForecast, OPENMETEO_PROVIDER_ID } from "../lib/providers/openmeteo/client";
 import {
   type GeocodingResult,
   searchLocations as geocodeLocations,
 } from "../lib/providers/openmeteo/geocoding";
-import type { ForecastWindow, WeatherProvider } from "../lib/providers/types";
+import { selectProvider } from "../lib/providers/select";
+import type { ForecastWindow, ProviderId } from "../lib/providers/types";
 import { cachedAirQuality, cachedForecast } from "../lib/weather/cache";
 import type { AirQuality, GeoPoint, NormalizedForecast } from "../lib/weather/types";
 
 export type ForecastFetcher = (
   location: GeoPoint,
-  opts: { maxAgeMinutes: number; window: ForecastWindow },
+  opts: { maxAgeMinutes: number; window: ForecastWindow; provider?: ProviderId },
 ) => Promise<{
   forecast: NormalizedForecast;
   stale: boolean;
@@ -27,7 +26,7 @@ export type ForecastFetcher = (
 
 export type AirQualityFetcher = (
   location: GeoPoint,
-  opts?: { nowUtc?: string },
+  opts?: { nowUtc?: string; provider?: ProviderId },
 ) => Promise<AirQuality>;
 
 export type LocationEntry = TuiConfig["locations"][number];
@@ -60,20 +59,16 @@ export interface StoreDeps {
   refreshTimers?: RefreshTimerDeps;
 }
 
-const OPENMETEO_PROVIDER: WeatherProvider = {
-  id: OPENMETEO_PROVIDER_ID,
-  getForecast: (location, window) => fetchForecast(location, window),
-  getAirQuality: (location) => fetchAirQuality(location),
-};
-
 export const defaultFetcher: ForecastFetcher = (location, opts) =>
-  cachedForecast(OPENMETEO_PROVIDER, location, {
+  cachedForecast(selectProvider(opts.provider ?? "openmeteo"), location, {
     maxAgeMinutes: opts.maxAgeMinutes,
     window: opts.window,
   });
 
 export const defaultAirQualityFetcher: AirQualityFetcher = (location, opts) =>
-  cachedAirQuality(OPENMETEO_PROVIDER, location, opts).then((r) => r.airQuality);
+  cachedAirQuality(selectProvider(opts?.provider ?? "openmeteo"), location, opts).then(
+    (r) => r.airQuality,
+  );
 
 export const defaultSearchLocations: SearchLocationsFn = (query) => geocodeLocations(query);
 
@@ -178,10 +173,10 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
       }, get().config.refresh_minutes * 60_000);
     }
 
-    function launchAirQuality(slug: string, location: GeoPoint): void {
+    function launchAirQuality(slug: string, location: GeoPoint, provider: ProviderId): void {
       void (async () => {
         try {
-          const aq = await aqFetcher(location);
+          const aq = await aqFetcher(location, { provider });
           if (disposed) return;
           set((s) => {
             const nextBySlug = { ...s.airQualityBySlug, [slug]: aq };
@@ -254,12 +249,17 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
             return;
           }
           set((s) => ({ loadingSlugs: { ...s.loadingSlugs, [slug]: true as const } }));
-          launchAirQuality(slug, { latitude: location.latitude, longitude: location.longitude });
+          launchAirQuality(
+            slug,
+            { latitude: location.latitude, longitude: location.longitude },
+            state.config.provider,
+          );
           try {
             const result = await fetcher(
               { latitude: location.latitude, longitude: location.longitude },
               {
                 maxAgeMinutes: opts?.bypassCache === true ? 0 : get().config.refresh_minutes,
+                provider: state.config.provider,
                 window: {
                   forecastDays: state.config.daily_days,
                   forecastHours: state.config.hourly_hours,

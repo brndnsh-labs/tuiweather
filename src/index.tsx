@@ -8,8 +8,7 @@ import type { CliArgs } from "./cli";
 import { HELP_TEXT, parseArgs, USAGE, VERSION } from "./cli";
 import { loadConfig } from "./lib/config/load";
 import { resolveDisplayPrefs, type TuiConfig } from "./lib/config/schema";
-import { fetchForecast, OPENMETEO_PROVIDER_ID } from "./lib/providers/openmeteo/client";
-import type { WeatherProvider } from "./lib/providers/types";
+import { selectProvider } from "./lib/providers/select";
 import { cachedForecast } from "./lib/weather/cache";
 import { detectTerminalAppearance } from "./theme/detect";
 
@@ -63,10 +62,7 @@ async function runOneLine(args: CliArgs): Promise<number> {
     return 2;
   }
   const { latitude, longitude, label } = resolved;
-  const provider: WeatherProvider = {
-    id: OPENMETEO_PROVIDER_ID,
-    getForecast: (location) => fetchForecast(location),
-  };
+  const provider = selectProvider(config.provider);
   const { forecast } = await cachedForecast(
     provider,
     { latitude, longitude },
@@ -112,10 +108,7 @@ async function runWatchCli(args: CliArgs): Promise<number> {
     return 2;
   }
   const { latitude, longitude, label } = resolved;
-  const provider: WeatherProvider = {
-    id: OPENMETEO_PROVIDER_ID,
-    getForecast: (location) => fetchForecast(location),
-  };
+  const provider = selectProvider(config.provider);
   const prefs = resolveDisplayPrefs(config);
   const maxAgeMinutes = args.interval ?? config.refresh_minutes;
   const intervalMs = maxAgeMinutes * 60_000;

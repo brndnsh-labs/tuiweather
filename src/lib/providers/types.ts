@@ -1,5 +1,8 @@
 import type { AirQuality, GeoPoint, NormalizedForecast } from "../weather/types";
 
+export const PROVIDER_IDS = ["openmeteo", "nws"] as const;
+export type ProviderId = (typeof PROVIDER_IDS)[number];
+
 export interface ForecastWindow {
   forecastDays?: number;
   forecastHours?: number;

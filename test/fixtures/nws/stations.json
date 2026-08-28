@@ -53,10 +53,7 @@
       "type": "Feature",
       "geometry": {
         "type": "Point",
-        "coordinates": [
-          -122.60917,
-          45.59578
-        ]
+        "coordinates": [-122.60917, 45.59578]
       },
       "properties": {
         "@id": "https://api.weather.gov/stations/KPDX",
@@ -88,10 +85,7 @@
       "type": "Feature",
       "geometry": {
         "type": "Point",
-        "coordinates": [
-          -122.65419,
-          45.62103
-        ]
+        "coordinates": [-122.65419, 45.62103]
       },
       "properties": {
         "@id": "https://api.weather.gov/stations/KVUO",
@@ -123,10 +117,7 @@
       "type": "Feature",
       "geometry": {
         "type": "Point",
-        "coordinates": [
-          -122.40889,
-          45.55111
-        ]
+        "coordinates": [-122.40889, 45.55111]
       },
       "properties": {
         "@id": "https://api.weather.gov/stations/KTTD",

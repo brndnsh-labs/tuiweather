@@ -24,7 +24,7 @@ afterAll(async () => {
 
 function sampleConfig(): TuiConfig {
   return tuiConfigSchema.parse({
-    schema_version: 2,
+    schema_version: 3,
     time_format: "24h",
     unit_prefs: { temp: "metric", wind: "imperial", precip: "metric", pressure: "imperial" },
     panels: { nowcast: true, details: false, hourly: true, daily: false },
@@ -88,14 +88,23 @@ describe("saveConfig", () => {
 
   test("round-trips a default-only config", async () => {
     const file = join(await tempDir(), "config.toml");
-    const original = tuiConfigSchema.parse({ schema_version: 2 });
+    const original = tuiConfigSchema.parse({ schema_version: 3 });
     await saveConfig(original, file);
+    await expect(loadConfig(file)).resolves.toEqual(original);
+  });
+
+  test("round-trips the selected provider", async () => {
+    const file = join(await tempDir(), "config.toml");
+    const original = tuiConfigSchema.parse({ schema_version: 3, provider: "nws" });
+    await saveConfig(original, file);
+    const text = await readFile(file, "utf8");
+    expect(text).toContain('provider = "nws"');
     await expect(loadConfig(file)).resolves.toEqual(original);
   });
 
   test("writes the units scalar when prefs are uniform and the full matrix otherwise", async () => {
     const uniformFile = join(await tempDir(), "uniform.toml");
-    await saveConfig(tuiConfigSchema.parse({ schema_version: 2 }), uniformFile);
+    await saveConfig(tuiConfigSchema.parse({ schema_version: 3 }), uniformFile);
     const uniformText = await readFile(uniformFile, "utf8");
     expect(uniformText).toContain('units = "imperial"');
     expect(uniformText).not.toContain("[units]");
@@ -121,14 +130,14 @@ describe("saveConfig", () => {
     const file = join(await tempDir(), "config.toml");
     await saveConfig(
       tuiConfigSchema.parse({
-        schema_version: 2,
+        schema_version: 3,
         default_location: "portland",
         locations: [{ slug: "portland", label: "Portland", latitude: 0, longitude: 0 }],
       }),
       file,
     );
     const text = await readFile(file, "utf8");
-    expect(text.match(/^schema_version = 2$/m)).not.toBeNull();
+    expect(text.match(/^schema_version = 3$/m)).not.toBeNull();
     const schemaAt = text.indexOf("schema_version");
     const unitsAt = text.indexOf("units =");
     const timeAt = text.indexOf("time_format");

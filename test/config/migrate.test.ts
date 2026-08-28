@@ -33,11 +33,12 @@ async function expectConfigError(promise: Promise<unknown>): Promise<ConfigError
   throw new Error("expected promise to reject with ConfigError");
 }
 
-describe("v1 → v2 migration via loadConfig", () => {
-  test("v1 metric document loads as v2 with derived defaults", async () => {
+describe("v1/v2 → v3 migration via loadConfig", () => {
+  test("v1 metric document loads as v3 with derived defaults and openmeteo provider", async () => {
     const file = await configFromFile('schema_version = 1\nunits = "metric"\n');
     const cfg = await loadConfig(file);
-    expect(cfg.schema_version).toBe(2);
+    expect(cfg.schema_version).toBe(3);
+    expect(cfg.provider).toBe("openmeteo");
     expect(cfg.units).toBe("metric");
     expect(cfg.time_format).toBe("auto");
     expect(cfg.unit_prefs).toEqual({
@@ -58,7 +59,7 @@ describe("v1 → v2 migration via loadConfig", () => {
   test("v1 document without a units scalar derives imperial everywhere", async () => {
     const file = await configFromFile("schema_version = 1\n");
     const cfg = await loadConfig(file);
-    expect(cfg.schema_version).toBe(2);
+    expect(cfg.schema_version).toBe(3);
     expect(cfg.units).toBe("imperial");
     expect(resolveDisplayPrefs(cfg).timeFormat).toBe("12h");
   });
@@ -76,11 +77,23 @@ temp = "metric"
     expect(cfg.unit_prefs.pressure).toBe("imperial");
   });
 
+  test("a v3 document selects the nws provider", async () => {
+    const file = await configFromFile('schema_version = 3\nprovider = "nws"\n');
+    const cfg = await loadConfig(file);
+    expect(cfg.schema_version).toBe(3);
+    expect(cfg.provider).toBe("nws");
+  });
+
   test("invalid values are rejected descriptively", async () => {
     const badUnits = await expectConfigError(
       loadConfig(await configFromFile('schema_version = 1\nunits = "kelvin"\n')),
     );
     expect(badUnits.issues.some((issue) => issue.includes("units"))).toBe(true);
+
+    const badProvider = await expectConfigError(
+      loadConfig(await configFromFile('schema_version = 3\nprovider = "noaa"\n')),
+    );
+    expect(badProvider.issues.some((issue) => issue.includes("provider"))).toBe(true);
 
     const badTime = await expectConfigError(
       loadConfig(await configFromFile('schema_version = 2\ntime_format = "sunrise"\n')),
@@ -93,7 +106,7 @@ temp = "metric"
     expect(badPref.issues.some((issue) => issue.startsWith("unit_prefs.wind"))).toBe(true);
 
     const future = await expectConfigError(
-      loadConfig(await configFromFile("schema_version = 3\n")),
+      loadConfig(await configFromFile("schema_version = 4\n")),
     );
     expect(future.issues.some((issue) => issue.includes("schema_version"))).toBe(true);
   });
@@ -106,7 +119,7 @@ temp = "metric"
     const saved = join(dir, "roundtrip.toml");
     await saveConfig(migrated, saved);
     const text = await readFile(saved, "utf8");
-    expect(text.match(/^schema_version = 2$/m)).not.toBeNull();
+    expect(text.match(/^schema_version = 3$/m)).not.toBeNull();
     await expect(loadConfig(saved)).resolves.toEqual(migrated);
   });
 
