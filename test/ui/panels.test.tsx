@@ -9,6 +9,7 @@ import { normalizeForecast } from "../../src/lib/providers/openmeteo/normalize";
 import { forecastResponseSchema } from "../../src/lib/providers/openmeteo/schemas";
 import type { NormalizedForecast } from "../../src/lib/weather/types";
 import portlandFixture from "../fixtures/openmeteo/portland.json";
+import { stubNullAirQualityFetcher } from "../helpers";
 
 const NOW = "2026-08-24T16:15:00.000Z";
 
@@ -59,7 +60,11 @@ async function makeStore(toml: string, forecast: NormalizedForecast): Promise<We
   tmpDirs.push(dir);
   await writeFile(join(dir, "config.toml"), toml, "utf8");
   const fetcher: ForecastFetcher = () => Promise.resolve({ forecast, stale: false });
-  return createStoreInstance({ configPath: join(dir, "config.toml"), fetchForecast: fetcher });
+  return createStoreInstance({
+    configPath: join(dir, "config.toml"),
+    fetchForecast: fetcher,
+    fetchAirQuality: stubNullAirQualityFetcher,
+  });
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

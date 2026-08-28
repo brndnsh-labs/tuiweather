@@ -23,7 +23,7 @@ import { resolveDisplayPrefs } from "../lib/config/schema";
 import { conditionIcon } from "../lib/providers/openmeteo/wmo";
 import { deriveNowcast } from "../lib/weather/derive";
 import { formatTemp, truncateCells } from "../lib/weather/format";
-import type { NormalizedForecast } from "../lib/weather/types";
+import type { AirQuality, NormalizedForecast } from "../lib/weather/types";
 import { FALLBACK_APPEARANCE, type TerminalAppearance } from "../theme/detect";
 import { buildPalette } from "../theme/palette";
 import { ThemeContext, usePalette } from "../theme/tokens";
@@ -163,6 +163,7 @@ interface MainContentProps {
   prefs: DisplayPrefs;
   panels: TuiConfig["panels"];
   scrollHeight: number;
+  airQuality?: AirQuality | null;
 }
 
 function XsChips({
@@ -190,6 +191,7 @@ function MainContent({
   prefs,
   panels,
   scrollHeight,
+  airQuality,
 }: MainContentProps) {
   const palette = usePalette();
   const nowcast = deriveNowcast(forecast, nowUtc);
@@ -234,6 +236,7 @@ function MainContent({
                 utcOffsetSeconds={forecast.utcOffsetSeconds}
                 prefs={prefs}
                 colWidth={Math.max(10, Math.floor((width - HERO_RESERVE) / 2))}
+                airQuality={airQuality}
               />
             </box>
           ) : (
@@ -303,6 +306,7 @@ function MainContent({
               utcOffsetSeconds={forecast.utcOffsetSeconds}
               prefs={prefs}
               colWidth={Math.max(10, Math.floor((width - HERO_RESERVE) / 2))}
+              airQuality={airQuality}
             />
           ) : null}
         </box>
@@ -352,6 +356,7 @@ export function App(props: AppProps = {}) {
   const helpOpen = store((s) => s.helpOpen);
   const overlayOpen = store((s) => s.overlayOpen);
   const forecastBySlug = store((s) => s.forecastBySlug);
+  const airQuality = store((s) => s.airQuality);
   const lastActionError = store((s) => s.lastActionError);
   const deleteArmedAtMs = store((s) => s.deleteArmedAtMs);
 
@@ -495,6 +500,7 @@ export function App(props: AppProps = {}) {
         prefs={prefs}
         panels={config.panels}
         scrollHeight={mainScrollHeight}
+        airQuality={airQuality}
       />
     ) : (
       <text fg={palette.fgDim}>{truncateTo(EMPTY_FORECAST_HINT, Math.max(0, mainWidth - 1))}</text>

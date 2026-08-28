@@ -13,6 +13,7 @@ import {
 import { loadConfig } from "../../src/lib/config/load";
 import type { GeocodingResult } from "../../src/lib/providers/openmeteo/geocoding";
 import type { CurrentObs, NormalizedForecast } from "../../src/lib/weather/types";
+import { stubNullAirQualityFetcher } from "../helpers";
 
 const NOW = "2026-08-24T19:00:00.000Z";
 const NOW_MS = Date.parse(NOW);
@@ -152,6 +153,7 @@ async function makeStore(opts: StoreOpts = {}): Promise<{ store: WeatherStore; p
     configPath: path,
     fetchForecast: opts.fetcher ?? stubFetcher(),
     searchLocations: opts.search ?? stubSearch(() => Promise.resolve([OREGON_RESULT])),
+    fetchAirQuality: stubNullAirQualityFetcher,
   });
   return { store, path };
 }

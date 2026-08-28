@@ -6,6 +6,7 @@ import { testRender } from "@opentui/react/test-utils";
 import { __setTickIntervalMs, App, TICK_INTERVAL_MS } from "../../src/app/App";
 import { createStoreInstance, type ForecastFetcher, type WeatherStore } from "../../src/app/store";
 import type { CurrentObs, NormalizedForecast } from "../../src/lib/weather/types";
+import { stubNullAirQualityFetcher } from "../helpers";
 
 const CONFIG_TOML = `schema_version = 1
 units = "imperial"
@@ -71,7 +72,11 @@ async function makeStore(forecast: NormalizedForecast): Promise<WeatherStore> {
   tmpDirs.push(dir);
   await writeFile(join(dir, "config.toml"), CONFIG_TOML, "utf8");
   const fetcher: ForecastFetcher = () => Promise.resolve({ forecast, stale: false });
-  return createStoreInstance({ configPath: join(dir, "config.toml"), fetchForecast: fetcher });
+  return createStoreInstance({
+    configPath: join(dir, "config.toml"),
+    fetchForecast: fetcher,
+    fetchAirQuality: stubNullAirQualityFetcher,
+  });
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

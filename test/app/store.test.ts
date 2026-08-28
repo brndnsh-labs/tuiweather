@@ -11,6 +11,7 @@ import {
 import { DEFAULT_CONFIG } from "../../src/lib/config/schema";
 import { ProviderError } from "../../src/lib/providers/types";
 import type { CurrentObs, NormalizedForecast } from "../../src/lib/weather/types";
+import { stubNullAirQualityFetcher } from "../helpers";
 
 const NOW = "2026-08-24T12:00:00.000Z";
 
@@ -119,6 +120,7 @@ describe("store", () => {
     const store = createStoreInstance({
       configPath: join(dir, "config.toml"),
       fetchForecast: fetcher,
+      fetchAirQuality: stubNullAirQualityFetcher,
     });
 
     await store.getState().init();
@@ -136,6 +138,7 @@ describe("store", () => {
     const store = createStoreInstance({
       configPath: join(dir, "config.toml"),
       fetchForecast: fetcher,
+      fetchAirQuality: stubNullAirQualityFetcher,
     });
 
     await store.getState().init();
@@ -156,6 +159,7 @@ describe("store", () => {
     const store = createStoreInstance({
       configPath: join(dir, "config.toml"),
       fetchForecast: fetcher,
+      fetchAirQuality: stubNullAirQualityFetcher,
     });
 
     await store.getState().init();
@@ -172,6 +176,7 @@ describe("store", () => {
     const store = createStoreInstance({
       configPath: join(dir, "config.toml"),
       fetchForecast: fetcher,
+      fetchAirQuality: stubNullAirQualityFetcher,
     });
 
     await store.getState().init();
@@ -186,6 +191,7 @@ describe("store", () => {
     const store = createStoreInstance({
       configPath: join(dir, "config.toml"),
       fetchForecast: fetcher,
+      fetchAirQuality: stubNullAirQualityFetcher,
     });
 
     await store.getState().init();
@@ -211,6 +217,7 @@ describe("store", () => {
     const store = createStoreInstance({
       configPath: join(dir, "config.toml"),
       fetchForecast: fetcher,
+      fetchAirQuality: stubNullAirQualityFetcher,
     });
 
     await store.getState().init();
@@ -241,6 +248,7 @@ describe("store", () => {
     const store = createStoreInstance({
       configPath: join(dir, "config.toml"),
       fetchForecast: fetcher,
+      fetchAirQuality: stubNullAirQualityFetcher,
     });
 
     await store.getState().init();
@@ -265,7 +273,11 @@ describe("store", () => {
     tmpDirs.push(dir);
     const path = join(dir, "config.toml");
     const fetcher = stubFetcher();
-    const store = createStoreInstance({ configPath: path, fetchForecast: fetcher });
+    const store = createStoreInstance({
+      configPath: path,
+      fetchForecast: fetcher,
+      fetchAirQuality: stubNullAirQualityFetcher,
+    });
     await store.getState().init();
 
     const completed = await store.getState().completeOnboarding(
@@ -295,7 +307,11 @@ describe("store", () => {
     tmpDirs.push(dir);
     const path = join(dir, "config.toml");
     const fetcher = stubFetcher();
-    const store = createStoreInstance({ configPath: path, fetchForecast: fetcher });
+    const store = createStoreInstance({
+      configPath: path,
+      fetchForecast: fetcher,
+      fetchAirQuality: stubNullAirQualityFetcher,
+    });
     await store.getState().init();
     await mkdir(path);
 
@@ -320,7 +336,11 @@ describe("store", () => {
     // A directory at the config path makes readFile reject with EISDIR.
     const dir = await mkdtemp(join(tmpdir(), "tuiweather-store-test-"));
     tmpDirs.push(dir);
-    const store = createStoreInstance({ configPath: dir });
+    const store = createStoreInstance({
+      configPath: dir,
+      fetchForecast: stubFetcher(),
+      fetchAirQuality: stubNullAirQualityFetcher,
+    });
 
     await store.getState().init();
 
@@ -333,6 +353,7 @@ describe("store", () => {
     const store = createStoreInstance({
       configPath: join(dir, "config.toml"),
       fetchForecast: stubFetcher(),
+      fetchAirQuality: stubNullAirQualityFetcher,
     });
     await store.getState().init();
     expect(store.getState().activeSlug).toBe("london");
@@ -359,6 +380,7 @@ describe("store", () => {
     const store = createStoreInstance({
       configPath: join(dir, "config.toml"),
       fetchForecast: fetcher,
+      fetchAirQuality: stubNullAirQualityFetcher,
     });
     await store.getState().init();
     fetcher.calls.locations.length = 0;
@@ -377,6 +399,7 @@ describe("store", () => {
     const store = createStoreInstance({
       configPath: join(dir, "config.toml"),
       fetchForecast: failing,
+      fetchAirQuality: stubNullAirQualityFetcher,
     });
 
     await store.getState().init();
@@ -392,6 +415,7 @@ describe("store", () => {
     const store = createStoreInstance({
       configPath: join(dir, "config.toml"),
       fetchForecast: fetcher,
+      fetchAirQuality: stubNullAirQualityFetcher,
     });
     await store.getState().init();
     fetcher.calls.maxAges.length = 0;
@@ -408,6 +432,7 @@ describe("store", () => {
     const store = createStoreInstance({
       configPath: join(dir, "config.toml"),
       fetchForecast: stubFetcher(),
+      fetchAirQuality: stubNullAirQualityFetcher,
     });
     await store.getState().init();
 
@@ -430,6 +455,7 @@ describe("store", () => {
     const store = createStoreInstance({
       configPath: join(dir, "blocked", "config.toml"),
       fetchForecast: stubFetcher(),
+      fetchAirQuality: stubNullAirQualityFetcher,
     });
     await store.getState().init();
     expect(store.getState().config.units).toBe("imperial");
@@ -440,7 +466,10 @@ describe("store", () => {
   });
 
   test("helpOpen toggles independently of weather actions", async () => {
-    const store = createStoreInstance({ fetchForecast: stubFetcher() });
+    const store = createStoreInstance({
+      fetchForecast: stubFetcher(),
+      fetchAirQuality: stubNullAirQualityFetcher,
+    });
     expect(store.getState().helpOpen).toBe(false);
 
     store.getState().toggleHelp();
@@ -457,6 +486,7 @@ describe("delete arm/confirm", () => {
     const store = createStoreInstance({
       configPath: join(dir, "config.toml"),
       fetchForecast: stubFetcher(),
+      fetchAirQuality: stubNullAirQualityFetcher,
     });
     await store.getState().init();
     return store;
@@ -532,6 +562,7 @@ longitude = -0.1276
     const store = createStoreInstance({
       configPath: join(dir, "config.toml"),
       fetchForecast: stubFetcher(),
+      fetchAirQuality: stubNullAirQualityFetcher,
     });
     await store.getState().init();
     store.getState().armDelete();
@@ -602,6 +633,7 @@ describe("store auto-refresh", () => {
       configPath: join(dir, "config.toml"),
       fetchForecast: fetcher,
       refreshTimers: timers,
+      fetchAirQuality: stubNullAirQualityFetcher,
     });
   }
 
@@ -696,6 +728,7 @@ describe("store auto-refresh", () => {
       configPath: dir,
       fetchForecast: makeFetcher(),
       refreshTimers: timers,
+      fetchAirQuality: stubNullAirQualityFetcher,
     });
 
     await store.getState().init();
@@ -710,6 +743,7 @@ describe("store auto-refresh", () => {
     const store = createStoreInstance({
       configPath: join(dir, "config.toml"),
       fetchForecast: fetcher,
+      fetchAirQuality: stubNullAirQualityFetcher,
     });
     await store.getState().init();
 
@@ -735,6 +769,7 @@ describe("store auto-refresh", () => {
     const store = createStoreInstance({
       configPath: join(dir, "config.toml"),
       fetchForecast: fetcher,
+      fetchAirQuality: stubNullAirQualityFetcher,
     });
     await store.getState().init();
 
@@ -767,6 +802,7 @@ describe("store auto-refresh", () => {
     const store = createStoreInstance({
       configPath: join(dir, "config.toml"),
       fetchForecast: fetcher,
+      fetchAirQuality: stubNullAirQualityFetcher,
     });
     store.setState({
       config: {

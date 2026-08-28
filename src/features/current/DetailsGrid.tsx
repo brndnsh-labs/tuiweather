@@ -1,5 +1,6 @@
 import type { DisplayPrefs } from "../../lib/config/schema";
 import {
+  aqiCategory,
   formatClock,
   formatPressure,
   formatTemp,
@@ -7,7 +8,7 @@ import {
   formatWind,
   uvLabel,
 } from "../../lib/weather/format";
-import type { CurrentObs, DailyPoint } from "../../lib/weather/types";
+import type { AirQuality, CurrentObs, DailyPoint } from "../../lib/weather/types";
 import { usePalette } from "../../theme/tokens";
 
 interface DetailsGridProps {
@@ -16,6 +17,7 @@ interface DetailsGridProps {
   utcOffsetSeconds: number;
   prefs: DisplayPrefs;
   colWidth?: number;
+  airQuality?: AirQuality | null;
 }
 
 const LABEL_PAD = 9;
@@ -30,7 +32,14 @@ function Cell({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function DetailsGrid({ obs, today, utcOffsetSeconds, prefs, colWidth }: DetailsGridProps) {
+export function DetailsGrid({
+  obs,
+  today,
+  utcOffsetSeconds,
+  prefs,
+  colWidth,
+  airQuality,
+}: DetailsGridProps) {
   const humidity = `${Math.round(obs.humidityPct)}%`;
   const dewPoint = obs.dewPointC === null ? "--" : formatTemp(obs.dewPointC, prefs.temp);
   const pressure = formatPressure(obs.pressureHpa, prefs.pressure);
@@ -43,6 +52,10 @@ export function DetailsGrid({ obs, today, utcOffsetSeconds, prefs, colWidth }: D
   const sunset = today?.sunsetUtc
     ? formatClock(today.sunsetUtc, utcOffsetSeconds, prefs.timeFormat)
     : "--";
+  const air =
+    airQuality?.usAqi != null
+      ? `${Math.round(airQuality.usAqi)} ${aqiCategory(airQuality.usAqi)}`
+      : null;
 
   const halfWidth = colWidth ?? 20;
 
@@ -64,6 +77,9 @@ export function DetailsGrid({ obs, today, utcOffsetSeconds, prefs, colWidth }: D
       ["sunset", sunset],
     ],
   ];
+  if (air !== null) {
+    rows.push([["air", air]]);
+  }
 
   return (
     <box flexDirection="column">

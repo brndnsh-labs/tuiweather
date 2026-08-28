@@ -8,6 +8,7 @@ import { createStoreInstance, type ForecastFetcher, type WeatherStore } from "..
 import { normalizeForecast } from "../../src/lib/providers/openmeteo/normalize";
 import { forecastResponseSchema } from "../../src/lib/providers/openmeteo/schemas";
 import portlandFixture from "../fixtures/openmeteo/portland.json";
+import { stubNullAirQualityFetcher } from "../helpers";
 
 const PORTLAND_FIXTURE_NOW = "2026-08-24T16:15:00.000Z";
 const PORTLAND_NOW_MS = Date.parse(PORTLAND_FIXTURE_NOW);
@@ -79,6 +80,7 @@ async function makeGoldenStore(configToml: string): Promise<WeatherStore> {
   return createStoreInstance({
     configPath: join(dir, "config.toml"),
     fetchForecast: fetcher,
+    fetchAirQuality: stubNullAirQualityFetcher,
   });
 }
 

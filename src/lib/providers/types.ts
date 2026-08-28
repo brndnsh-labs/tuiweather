@@ -1,4 +1,4 @@
-import type { GeoPoint, NormalizedForecast } from "../weather/types";
+import type { AirQuality, GeoPoint, NormalizedForecast } from "../weather/types";
 
 export interface ForecastWindow {
   forecastDays?: number;
@@ -8,6 +8,7 @@ export interface ForecastWindow {
 export interface WeatherProvider {
   readonly id: string;
   getForecast(location: GeoPoint, window?: ForecastWindow): Promise<NormalizedForecast>;
+  getAirQuality?: (location: GeoPoint) => Promise<AirQuality>;
 }
 
 export class ProviderError extends Error {
