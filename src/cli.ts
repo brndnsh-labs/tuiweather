@@ -1,11 +1,12 @@
 import packageJson from "../package.json";
 
 export interface CliArgs {
-  command: "run" | "help" | "version";
+  command: "run" | "help" | "version" | "watch";
   oneLine: boolean;
   location: string | null;
   latLon: { latitude: number; longitude: number } | null;
   json: boolean;
+  interval: number | null;
 }
 
 export class UsageError extends Error {}
@@ -13,7 +14,7 @@ export class UsageError extends Error {}
 export const VERSION = packageJson.version;
 
 export const USAGE =
-  "usage: tuiweather [--one-line] [--location <slug> | --lat <num> --lon <num>] [--json]";
+  "usage: tuiweather [--one-line] [--location <slug> | --lat <num> --lon <num>] [--json]\n       tuiweather watch [--location <slug> | --lat <num> --lon <num>] [--interval <min>]";
 
 export const HELP_TEXT = `${USAGE}
 
@@ -23,8 +24,12 @@ Options:
   --lat <num>         Latitude (-90 to 90); requires --lon
   --lon <num>         Longitude (-180 to 180); requires --lat
   --json              Print one-line output as compact JSON instead of plain text
+  --interval <min>    Poll interval in minutes (1-120); only with watch
   -h, --help          Show help
   -v, --version       Show version
+
+Commands:
+  watch               Poll the nowcast and ring the bell when rain starts
 `;
 
 function parseCoordinate(flag: string, raw: string | undefined, min: number, max: number): number {
@@ -38,16 +43,41 @@ function parseCoordinate(flag: string, raw: string | undefined, min: number, max
   return value;
 }
 
+function parseInterval(raw: string | undefined): number {
+  if (raw === undefined || raw.trim() === "" || !Number.isFinite(Number(raw))) {
+    throw new UsageError("--interval requires a number");
+  }
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 1 || value > 120) {
+    throw new UsageError("--interval must be an integer between 1 and 120");
+  }
+  return value;
+}
+
 export function parseArgs(argv: string[]): CliArgs {
   if (argv.includes("--help") || argv.includes("-h")) {
     if (argv.length !== 1) throw new UsageError("--help cannot be combined with other arguments");
-    return { command: "help", oneLine: false, location: null, latLon: null, json: false };
+    return {
+      command: "help",
+      oneLine: false,
+      location: null,
+      latLon: null,
+      json: false,
+      interval: null,
+    };
   }
   if (argv.includes("--version") || argv.includes("-v")) {
     if (argv.length !== 1) {
       throw new UsageError("--version cannot be combined with other arguments");
     }
-    return { command: "version", oneLine: false, location: null, latLon: null, json: false };
+    return {
+      command: "version",
+      oneLine: false,
+      location: null,
+      latLon: null,
+      json: false,
+      interval: null,
+    };
   }
 
   const args: CliArgs = {
@@ -56,10 +86,15 @@ export function parseArgs(argv: string[]): CliArgs {
     location: null,
     latLon: null,
     json: false,
+    interval: null,
   };
   let lat: number | null = null;
   let lon: number | null = null;
   let i = 0;
+  if (argv[0] === "watch") {
+    args.command = "watch";
+    i = 1;
+  }
   while (i < argv.length) {
     const arg = argv[i];
     if (arg === "--one-line") {
@@ -77,10 +112,21 @@ export function parseArgs(argv: string[]): CliArgs {
       i += 1;
     } else if (arg === "--json") {
       args.json = true;
+    } else if (arg === "--interval") {
+      const raw = argv[i + 1];
+      i += 1;
+      args.interval = parseInterval(raw);
     } else {
       throw new UsageError(`unknown argument "${arg ?? ""}"`);
     }
     i += 1;
+  }
+  if (args.interval !== null && args.command !== "watch") {
+    throw new UsageError("--interval can only be used with watch");
+  }
+  if (args.command === "watch") {
+    if (args.oneLine) throw new UsageError("--one-line cannot be combined with watch");
+    if (args.json) throw new UsageError("--json cannot be combined with watch");
   }
   if ((lat !== null || lon !== null) && args.location !== null) {
     throw new UsageError("--lat/--lon cannot be combined with --location");

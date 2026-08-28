@@ -94,6 +94,21 @@ tuiweather --one-line --lat 45.52 --lon -122.67 --json | jq .temperatureC
 JSON values are always metric regardless of your configured units; the embedded `line` field
 matches the plain one-line output, which follows configured units.
 
+### Watch mode
+
+`tuiweather watch` polls the nowcast on an interval and rings the terminal bell (`\a`) when rain
+starts — leave it running in a pane and get pinged before you need the umbrella:
+
+```sh
+tuiweather watch                # poll every refresh_minutes
+tuiweather watch --interval 5   # poll every 5 minutes (1–120)
+tuiweather watch --location seattle
+```
+
+Each poll prints the one-line status (prefixed with the location label). The bell rings only on a
+dry → wet transition, not on every poll. Rain already in progress when the watch starts does not
+bell. Desktop notifications are a planned follow-up.
+
 ## Configuration
 
 Config lives at `~/.config/tuiweather/config.toml` (respects `XDG_CONFIG_HOME`). Every field is optional unless marked required; unknown values fail validation with a descriptive error.
