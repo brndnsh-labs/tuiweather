@@ -4,6 +4,7 @@ import {
   buildTempAreaRows,
   fitNotes,
   hourLabelsRow,
+  hourlyDetailRow,
   MIN_WIDE_AREA_SERIES_WIDTH,
   PROB_SUMMARY_PCT,
   peakProbability,
@@ -18,6 +19,7 @@ import {
   TRACE_MM,
   windowIsDry,
 } from "../../src/features/hourly/HourlyStrip";
+import { displayWidth } from "../../src/lib/weather/format";
 import type { Condition, HourlyPoint } from "../../src/lib/weather/types";
 
 const NOW = "2026-08-24T16:15:00.000Z";
@@ -36,6 +38,7 @@ function hourlyPoints(count: number, startUtc = "2026-08-24T17:00:00.000Z"): Hou
     windDirectionDeg: 180,
     humidityPct: null,
     uvIndex: null,
+    visibilityM: null,
     isDay: true,
   }));
 }
@@ -330,5 +333,72 @@ describe("layout floors", () => {
   test("narrow series width drops the chart to the short row count", () => {
     expect(MIN_WIDE_AREA_SERIES_WIDTH).toBeGreaterThan(TEMP_AREA_ROWS_NARROW);
     expect(TEMP_AREA_ROWS_NARROW).toBeLessThan(TEMP_AREA_ROWS_WIDE);
+  });
+});
+
+describe("hourlyDetailRow", () => {
+  function basePoints(): HourlyPoint[] {
+    const pts = hourlyPoints(3);
+    return [
+      withOverrides(pts[0] as HourlyPoint, { uvIndex: 2.3, humidityPct: 60, visibilityM: 10000 }),
+      withOverrides(pts[1] as HourlyPoint, { uvIndex: 5.7, humidityPct: 80, visibilityM: 5000 }),
+      withOverrides(pts[2] as HourlyPoint, { uvIndex: 4, humidityPct: 70, visibilityM: 20000 }),
+    ];
+  }
+
+  test("picks peak uv rounded", () => {
+    const pts = basePoints();
+    const row = hourlyDetailRow(pts, "metric", 80);
+    expect(row).toContain("uv 6");
+  });
+
+  test("rh range with varying values uses en dash", () => {
+    const pts = basePoints();
+    const row = hourlyDetailRow(pts, "metric", 80);
+    expect(row).toContain("rh 60–80%");
+  });
+
+  test("rh single value when min equals max", () => {
+    const pts = hourlyPoints(2).map((p) =>
+      withOverrides(p, { uvIndex: null, humidityPct: 55, visibilityM: null }),
+    );
+    expect(hourlyDetailRow(pts, "metric", 80)).toBe("     rh 55%");
+  });
+
+  test("worst visibility is minimum meters formatted via wind units", () => {
+    const pts = basePoints();
+    expect(hourlyDetailRow(pts, "metric", 80)).toContain("vis 5 km");
+    expect(hourlyDetailRow(pts, "imperial", 80)).toContain("vis 3.1 mi");
+  });
+
+  test("all-null uv hides uv segment", () => {
+    const pts = hourlyPoints(2).map((p) =>
+      withOverrides(p, { uvIndex: null, humidityPct: 60, visibilityM: 8000 }),
+    );
+    const row = hourlyDetailRow(pts, "metric", 80);
+    expect(row).not.toContain("uv");
+    expect(row).toContain("rh");
+    expect(row).toContain("vis");
+  });
+
+  test("all three null returns empty string", () => {
+    const pts = hourlyPoints(2);
+    expect(hourlyDetailRow(pts, "metric", 80)).toBe("");
+    expect(hourlyDetailRow([], "metric", 80)).toBe("");
+  });
+
+  test("width truncation keeps row at most width - 1 columns", () => {
+    const pts = basePoints();
+    const width = 20;
+    const row = hourlyDetailRow(pts, "metric", width);
+    expect(displayWidth(row)).toBeLessThanOrEqual(width - 1);
+    expect(row.endsWith("…")).toBe(true);
+  });
+
+  test("row is gutter-aligned and single-cell safe", () => {
+    const pts = basePoints();
+    const row = hourlyDetailRow(pts, "metric", 80);
+    expect(row.startsWith("     ")).toBe(true);
+    expect(row.includes("·")).toBe(true);
   });
 });
