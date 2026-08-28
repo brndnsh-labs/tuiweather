@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtemp, readdir, rm, stat as statFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { ProviderError, type WeatherProvider } from "../../src/lib/providers/types";
 import { type CacheIo, cachedForecast, cacheKey } from "../../src/lib/weather/cache";
 import type { GeoPoint, NormalizedForecast } from "../../src/lib/weather/types";
@@ -197,5 +200,87 @@ describe("cachedForecast", () => {
     expect(provider.calls()).toBe(1);
     expect(result.stale).toBe(false);
     expect(io.removed).toEqual([KEY]);
+  });
+
+  test("envelope with a null current block counts as corrupt", async () => {
+    const forecast = makeForecast() as unknown as Record<string, unknown>;
+    forecast.current = null;
+    const io = memoryIo(new Map([[KEY, JSON.stringify({ fetchedAtUtc: NOW, forecast })]]));
+    const provider = stubProvider(() => Promise.resolve(makeForecast(21)));
+
+    const result = await cachedForecast(provider, PORTLAND, { nowUtc: NOW }, io);
+
+    expect(provider.calls()).toBe(1);
+    expect(result.stale).toBe(false);
+    expect(result.forecast).toEqual(makeForecast(21));
+    expect(io.removed).toEqual([KEY]);
+  });
+
+  test("envelope with an unknown condition counts as corrupt", async () => {
+    const forecast = makeForecast() as unknown as Record<string, unknown>;
+    (forecast.current as Record<string, unknown>).condition = "volcano";
+    const io = memoryIo(new Map([[KEY, JSON.stringify({ fetchedAtUtc: NOW, forecast })]]));
+    const provider = stubProvider(() => Promise.resolve(makeForecast(22)));
+
+    const result = await cachedForecast(provider, PORTLAND, { nowUtc: NOW }, io);
+
+    expect(provider.calls()).toBe(1);
+    expect(result.stale).toBe(false);
+    expect(io.removed).toEqual([KEY]);
+  });
+
+  test("envelope with an unparseable fetchedAtUtc counts as corrupt", async () => {
+    const io = memoryIo(
+      new Map([[KEY, JSON.stringify({ fetchedAtUtc: "not-a-date", forecast: makeForecast() })]]),
+    );
+    const provider = stubProvider(() => Promise.resolve(makeForecast(23)));
+
+    const result = await cachedForecast(provider, PORTLAND, { nowUtc: NOW }, io);
+
+    expect(provider.calls()).toBe(1);
+    expect(result.stale).toBe(false);
+    expect(io.removed).toEqual([KEY]);
+  });
+
+  test("an envelope the cache wrote itself round-trips as fresh", async () => {
+    const written = makeForecast(20);
+    const io = memoryIo();
+    io.write(KEY, envelopeText("2026-08-24T11:58:00.000Z", written));
+    const provider = stubProvider(() => Promise.reject(new Error("must not be called")));
+
+    const result = await cachedForecast(provider, PORTLAND, { nowUtc: NOW }, io);
+
+    expect(provider.calls()).toBe(0);
+    expect(result.stale).toBe(false);
+    expect(result.forecast).toEqual(written);
+  });
+
+  test("on-disk writes are 0o600, atomic, and leave no tmp files", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "tuiweather-cache-test-"));
+    const prevCacheHome = process.env.XDG_CACHE_HOME;
+    process.env.XDG_CACHE_HOME = dir;
+    try {
+      const fresh = makeForecast(24);
+      const provider = stubProvider(() => Promise.resolve(fresh));
+      const result = await cachedForecast(provider, PORTLAND, { nowUtc: NOW });
+
+      expect(result.stale).toBe(false);
+      const files = await readdir(join(dir, "tuiweather"));
+      expect(files).toEqual([KEY]);
+      const stat = await statFile(join(dir, "tuiweather", KEY));
+      expect(stat.mode & 0o777).toBe(0o600);
+      const roundTripped = await cachedForecast(
+        stubProvider(() => {
+          throw new Error("must not be called");
+        }),
+        PORTLAND,
+        { nowUtc: NOW },
+      );
+      expect(roundTripped.forecast).toEqual(fresh);
+    } finally {
+      if (prevCacheHome === undefined) delete process.env.XDG_CACHE_HOME;
+      else process.env.XDG_CACHE_HOME = prevCacheHome;
+      await rm(join(dir, "tuiweather"), { recursive: true, force: true });
+    }
   });
 });
