@@ -249,6 +249,9 @@ export function LocationPicker({
         }}
         width={innerWidth}
         backgroundColor={palette.surface}
+        textColor={palette.fg}
+        focusedTextColor={palette.fg}
+        placeholderColor={palette.fgDim}
       />
       <text fg={palette.border} bg={palette.surface}>
         {"─".repeat(innerWidth)}

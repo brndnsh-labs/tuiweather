@@ -35,7 +35,7 @@ src/
     openmeteo/           client, zod schemas, normalize, WMO table  <- only place WMO codes exist
   lib/weather/           derive.ts (nowcast rules), format.ts (units/display), cache.ts (TTL)
   lib/config/            zod schema, load/save (atomic tmp+rename)
-  theme/                 day/night palette tokens
+  theme/                 palettes: ink (terminal-adaptive) + day/night accents, detection, tokens
   viewport/              breakpoint definitions + debounced hooks
 test/                    unit tests, fixtures, snapshot goldens
 scripts/                 dev-only scripts (smoke)
@@ -79,3 +79,4 @@ Hard-won knowledge from building this UI against `@opentui/react` 0.5.x. Re-chec
 - **Build char grids per character, not per slot.** `cells[i] = "10a"` makes `join("")` emit three chars for one slot and shifts the rest of the row right; write `label[k]` into individual slots instead (see `hourLabelsRow`).
 - **Hide a scrollbox's scrollbar with `scrollbarOptions={{ visible: false }}`.** The default indicator renders as a solid block column that reads like a rendering glitch in captured frames.
 - **`ascii-font` accepts two-tone colors.** Pass `color={[primary, secondary]}`; glyph segments tagged `<c1>`/`<c2>` in the font data pick up each entry (e.g. `slick` digits vs its minus sign).
+- **`renderer.getPalette()` needs a self-imposed timeout.** The OSC query hangs on terminals that ignore it; race it against your own timer and fall back to dark ink (see `theme/detect.ts`). UI tests via `testRender` never see it — detection is injected as an `appearance` prop at boot.

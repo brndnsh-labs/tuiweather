@@ -10,6 +10,7 @@ import { resolveDisplayPrefs, type TuiConfig } from "./lib/config/schema";
 import { fetchForecast, OPENMETEO_PROVIDER_ID } from "./lib/providers/openmeteo/client";
 import type { WeatherProvider } from "./lib/providers/types";
 import { cachedForecast } from "./lib/weather/cache";
+import { detectTerminalAppearance } from "./theme/detect";
 
 function stderr(message: string): void {
   process.stderr.write(`${message}\n`);
@@ -92,8 +93,9 @@ async function runTui(locationArg: string | null): Promise<number> {
     initialSlug = resolved.slug;
   }
   const renderer = await createCliRenderer({ exitOnCtrlC: true });
+  const appearance = await detectTerminalAppearance(renderer);
   renderer.on("destroy", () => appStore.getState().dispose());
-  createRoot(renderer).render(<App initialSlug={initialSlug} />);
+  createRoot(renderer).render(<App initialSlug={initialSlug} appearance={appearance} />);
   return 0;
 }
 
