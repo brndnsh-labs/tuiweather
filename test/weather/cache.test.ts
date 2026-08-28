@@ -198,4 +198,57 @@ describe("cachedForecast", () => {
     expect(result.stale).toBe(false);
     expect(io.removed).toEqual([KEY]);
   });
+
+  test("envelope with a null current block counts as corrupt", async () => {
+    const forecast = makeForecast() as unknown as Record<string, unknown>;
+    forecast.current = null;
+    const io = memoryIo(new Map([[KEY, JSON.stringify({ fetchedAtUtc: NOW, forecast })]]));
+    const provider = stubProvider(() => Promise.resolve(makeForecast(21)));
+
+    const result = await cachedForecast(provider, PORTLAND, { nowUtc: NOW }, io);
+
+    expect(provider.calls()).toBe(1);
+    expect(result.stale).toBe(false);
+    expect(result.forecast).toEqual(makeForecast(21));
+    expect(io.removed).toEqual([KEY]);
+  });
+
+  test("envelope with an unknown condition counts as corrupt", async () => {
+    const forecast = makeForecast() as unknown as Record<string, unknown>;
+    (forecast.current as Record<string, unknown>).condition = "volcano";
+    const io = memoryIo(new Map([[KEY, JSON.stringify({ fetchedAtUtc: NOW, forecast })]]));
+    const provider = stubProvider(() => Promise.resolve(makeForecast(22)));
+
+    const result = await cachedForecast(provider, PORTLAND, { nowUtc: NOW }, io);
+
+    expect(provider.calls()).toBe(1);
+    expect(result.stale).toBe(false);
+    expect(io.removed).toEqual([KEY]);
+  });
+
+  test("envelope with an unparseable fetchedAtUtc counts as corrupt", async () => {
+    const io = memoryIo(
+      new Map([[KEY, JSON.stringify({ fetchedAtUtc: "not-a-date", forecast: makeForecast() })]]),
+    );
+    const provider = stubProvider(() => Promise.resolve(makeForecast(23)));
+
+    const result = await cachedForecast(provider, PORTLAND, { nowUtc: NOW }, io);
+
+    expect(provider.calls()).toBe(1);
+    expect(result.stale).toBe(false);
+    expect(io.removed).toEqual([KEY]);
+  });
+
+  test("an envelope the cache wrote itself round-trips as fresh", async () => {
+    const written = makeForecast(20);
+    const io = memoryIo();
+    io.write(KEY, envelopeText("2026-08-24T11:58:00.000Z", written));
+    const provider = stubProvider(() => Promise.reject(new Error("must not be called")));
+
+    const result = await cachedForecast(provider, PORTLAND, { nowUtc: NOW }, io);
+
+    expect(provider.calls()).toBe(0);
+    expect(result.stale).toBe(false);
+    expect(result.forecast).toEqual(written);
+  });
 });

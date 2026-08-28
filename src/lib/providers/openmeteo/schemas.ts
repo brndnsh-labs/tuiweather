@@ -134,8 +134,8 @@ export const forecastResponseSchema = z.object({
 export const geocodingResultSchema = z.object({
   id: z.number(),
   name: z.string(),
-  latitude: z.number(),
-  longitude: z.number(),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
   country: z.string().optional(),
   country_code: z.string().optional(),
   admin1: z.string().optional(),
