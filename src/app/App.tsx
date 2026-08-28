@@ -24,7 +24,8 @@ import { conditionGlyph } from "../lib/providers/openmeteo/wmo";
 import { deriveNowcast } from "../lib/weather/derive";
 import { formatTemp } from "../lib/weather/format";
 import type { NormalizedForecast } from "../lib/weather/types";
-import { resolvePalette } from "../theme/palette";
+import { FALLBACK_APPEARANCE, type TerminalAppearance } from "../theme/detect";
+import { buildPalette } from "../theme/palette";
 import { ThemeContext, usePalette } from "../theme/tokens";
 import type { Tier } from "../viewport/breakpoints";
 import { useViewport } from "../viewport/useViewport";
@@ -131,6 +132,7 @@ interface AppProps {
   quit?: () => void;
   nowMs?: number;
   nowUtc?: string;
+  appearance?: TerminalAppearance;
 }
 
 function truncateTo(text: string, width: number): string {
@@ -346,7 +348,11 @@ export function App(props: AppProps = {}) {
   const renderer = useRenderer();
 
   const isDay = entry?.forecast.current.isDay ?? true;
-  const palette = useMemo(() => resolvePalette(config.theme, isDay), [config.theme, isDay]);
+  const appearance = props.appearance ?? FALLBACK_APPEARANCE;
+  const palette = useMemo(
+    () => buildPalette(config.theme, isDay, appearance.ink, appearance.background),
+    [config.theme, isDay, appearance],
+  );
   const prefs = useMemo(() => resolveDisplayPrefs(config), [config]);
 
   useEffect(() => {

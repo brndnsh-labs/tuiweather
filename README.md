@@ -9,7 +9,7 @@ Keyboard-driven terminal weather app: Dark Sky-style rain nowcasting, hourly and
 - **Location search** — type `/`, search the Open-Meteo geocoder, enter to add; locations persist to config
 - **Guided first run** — choose units and find a location without editing a config file
 - **Units** — metric/imperial toggle persisted across runs
-- **Themes** — day, night, or auto (follows sunrise/sunset)
+- **Themes** — day/night accent palettes follow the forecast location's sunrise/sunset; text ink adapts to your terminal's background
 - **Responsive layout** — four breakpoint tiers down to 32 columns; clamps gracefully below that
 - **One-line mode** — a single status line for tmux bars and prompts
 
@@ -131,7 +131,7 @@ longitude = -122.6765
 | `schema_version` | integer | `2` | Required; currently always `2`. Version 1 files are migrated in place on load |
 | `time_format` | `12h` / `24h` / `auto` | `"auto"` | `auto` picks 12h when temperature units are imperial, else 24h |
 | `refresh_minutes` | integer | `10` | Minimum `1` |
-| `theme` | `day` / `night` / `auto` | `"auto"` | `auto` follows local sunrise/sunset |
+| `theme` | `day` / `night` / `auto` | `"auto"` | Accent palette; `auto` follows the location's sunrise/sunset. Text ink always adapts to your terminal's background |
 | `daily_days` | integer | `7` | `1`–`16` forecast days |
 | `hourly_hours` | integer | `24` | `12`–`48` forecast hours |
 | `default_location` | string | none | Must match a `[[locations]]` slug |
