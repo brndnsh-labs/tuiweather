@@ -43,6 +43,7 @@ const MM_PER_INCH = 25.4;
 const MPH_PER_KMH = 0.621371;
 const M_PER_KM = 1000;
 const M_PER_MI = 1609.344;
+const HPA_PER_INHG = 33.8639;
 
 function compassPoint(deg: number): string {
   const idx = ((Math.round(deg / 22.5) % 16) + 16) % 16;
@@ -100,6 +101,12 @@ export function formatVisibility(meters: number | null, units: Units): string {
     return `${Number.parseFloat((meters / M_PER_MI).toFixed(1))} mi`;
   }
   return `${Number.parseFloat((meters / M_PER_KM).toFixed(1))} km`;
+}
+
+export function formatPressure(pressureHpa: number | null, units: Units): string {
+  if (pressureHpa === null) return "--";
+  if (units === "imperial") return `${(pressureHpa / HPA_PER_INHG).toFixed(2)} inHg`;
+  return `${Math.round(pressureHpa)} hPa`;
 }
 
 export function formatClock(

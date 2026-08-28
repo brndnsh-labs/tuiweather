@@ -1,6 +1,7 @@
 import type { DisplayPrefs } from "../../lib/config/schema";
 import {
   formatClock,
+  formatPressure,
   formatTemp,
   formatVisibility,
   formatWind,
@@ -32,7 +33,7 @@ function Cell({ label, value }: { label: string; value: string }) {
 export function DetailsGrid({ obs, today, utcOffsetSeconds, prefs, colWidth }: DetailsGridProps) {
   const humidity = `${Math.round(obs.humidityPct)}%`;
   const dewPoint = obs.dewPointC === null ? "--" : formatTemp(obs.dewPointC, prefs.temp);
-  const pressure = obs.pressureHpa === null ? "--" : `${Math.round(obs.pressureHpa)} hPa`;
+  const pressure = formatPressure(obs.pressureHpa, prefs.pressure);
   const gusts = obs.windGustKmh === null ? "--" : formatWind(obs.windGustKmh, null, prefs.wind);
   const uv = obs.uvIndex === null ? "--" : `${Math.round(obs.uvIndex)} ${uvLabel(obs.uvIndex)}`;
   const visibility = formatVisibility(obs.visibilityM, prefs.wind);
