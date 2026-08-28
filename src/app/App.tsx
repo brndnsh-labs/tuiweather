@@ -1,5 +1,5 @@
 import { useKeyboard, useRenderer } from "@opentui/react";
-import { type ReactNode, useEffect, useMemo } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { DAYLIGHT_MIN_WIDTH, DaylightBar } from "../components/DaylightBar";
 import { Sparkline } from "../components/Sparkline";
 import { DetailsGrid } from "../features/current/DetailsGrid";
@@ -42,6 +42,11 @@ const HERO_RESERVE = 22;
 
 const EMPTY_FORECAST_HINT = "no forecast loaded — press r to refresh";
 const SCROLL_HINT_MORE = "↓ more";
+
+export let TICK_INTERVAL_MS = 30_000; // exported for tests to override ticker cadence
+export function __setTickIntervalMs(ms: number) {
+  TICK_INTERVAL_MS = ms;
+}
 
 const SLICK_HERO_ROWS = 7;
 const COMPACT_HERO_ROWS = 2;
@@ -368,6 +373,13 @@ export function App(props: AppProps = {}) {
   const activeLocation =
     activeSlug === null ? undefined : config.locations.find((loc) => loc.slug === activeSlug);
   const label = activeLocation?.label ?? "tuiweather";
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (props.nowMs !== undefined) return;
+    const h = setInterval(() => setTick((v) => v + 1), TICK_INTERVAL_MS);
+    h.unref?.();
+    return () => clearInterval(h);
+  }, [props.nowMs]);
   const nowMs = props.nowMs ?? Date.now();
   const nowUtc = props.nowUtc ?? new Date(nowMs).toISOString();
   const tier = viewport.tier;
