@@ -1,5 +1,5 @@
-import { createHash } from "node:crypto";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { createHash, randomBytes } from "node:crypto";
+import { chmod, mkdir, open, readFile, rename, rm, unlink } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
@@ -153,7 +153,7 @@ class FsCacheIo implements CacheIo {
   async baseDir(): Promise<string> {
     const root = process.env.XDG_CACHE_HOME?.trim() || join(homedir(), ".cache");
     const dir = join(root, "tuiweather");
-    await mkdir(dir, { recursive: true });
+    await mkdir(dir, { recursive: true, mode: 0o700 });
     return dir;
   }
 
@@ -166,7 +166,25 @@ class FsCacheIo implements CacheIo {
   }
 
   async write(key: string, text: string): Promise<void> {
-    await writeFile(join(await this.baseDir(), key), text, "utf8");
+    const dir = await this.baseDir();
+    const target = join(dir, key);
+    const tmp = join(dir, `${key}.tmp-${process.pid}-${randomBytes(8).toString("hex")}`);
+    let created = false;
+    try {
+      const handle = await open(tmp, "wx", 0o600);
+      created = true;
+      try {
+        await handle.writeFile(text, "utf8");
+        await handle.sync();
+      } finally {
+        await handle.close();
+      }
+      await chmod(tmp, 0o600);
+      await rename(tmp, target);
+    } catch (e) {
+      if (created) await unlink(tmp).catch(() => undefined);
+      throw e;
+    }
   }
 
   async remove(key: string): Promise<void> {
