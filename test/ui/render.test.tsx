@@ -311,6 +311,24 @@ describe("App shell", () => {
     }
   });
 
+  test("help overlay clamps to the terminal on xs widths", async () => {
+    const store = await makeStore();
+    const setup = await testRender(<App store={store} />, { width: 40, height: 12 });
+    try {
+      await setup.flush();
+      await waitUntilFrame(setup, (f) => f.includes("Portland"));
+
+      await setup.mockInput.pressKeys(["?"]);
+      const frame = await waitUntilFrame(setup, (f) => f.includes("esc close"));
+      for (const row of frame.split("\n")) {
+        expect(row.length).toBeLessThanOrEqual(40);
+      }
+      expect(frame).toContain("keys");
+    } finally {
+      await setup.renderer.destroy();
+    }
+  });
+
   test("q quits through the injected callback", async () => {
     const store = await makeStore();
     let quits = 0;
