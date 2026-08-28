@@ -92,7 +92,12 @@ function hourlyRowsFor(
   )
     ? 0
     : 1;
-  return 1 + chartRows + precipRows + 1;
+  const detailRows =
+    (tier === "md" || tier === "lg") &&
+    window.some((p) => p.uvIndex !== null || p.humidityPct !== null || p.visibilityM !== null)
+      ? 1
+      : 0;
+  return 1 + chartRows + precipRows + detailRows + 1;
 }
 
 /**
@@ -261,6 +266,7 @@ function MainContent({
               prefs={prefs}
               maxPoints={showDetails ? 48 : 12}
               width={width}
+              showDetail={showDetails}
             />
           ) : null}
           {panels.daily ? (
@@ -318,6 +324,7 @@ function MainContent({
             prefs={prefs}
             maxPoints={48}
             width={width}
+            showDetail
           />
         ) : null}
         {panels.daily ? (

@@ -69,6 +69,7 @@ const hourlyPointSchema = z.object({
   windDirectionDeg: numberField,
   humidityPct: nullableNumber,
   uvIndex: nullableNumber,
+  visibilityM: nullableNumber,
   isDay: z.boolean(),
 });
 

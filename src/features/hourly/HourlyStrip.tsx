@@ -1,7 +1,15 @@
 import { resample, SPARKLINE_RAMP } from "../../components/Sparkline";
 import type { DisplayPrefs } from "../../lib/config/schema";
 import { conditionGlyph } from "../../lib/providers/openmeteo/wmo";
-import { formatHourLabel, formatTemp, type TimeFormat, type Units } from "../../lib/weather/format";
+import {
+  displayWidth,
+  formatHourLabel,
+  formatTemp,
+  formatVisibility,
+  type TimeFormat,
+  truncateCells,
+  type Units,
+} from "../../lib/weather/format";
 import type { Condition, HourlyPoint } from "../../lib/weather/types";
 import { usePalette } from "../../theme/tokens";
 
@@ -13,6 +21,7 @@ interface HourlyStripProps {
   maxPoints?: number;
   width: number;
   labels?: boolean;
+  showDetail?: boolean;
 }
 
 const FULL_BLOCK = "█";
@@ -252,6 +261,40 @@ export interface RowSegment {
   dim: boolean;
 }
 
+export function hourlyDetailRow(points: HourlyPoint[], windUnits: Units, width: number): string {
+  if (points.length === 0 || width <= 0) return "";
+  const uvValues: number[] = [];
+  const rhValues: number[] = [];
+  const visValues: number[] = [];
+  for (const p of points) {
+    if (p.uvIndex !== null) uvValues.push(p.uvIndex);
+    if (p.humidityPct !== null) rhValues.push(p.humidityPct);
+    if (p.visibilityM !== null) visValues.push(p.visibilityM);
+  }
+  const segments: string[] = [];
+  if (uvValues.length > 0) {
+    const peak = Math.max(...uvValues);
+    segments.push(`uv ${Math.round(peak)}`);
+  }
+  if (rhValues.length > 0) {
+    const min = Math.min(...rhValues);
+    const max = Math.max(...rhValues);
+    const roundedMin = Math.round(min);
+    const roundedMax = Math.round(max);
+    if (roundedMin === roundedMax) segments.push(`rh ${roundedMin}%`);
+    else segments.push(`rh ${roundedMin}–${roundedMax}%`);
+  }
+  if (visValues.length > 0) {
+    const worst = Math.min(...visValues);
+    segments.push(`vis ${formatVisibility(worst, windUnits)}`);
+  }
+  if (segments.length === 0) return "";
+  const content = segments.join(" · ");
+  const row = `${BLANK_GUTTER}${content}`;
+  if (displayWidth(row) > Math.max(0, width - 1)) return truncateCells(row, Math.max(0, width - 1));
+  return row;
+}
+
 /** Splits a finished row into runs so annotated spans can render dim beside accent fill. */
 export function segmentRow(row: string, marks: readonly AreaNote[]): RowSegment[] {
   const segments: RowSegment[] = [];
@@ -274,6 +317,7 @@ export function HourlyStrip({
   maxPoints = 24,
   width,
   labels = true,
+  showDetail = false,
 }: HourlyStripProps) {
   const palette = usePalette();
 
@@ -324,6 +368,8 @@ export function HourlyStrip({
     };
   });
 
+  const detailRow = showDetail ? hourlyDetailRow(window, prefs.wind, width) : "";
+
   return (
     <box flexDirection="column">
       <text fg={palette.fgDim}>{sectionRule(title, width)}</text>
@@ -345,6 +391,7 @@ export function HourlyStrip({
           <text fg={palette.rain}>{precipBarsAbsolute(resample(precipValues, seriesWidth))}</text>
         </box>
       )}
+      {detailRow ? <text fg={palette.fgDim}>{detailRow}</text> : null}
       {labels ? (
         <text fg={palette.fgDim}>
           {hourLabelsRow(window, utcOffsetSeconds, seriesWidth, prefs.timeFormat)}

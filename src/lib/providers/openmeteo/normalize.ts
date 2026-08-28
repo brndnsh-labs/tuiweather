@@ -94,6 +94,7 @@ export function normalizeForecast(
       windDirectionDeg: requireNum(h.wind_direction_10m, i, "hourly.wind_direction_10m"),
       humidityPct: optNum(h.relative_humidity_2m, i),
       uvIndex: optNum(h.uv_index, i),
+      visibilityM: optNum(h.visibility, i),
       isDay: coerceIsDay(h.is_day[i]),
     });
   }

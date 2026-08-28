@@ -66,6 +66,7 @@ export interface HourlyPoint {
   windDirectionDeg: number;
   humidityPct: number | null;
   uvIndex: number | null;
+  visibilityM: number | null;
   isDay: boolean;
 }
 
