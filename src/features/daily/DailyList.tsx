@@ -1,6 +1,6 @@
 import { RangeBar } from "../../components/RangeBar";
 import type { DisplayPrefs } from "../../lib/config/schema";
-import { conditionGlyph } from "../../lib/providers/openmeteo/wmo";
+import { CONDITION_ICON_CELLS, conditionIcon } from "../../lib/providers/openmeteo/wmo";
 import {
   formatDayLabel,
   formatPct,
@@ -34,7 +34,8 @@ export const CHIP_PROB_ONLY_RESERVE = CHIP_LEADING_SPACE + CHIP_PROB_MAX;
 export const CHIP_FULL_RESERVE =
   CHIP_LEADING_SPACE + CHIP_PROB_MAX + CHIP_SEPARATOR.length + CHIP_AMOUNT_MAX;
 
-const BASE_FIXED_WIDTH = DAY_LABEL_WIDTH + 3 + 4 + 4;
+const ICON_SEGMENT_CELLS = 1 + CONDITION_ICON_CELLS + 1;
+const BASE_FIXED_WIDTH = DAY_LABEL_WIDTH + ICON_SEGMENT_CELLS + 4 + 4;
 
 export type PrecipChipTier = "none" | "prob" | "full";
 
@@ -99,7 +100,7 @@ interface RowParts {
 
 function rowParts(day: DailyPoint, units: Units, chipTier: PrecipChipTier): RowParts {
   const label = formatDayLabel(day.dateLocal);
-  const glyph = conditionGlyph(day.condition);
+  const glyph = conditionIcon(day.condition);
   return {
     head: `${label.padEnd(DAY_LABEL_WIDTH)} ${glyph} `,
     lo: day.tempMinC,
@@ -193,7 +194,7 @@ export function dailyChips(days: DailyPoint[], units: Units): string {
   return days
     .map(
       (d) =>
-        `${formatDayLabel(d.dateLocal)}${conditionGlyph(d.condition)}${formatTemp(d.tempMaxC, units)}`,
+        `${formatDayLabel(d.dateLocal)}${conditionIcon(d.condition)}${formatTemp(d.tempMaxC, units)}`,
     )
     .join(" ");
 }

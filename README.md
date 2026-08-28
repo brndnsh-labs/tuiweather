@@ -5,7 +5,7 @@ Keyboard-driven terminal weather app: Dark Sky-style rain nowcasting, hourly and
 ## Features
 
 - **Rain nowcast** — minute-level "umbrella in N min" warnings derived from 15-minute precipitation buckets
-- **Hourly + daily forecast** — sparkline temperature strip, condition glyphs, precipitation probabilities
+- **Hourly + daily forecast** — sparkline temperature strip, emoji condition icons, precipitation probabilities
 - **Location search** — type `/`, search the Open-Meteo geocoder, enter to add; locations persist to config
 - **Guided first run** — choose units and find a location without editing a config file
 - **Units** — metric/imperial toggle persisted across runs

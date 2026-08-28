@@ -187,7 +187,7 @@ describe("panels config toggles", () => {
     const frame = await frameFor(configToml({ daily: false }));
     expect(frame).toContain("╭━━━╮");
     expect(frame).not.toContain("7 day");
-    expect(frame).not.toContain("Mon ☀");
+    expect(frame).not.toContain("Mon ☁️");
     expect(frame).toContain("temp ");
   });
 

@@ -1,6 +1,6 @@
 import { lerpHex } from "../../components/RangeBar";
 import type { DisplayPrefs } from "../../lib/config/schema";
-import { conditionGlyph, conditionLabel } from "../../lib/providers/openmeteo/wmo";
+import { conditionIcon, conditionLabel } from "../../lib/providers/openmeteo/wmo";
 import { convertTempC, formatTemp, formatWind, tempWarmthT } from "../../lib/weather/format";
 import type { CurrentObs } from "../../lib/weather/types";
 import { usePalette } from "../../theme/tokens";
@@ -69,7 +69,7 @@ export function Hero({ obs, prefs, compact = false, mini = false }: HeroProps) {
         <text fg={tempFg}>°</text>
       </box>
       <text fg={palette.fg}>
-        {`${conditionGlyph(obs.condition)} ${conditionLabel(obs.condition)} · feels like ${formatTemp(
+        {`${conditionIcon(obs.condition)} ${conditionLabel(obs.condition)} · feels like ${formatTemp(
           obs.apparentC,
           prefs.temp,
         )}`}

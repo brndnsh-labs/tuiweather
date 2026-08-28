@@ -163,3 +163,43 @@ export function uvLabel(uv: number | null): string {
   if (uv <= 10) return "Very high";
   return "Extreme";
 }
+
+const DEFAULT_EMOJI_PRESENTATION = new Set([0x2614, 0x26c4, 0x26c5, 0x26c8]);
+
+export function displayWidth(text: string): number {
+  const chars = Array.from(text);
+  let cells = 0;
+  let i = 0;
+  while (i < chars.length) {
+    const char = chars[i];
+    if (!char) break;
+    if (char === "\uFE0F" || char === "\uFE0E") {
+      cells += 1;
+      i += 1;
+      continue;
+    }
+    const cp = char.codePointAt(0) ?? 0;
+    const forcedEmoji = chars[i + 1] === "\uFE0F";
+    const emoji = forcedEmoji || DEFAULT_EMOJI_PRESENTATION.has(cp) || cp >= 0x1f000;
+    cells += emoji ? 2 : 1;
+    i += forcedEmoji ? 2 : 1;
+  }
+  return cells;
+}
+
+export function truncateCells(text: string, width: number): string {
+  if (displayWidth(text) <= width) return text;
+  const chars = Array.from(text);
+  const limit = Math.max(0, width - 1);
+  let out = "";
+  let i = 0;
+  while (i < chars.length) {
+    const base = chars[i] ?? "";
+    const joined = chars[i + 1] === "\uFE0F" ? base + "\uFE0F" : base;
+    const probe = out + joined;
+    if (displayWidth(probe) > limit) break;
+    out = probe;
+    i += joined.length > base.length ? 2 : 1;
+  }
+  return `${out}…`;
+}
