@@ -8,6 +8,7 @@ import {
   type ForecastFetcher,
   type RefreshTimerDeps,
 } from "../../src/app/store";
+import { DEFAULT_CONFIG } from "../../src/lib/config/schema";
 import { ProviderError } from "../../src/lib/providers/types";
 import type { CurrentObs, NormalizedForecast } from "../../src/lib/weather/types";
 
@@ -750,6 +751,52 @@ describe("store auto-refresh", () => {
     expect(state.activeSlug).toBe("london");
     const saved = await readFile(join(dir, "config.toml"), "utf8");
     expect(saved).not.toContain("bogus");
+    store.getState().dispose();
+  });
+
+  test("concurrent loadForecast calls share one in-flight fetch", async () => {
+    const dir = await makeConfigDir(CONFIG_TOML);
+    const pending: Array<(v: { forecast: NormalizedForecast; stale: boolean }) => void> = [];
+    let calls = 0;
+    const fetcher: ForecastFetcher = () => {
+      calls += 1;
+      return new Promise((resolve) => {
+        pending.push(resolve);
+      });
+    };
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: fetcher,
+    });
+    store.setState({
+      config: {
+        ...DEFAULT_CONFIG,
+        default_location: "portland",
+        locations: [
+          { slug: "portland", label: "Portland", latitude: 45.5202, longitude: -122.6765 },
+        ],
+      },
+      activeSlug: "portland",
+    });
+
+    const a = store.getState().loadForecast("portland");
+    const b = store.getState().loadForecast("portland", { bypassCache: true });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(calls).toBe(1);
+
+    pending.shift()?.({ forecast: makeForecast(21), stale: false });
+    await Promise.all([a, b]);
+    expect(calls).toBe(1);
+    const entry = store.getState().forecastBySlug.portland;
+    expect(entry?.forecast.current.temperatureC).toBe(21);
+    expect(store.getState().loadingSlugs.portland).toBeUndefined();
+
+    const c = store.getState().loadForecast("portland");
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(calls).toBe(2);
+    pending.shift()?.({ forecast: makeForecast(22), stale: false });
+    await c;
+    expect(store.getState().forecastBySlug.portland?.forecast.current.temperatureC).toBe(22);
     store.getState().dispose();
   });
 });
