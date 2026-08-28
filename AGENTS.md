@@ -27,8 +27,8 @@ CI runs the same gates on every PR; they are required checks on `main`.
 src/
   index.tsx              entry: arg parsing (--one-line), renderer boot
   app/                   shell, global keymap, store (zustand), refresh scheduler
-  components/            presentational primitives (Sparkline, RangeBar, Panel, Glyph)
-  features/              current/ hourly/ daily/ nowcast/ details/ search/
+  components/            presentational primitives (Sparkline, RangeBar, DaylightBar)
+  features/              current/ (incl. DetailsGrid) hourly/ daily/ nowcast/ search/ onboarding/
   lib/weather/types.ts   DOMAIN MODEL — Condition enum, CurrentObs, NormalizedForecast
   lib/providers/
     types.ts             WeatherProvider interface
@@ -38,7 +38,7 @@ src/
   theme/                 palettes: ink (terminal-adaptive) + day/night accents, detection, tokens
   viewport/              breakpoint definitions + debounced hooks
 test/                    unit tests, fixtures, snapshot goldens
-scripts/                 dev-only scripts (smoke)
+scripts/                 dev smoke + release tooling (see docs/RELEASING.md)
 ```
 
 Dependency direction is one-way: `lib/` must never import from `app/`, `features/`, or `components/`.
