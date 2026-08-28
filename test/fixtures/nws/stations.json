@@ -1,0 +1,233 @@
+{
+  "@context": [
+    "https://geojson.org/geojson-ld/geojson-context.jsonld",
+    {
+      "@version": "1.1",
+      "wx": "https://api.weather.gov/ontology#",
+      "s": "https://schema.org/",
+      "geo": "http://www.opengis.net/ont/geosparql#",
+      "unit": "http://codes.wmo.int/common/unit/",
+      "@vocab": "https://api.weather.gov/ontology#",
+      "geometry": {
+        "@id": "s:GeoCoordinates",
+        "@type": "geo:wktLiteral"
+      },
+      "city": "s:addressLocality",
+      "state": "s:addressRegion",
+      "distance": {
+        "@id": "s:Distance",
+        "@type": "s:QuantitativeValue"
+      },
+      "bearing": {
+        "@type": "s:QuantitativeValue"
+      },
+      "value": {
+        "@id": "s:value"
+      },
+      "unitCode": {
+        "@id": "s:unitCode",
+        "@type": "@id"
+      },
+      "forecastOffice": {
+        "@type": "@id"
+      },
+      "forecastGridData": {
+        "@type": "@id"
+      },
+      "publicZone": {
+        "@type": "@id"
+      },
+      "county": {
+        "@type": "@id"
+      },
+      "observationStations": {
+        "@container": "@list",
+        "@type": "@id"
+      }
+    }
+  ],
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "id": "https://api.weather.gov/stations/KPDX",
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.60917,
+          45.59578
+        ]
+      },
+      "properties": {
+        "@id": "https://api.weather.gov/stations/KPDX",
+        "@type": "wx:ObservationStation",
+        "elevation": {
+          "unitCode": "wmoUnit:m",
+          "value": 6.096
+        },
+        "stationIdentifier": "KPDX",
+        "name": "Portland, Portland International Airport",
+        "timeZone": "America/Los_Angeles",
+        "provider": "ASOS-HFM",
+        "subProvider": "",
+        "distance": {
+          "unitCode": "wmoUnit:m",
+          "value": 9059.0444310732
+        },
+        "bearing": {
+          "unitCode": "wmoUnit:degree_(angle)",
+          "value": 31
+        },
+        "forecast": "https://api.weather.gov/zones/forecast/ORZ111",
+        "county": "https://api.weather.gov/zones/county/ORC051",
+        "fireWeatherZone": "https://api.weather.gov/zones/fire/ORZ684"
+      }
+    },
+    {
+      "id": "https://api.weather.gov/stations/KVUO",
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.65419,
+          45.62103
+        ]
+      },
+      "properties": {
+        "@id": "https://api.weather.gov/stations/KVUO",
+        "@type": "wx:ObservationStation",
+        "elevation": {
+          "unitCode": "wmoUnit:m",
+          "value": 6.096
+        },
+        "stationIdentifier": "KVUO",
+        "name": "Pearson Airfield",
+        "timeZone": "America/Los_Angeles",
+        "provider": "ASOS-HFM",
+        "subProvider": "",
+        "distance": {
+          "unitCode": "wmoUnit:m",
+          "value": 10598.189620775
+        },
+        "bearing": {
+          "unitCode": "wmoUnit:degree_(angle)",
+          "value": 6
+        },
+        "forecast": "https://api.weather.gov/zones/forecast/WAZ206",
+        "county": "https://api.weather.gov/zones/county/WAC011",
+        "fireWeatherZone": "https://api.weather.gov/zones/fire/WAZ633"
+      }
+    },
+    {
+      "id": "https://api.weather.gov/stations/KTTD",
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.40889,
+          45.55111
+        ]
+      },
+      "properties": {
+        "@id": "https://api.weather.gov/stations/KTTD",
+        "@type": "wx:ObservationStation",
+        "elevation": {
+          "unitCode": "wmoUnit:m",
+          "value": 10.9728
+        },
+        "stationIdentifier": "KTTD",
+        "name": "Portland, Portland-Troutdale Airport",
+        "timeZone": "America/Los_Angeles",
+        "provider": "ASOS-HFM",
+        "subProvider": "",
+        "distance": {
+          "unitCode": "wmoUnit:m",
+          "value": 20529.012995481
+        },
+        "bearing": {
+          "unitCode": "wmoUnit:degree_(angle)",
+          "value": 82
+        },
+        "forecast": "https://api.weather.gov/zones/forecast/ORZ112",
+        "county": "https://api.weather.gov/zones/county/ORC051",
+        "fireWeatherZone": "https://api.weather.gov/zones/fire/ORZ684"
+      }
+    }
+  ],
+  "observationStations": [
+    "https://api.weather.gov/stations/KPDX",
+    "https://api.weather.gov/stations/KVUO",
+    "https://api.weather.gov/stations/KTTD",
+    "https://api.weather.gov/stations/KHIO",
+    "https://api.weather.gov/stations/EGKO3",
+    "https://api.weather.gov/stations/KUAO",
+    "https://api.weather.gov/stations/FOGO",
+    "https://api.weather.gov/stations/E2837",
+    "https://api.weather.gov/stations/TR951",
+    "https://api.weather.gov/stations/KMMV",
+    "https://api.weather.gov/stations/ODT15",
+    "https://api.weather.gov/stations/CYFW1",
+    "https://api.weather.gov/stations/WPKO3",
+    "https://api.weather.gov/stations/LGFO3",
+    "https://api.weather.gov/stations/ODT78",
+    "https://api.weather.gov/stations/SFKO3",
+    "https://api.weather.gov/stations/ODT93",
+    "https://api.weather.gov/stations/KKLS",
+    "https://api.weather.gov/stations/HSFO3",
+    "https://api.weather.gov/stations/ODT96",
+    "https://api.weather.gov/stations/DCCW1",
+    "https://api.weather.gov/stations/MLLO3",
+    "https://api.weather.gov/stations/KSLE",
+    "https://api.weather.gov/stations/GVT50",
+    "https://api.weather.gov/stations/ODT09",
+    "https://api.weather.gov/stations/BDFO3",
+    "https://api.weather.gov/stations/TIM70",
+    "https://api.weather.gov/stations/TIM59",
+    "https://api.weather.gov/stations/MHM73",
+    "https://api.weather.gov/stations/DEFO",
+    "https://api.weather.gov/stations/MHM66",
+    "https://api.weather.gov/stations/RXFO3",
+    "https://api.weather.gov/stations/MHM54",
+    "https://api.weather.gov/stations/PARO",
+    "https://api.weather.gov/stations/MMRO3",
+    "https://api.weather.gov/stations/TR950",
+    "https://api.weather.gov/stations/TMKO3",
+    "https://api.weather.gov/stations/K4S2",
+    "https://api.weather.gov/stations/SYNO3",
+    "https://api.weather.gov/stations/KTMK",
+    "https://api.weather.gov/stations/PNGO",
+    "https://api.weather.gov/stations/RKHO3",
+    "https://api.weather.gov/stations/CDFO3",
+    "https://api.weather.gov/stations/ODT46",
+    "https://api.weather.gov/stations/ODT57",
+    "https://api.weather.gov/stations/ABNW1",
+    "https://api.weather.gov/stations/BOFO3",
+    "https://api.weather.gov/stations/YEFO3",
+    "https://api.weather.gov/stations/BKRW1",
+    "https://api.weather.gov/stations/CRVO",
+    "https://api.weather.gov/stations/AT297",
+    "https://api.weather.gov/stations/KAST",
+    "https://api.weather.gov/stations/AP682",
+    "https://api.weather.gov/stations/KCVO",
+    "https://api.weather.gov/stations/C8892",
+    "https://api.weather.gov/stations/FNWO3",
+    "https://api.weather.gov/stations/BRUO3",
+    "https://api.weather.gov/stations/KONP",
+    "https://api.weather.gov/stations/PEFO3",
+    "https://api.weather.gov/stations/VCFO3",
+    "https://api.weather.gov/stations/TCFO3",
+    "https://api.weather.gov/stations/KEUG",
+    "https://api.weather.gov/stations/CNFO3",
+    "https://api.weather.gov/stations/AS531",
+    "https://api.weather.gov/stations/LOFO3",
+    "https://api.weather.gov/stations/CCRO3",
+    "https://api.weather.gov/stations/GPFO3",
+    "https://api.weather.gov/stations/K6S2",
+    "https://api.weather.gov/stations/SGFO3",
+    "https://api.weather.gov/stations/FEFO3",
+    "https://api.weather.gov/stations/EMFO3"
+  ],
+  "pagination": {
+    "next": "https://api.weather.gov/stations?id%5B0%5D=ABNW1&id%5B1%5D=AP682&id%5B2%5D=AS531&id%5B3%5D=AT297&id%5B4%5D=BDFO3&id%5B5%5D=BKRW1&id%5B6%5D=BOFO3&id%5B7%5D=BRUO3&id%5B8%5D=C8892&id%5B9%5D=CCRO3&id%5B10%5D=CDFO3&id%5B11%5D=CNFO3&id%5B12%5D=CRVO&id%5B13%5D=CYFW1&id%5B14%5D=DCCW1&id%5B15%5D=DEFO&id%5B16%5D=DTRO3&id%5B17%5D=E2837&id%5B18%5D=EGKO3&id%5B19%5D=EMFO3&id%5B20%5D=FEFO3&id%5B21%5D=FNWO3&id%5B22%5D=FOGO&id%5B23%5D=GOV50&id%5B24%5D=GPFO3&id%5B25%5D=GVT50&id%5B26%5D=HSFO3&id%5B27%5D=K4S2&id%5B28%5D=K6S2&id%5B29%5D=KAST&id%5B30%5D=KCVO&id%5B31%5D=KEUG&id%5B32%5D=KHIO&id%5B33%5D=KKLS&id%5B34%5D=KMMV&id%5B35%5D=KONP&id%5B36%5D=KPDX&id%5B37%5D=KSLE&id%5B38%5D=KTMK&id%5B39%5D=KTTD&id%5B40%5D=KUAO&id%5B41%5D=KVUO&id%5B42%5D=LGFO3&id%5B43%5D=LKSO3&id%5B44%5D=LOFO3&id%5B45%5D=MHM54&id%5B46%5D=MHM66&id%5B47%5D=MHM73&id%5B48%5D=MLLO3&id%5B49%5D=MMRO3&id%5B50%5D=MSH32&id%5B51%5D=MSH33&id%5B52%5D=MTRO3&id%5B53%5D=ODT09&id%5B54%5D=ODT13&id%5B55%5D=ODT15&id%5B56%5D=ODT46&id%5B57%5D=ODT57&id%5B58%5D=ODT78&id%5B59%5D=ODT93&id%5B60%5D=ODT96&id%5B61%5D=PARO&id%5B62%5D=PEFO3&id%5B63%5D=PNGO&id%5B64%5D=RKHO3&id%5B65%5D=RXFO3&id%5B66%5D=SFKO3&id%5B67%5D=SGFO3&id%5B68%5D=SYNO3&id%5B69%5D=TBELL&id%5B70%5D=TCFO3&id%5B71%5D=TIM59&id%5B72%5D=TIM60&id%5B73%5D=TIM70&id%5B74%5D=TMKO3&id%5B75%5D=TR950&id%5B76%5D=TR951&id%5B77%5D=VCFO3&id%5B78%5D=WKF03&id%5B79%5D=WPKO3&id%5B80%5D=YEFO3&cursor=eyJzIjo1MDB9"
+  }
+}
