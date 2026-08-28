@@ -153,7 +153,7 @@ longitude = -122.6765
 | `units.temp` | `metric` / `imperial` | legacy `units` | Display unit for temperatures |
 | `units.wind` | `metric` / `imperial` | legacy `units` | Display unit for wind speed and visibility |
 | `units.precip` | `metric` / `imperial` | legacy `units` | Display unit for precipitation amounts |
-| `units.pressure` | `metric` / `imperial` | legacy `units` | Reserved for future pressure display (pressure currently renders as hPa) |
+| `units.pressure` | `metric` / `imperial` | legacy `units` | Display unit for pressure; `metric` → hPa (rounded), `imperial` → inHg to 2 decimals; defaults via legacy `units` |
 | `panels.nowcast` | boolean | `true` | Show/hide the nowcast banner |
 | `panels.details` | boolean | `true` | Show/hide the details grid |
 | `panels.hourly` | boolean | `true` | Show/hide the hourly strip |

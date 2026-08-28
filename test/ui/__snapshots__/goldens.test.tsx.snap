@@ -5,7 +5,7 @@ exports[`golden frames portland fixture at lg 120x40: lg 120x40 1`] = `
 │● Portland ☀️ 65°       │                                                                                              
 │                        │┌─main───────────────────────────────────────────────────────────────────────────────────────┐
 │                        ││ ╭━━━╮ ╭━━━╮°                   humidity 79%                      dew pt   58°              │
-│                        ││ ┃╭━━╯ ┃╭━━╯                    pressure 1015 hPa                 gusts    14 mph           │
+│                        ││ ┃╭━━╯ ┃╭━━╯                    pressure 29.98 inHg               gusts    14 mph           │
 │                        ││ ┃╰━━╮ ┃╰━━╮                    uv       --                       vis      --               │
 │                        ││ ┃╭━╮┃ ╰━━╮┃                    sunrise  6:22 AM                  sunset   8:03 PM          │
 │                        ││ ┃╰━╯┃ ╭━━╯┃                                                                                │
@@ -49,7 +49,7 @@ exports[`golden frames portland fixture at md 80x24: md 80x24 1`] = `
                                                                                 
 ┌─main─────────────────────────────────────────────────────────────────────────┐
 │ ╭━━━╮ ╭━━━╮°                   humidity 79%               dew pt   58°       │
-│ ┃╭━━╯ ┃╭━━╯                    pressure 1015 hPa          gusts    14 mph    │
+│ ┃╭━━╯ ┃╭━━╯                    pressure 29.98 inHg        gusts    14 mph    │
 │ ┃╰━━╮ ┃╰━━╮                    uv       --                vis      --        │
 │ ┃╭━╮┃ ╰━━╮┃                    sunrise  6:22 AM           sunset   8:03 PM   │
 │ ┃╰━╯┃ ╭━━╯┃                                                                  │
@@ -117,7 +117,7 @@ exports[`golden frames portland fixture at md 80x24 with 24h clock and mixed uni
                                                                                 
 ┌─main─────────────────────────────────────────────────────────────────────────┐
 │ ╱╭╮╱ ╭━━━╮°                    humidity 79%               dew pt   15°       │
-│ ╭╯┃╱ ┃╭━╮┃                     pressure 1015 hPa          gusts    14 mph    │
+│ ╭╯┃╱ ┃╭━╮┃                     pressure 29.98 inHg        gusts    14 mph    │
 │ ╰╮┃╱ ┃╰━╯┃                     uv       --                vis      --        │
 │ ╱┃┃╱ ┃╭━╮┃                     sunrise  06:22             sunset   20:03     │
 │ ╭╯╰╮ ┃╰━╯┃                                                                   │

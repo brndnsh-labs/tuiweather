@@ -7,6 +7,7 @@ import {
   formatHourLabel,
   formatPct,
   formatPrecip,
+  formatPressure,
   formatTemp,
   formatVisibility,
   formatWind,
@@ -263,6 +264,25 @@ describe("formatVisibility", () => {
   test("zero stays visible rather than null-like", () => {
     expect(formatVisibility(0, "metric")).toBe("0 km");
     expect(formatVisibility(0, "imperial")).toBe("0 mi");
+  });
+});
+
+describe("formatPressure", () => {
+  test("null renders double dash regardless of units", () => {
+    expect(formatPressure(null, "metric")).toBe("--");
+    expect(formatPressure(null, "imperial")).toBe("--");
+  });
+
+  test("metric rounds to whole hPa", () => {
+    expect(formatPressure(1015.2, "metric")).toBe("1015 hPa");
+    expect(formatPressure(1015.6, "metric")).toBe("1016 hPa");
+    expect(formatPressure(995.4, "metric")).toBe("995 hPa");
+  });
+
+  test("imperial converts hPa to inHg at two decimals", () => {
+    expect(formatPressure(1013.25, "imperial")).toBe("29.92 inHg");
+    expect(formatPressure(1000, "imperial")).toBe("29.53 inHg");
+    expect(formatPressure(995, "imperial")).toBe("29.38 inHg");
   });
 });
 
