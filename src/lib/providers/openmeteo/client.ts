@@ -1,7 +1,7 @@
 import type { GeoPoint, NormalizedForecast } from "../../weather/types";
 import { ProviderError } from "../types";
 import { normalizeForecast } from "./normalize";
-import { apiErrorBodySchema, forecastResponseSchema } from "./schemas";
+import { apiErrorBodySchema, forecastResponseSchema, sanitizedErrorReason } from "./schemas";
 
 export const OPENMETEO_PROVIDER_ID = "openmeteo";
 
@@ -84,7 +84,8 @@ export function buildForecastUrl(location: GeoPoint, opts: ForecastOptions = {})
 
 function errorReason(body: unknown): string | undefined {
   const parsed = apiErrorBodySchema.safeParse(body);
-  return parsed.success ? parsed.data.reason : undefined;
+  if (!parsed.success || parsed.data.reason === undefined) return undefined;
+  return sanitizedErrorReason(parsed.data.reason);
 }
 
 function httpError(status: number, body: unknown): ProviderError {

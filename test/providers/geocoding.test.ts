@@ -66,6 +66,24 @@ describe("parseGeocodingResponse", () => {
     }
   });
 
+  test("strips control characters from a hostile API reason", () => {
+    let caught: unknown;
+    try {
+      parseGeocodingResponse({
+        error: true,
+        reason: "\u001b]0;pwned\u0007 bad name",
+      });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ProviderError);
+    if (caught instanceof ProviderError) {
+      expect(caught.message.includes("\u001b")).toBe(false);
+      expect(caught.message.includes("\u0007")).toBe(false);
+      expect(caught.message).toContain("bad name");
+    }
+  });
+
   test("rejects malformed payloads", () => {
     expect(() => parseGeocodingResponse({})).toThrow(ProviderError);
     expect(() => parseGeocodingResponse({ results: "nope", generationtime_ms: 1 })).toThrow(

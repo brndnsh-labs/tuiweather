@@ -14,6 +14,20 @@ export const apiErrorBodySchema = z.object({
   reason: z.string().optional(),
 });
 
+const MAX_REASON_CHARS = 200;
+
+function isControl(code: number): boolean {
+  return code <= 0x1f || code === 0x7f;
+}
+
+export function sanitizedErrorReason(reason: string): string {
+  let out = "";
+  for (const ch of reason) {
+    if (!isControl(ch.codePointAt(0) ?? 0)) out += ch;
+  }
+  return out.slice(0, MAX_REASON_CHARS);
+}
+
 export const currentBlockSchema = z.object({
   time: localNaiveTime,
   interval: z.number().optional(),
