@@ -58,4 +58,26 @@ describe("geocodingResponseSchema", () => {
     ).toBe(true);
     expect(geocodingResponseSchema.safeParse({ generationtime_ms: 0.1 }).success).toBe(true);
   });
+
+  test.each([
+    ["latitude", 90.0001],
+    ["latitude", -90.0001],
+    ["longitude", 180.0001],
+    ["longitude", -180.0001],
+  ])("rejects an out-of-range %s of %s", (field, value) => {
+    const result = geocodingResponseSchema.safeParse({
+      results: [{ id: 1, name: "X", latitude: 0, longitude: 0, [field]: value }],
+      generationtime_ms: 0.1,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  test("accepts coordinates at the range edges", () => {
+    expect(
+      geocodingResponseSchema.safeParse({
+        results: [{ id: 1, name: "X", latitude: 90, longitude: -180 }],
+        generationtime_ms: 0.1,
+      }).success,
+    ).toBe(true);
+  });
 });

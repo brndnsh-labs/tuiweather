@@ -702,4 +702,54 @@ describe("store auto-refresh", () => {
     expect(store.getState().lastActionError).toBeDefined();
     expect(timers.pending()).toBe(0);
   });
+
+  test("addLocation persists before applying config and switches on success", async () => {
+    const dir = await makeConfigDir(CONFIG_TOML);
+    const fetcher = stubFetcher();
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: fetcher,
+    });
+    await store.getState().init();
+
+    await store.getState().addLocation({
+      slug: "oslo",
+      label: "Oslo",
+      latitude: 59.9139,
+      longitude: 10.7522,
+    });
+
+    const state = store.getState();
+    expect(state.lastActionError).toBeUndefined();
+    expect(state.config.locations.map((loc) => loc.slug)).toEqual(["portland", "london", "oslo"]);
+    expect(state.activeSlug).toBe("oslo");
+    const saved = await readFile(join(dir, "config.toml"), "utf8");
+    expect(saved).toContain("oslo");
+    store.getState().dispose();
+  });
+
+  test("addLocation with an unsavable entry leaves config and slug untouched", async () => {
+    const dir = await makeConfigDir(CONFIG_TOML);
+    const fetcher = stubFetcher();
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: fetcher,
+    });
+    await store.getState().init();
+
+    await store.getState().addLocation({
+      slug: "bogus",
+      label: "Bogus",
+      latitude: 999,
+      longitude: 999,
+    });
+
+    const state = store.getState();
+    expect(state.lastActionError).toBeDefined();
+    expect(state.config.locations.map((loc) => loc.slug)).toEqual(["portland", "london"]);
+    expect(state.activeSlug).toBe("london");
+    const saved = await readFile(join(dir, "config.toml"), "utf8");
+    expect(saved).not.toContain("bogus");
+    store.getState().dispose();
+  });
 });
