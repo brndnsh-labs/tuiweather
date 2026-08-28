@@ -139,6 +139,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
   return create<WeatherState>()((set, get) => {
     let refreshHandle: unknown;
     let disposed = false;
+    const inFlight = new Map<string, Promise<void>>();
 
     function clearRefreshTimer(): void {
       if (refreshHandle === undefined) return;
@@ -199,40 +200,49 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
       },
 
       loadForecast: async (slug: string, opts?: { bypassCache?: boolean }) => {
-        const state = get();
-        const location = findLocation(state.config, slug);
-        if (!location) {
-          set((s) => ({ errorBySlug: { ...s.errorBySlug, [slug]: `unknown location "${slug}"` } }));
-          return;
-        }
-        set((s) => ({ loadingSlugs: { ...s.loadingSlugs, [slug]: true as const } }));
-        try {
-          const result = await fetcher(
-            { latitude: location.latitude, longitude: location.longitude },
-            {
-              maxAgeMinutes: opts?.bypassCache === true ? 0 : get().config.refresh_minutes,
-              window: {
-                forecastDays: state.config.daily_days,
-                forecastHours: state.config.hourly_hours,
+        const pending = inFlight.get(slug);
+        if (pending) return pending;
+        const load = (async () => {
+          const state = get();
+          const location = findLocation(state.config, slug);
+          if (!location) {
+            set((s) => ({
+              errorBySlug: { ...s.errorBySlug, [slug]: `unknown location "${slug}"` },
+            }));
+            return;
+          }
+          set((s) => ({ loadingSlugs: { ...s.loadingSlugs, [slug]: true as const } }));
+          try {
+            const result = await fetcher(
+              { latitude: location.latitude, longitude: location.longitude },
+              {
+                maxAgeMinutes: opts?.bypassCache === true ? 0 : get().config.refresh_minutes,
+                window: {
+                  forecastDays: state.config.daily_days,
+                  forecastHours: state.config.hourly_hours,
+                },
               },
-            },
-          );
-          set((s) => ({
-            forecastBySlug: {
-              ...s.forecastBySlug,
-              [slug]: {
-                forecast: result.forecast,
-                fetchedAtMs: Date.parse(result.forecast.fetchedAtUtc),
+            );
+            set((s) => ({
+              forecastBySlug: {
+                ...s.forecastBySlug,
+                [slug]: {
+                  forecast: result.forecast,
+                  fetchedAtMs: Date.parse(result.forecast.fetchedAtUtc),
+                },
               },
-            },
-            staleBySlug: { ...s.staleBySlug, [slug]: result.stale },
-            errorBySlug: withoutKey(s.errorBySlug, slug),
-          }));
-        } catch (e) {
-          set((s) => ({ errorBySlug: { ...s.errorBySlug, [slug]: errorMessage(e) } }));
-        } finally {
-          set((s) => ({ loadingSlugs: withoutKey(s.loadingSlugs, slug) }));
-        }
+              staleBySlug: { ...s.staleBySlug, [slug]: result.stale },
+              errorBySlug: withoutKey(s.errorBySlug, slug),
+            }));
+          } catch (e) {
+            set((s) => ({ errorBySlug: { ...s.errorBySlug, [slug]: errorMessage(e) } }));
+          } finally {
+            set((s) => ({ loadingSlugs: withoutKey(s.loadingSlugs, slug) }));
+            inFlight.delete(slug);
+          }
+        })();
+        inFlight.set(slug, load);
+        return load;
       },
 
       refresh: async (slug: string | null) => {
@@ -302,12 +312,13 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
         if (isFirstLocation && config.default_location === undefined) {
           next.default_location = slug;
         }
-        set({ config: next });
         try {
           await saveConfig(next, deps.configPath);
         } catch (e) {
           set({ lastActionError: errorMessage(e) });
+          return;
         }
+        set({ config: next });
         get().switchLocation(slug);
       },
 

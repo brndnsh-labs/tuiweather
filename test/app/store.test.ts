@@ -8,6 +8,7 @@ import {
   type ForecastFetcher,
   type RefreshTimerDeps,
 } from "../../src/app/store";
+import { DEFAULT_CONFIG } from "../../src/lib/config/schema";
 import { ProviderError } from "../../src/lib/providers/types";
 import type { CurrentObs, NormalizedForecast } from "../../src/lib/weather/types";
 
@@ -701,5 +702,101 @@ describe("store auto-refresh", () => {
 
     expect(store.getState().lastActionError).toBeDefined();
     expect(timers.pending()).toBe(0);
+  });
+
+  test("addLocation persists before applying config and switches on success", async () => {
+    const dir = await makeConfigDir(CONFIG_TOML);
+    const fetcher = stubFetcher();
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: fetcher,
+    });
+    await store.getState().init();
+
+    await store.getState().addLocation({
+      slug: "oslo",
+      label: "Oslo",
+      latitude: 59.9139,
+      longitude: 10.7522,
+    });
+
+    const state = store.getState();
+    expect(state.lastActionError).toBeUndefined();
+    expect(state.config.locations.map((loc) => loc.slug)).toEqual(["portland", "london", "oslo"]);
+    expect(state.activeSlug).toBe("oslo");
+    const saved = await readFile(join(dir, "config.toml"), "utf8");
+    expect(saved).toContain("oslo");
+    store.getState().dispose();
+  });
+
+  test("addLocation with an unsavable entry leaves config and slug untouched", async () => {
+    const dir = await makeConfigDir(CONFIG_TOML);
+    const fetcher = stubFetcher();
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: fetcher,
+    });
+    await store.getState().init();
+
+    await store.getState().addLocation({
+      slug: "bogus",
+      label: "Bogus",
+      latitude: 999,
+      longitude: 999,
+    });
+
+    const state = store.getState();
+    expect(state.lastActionError).toBeDefined();
+    expect(state.config.locations.map((loc) => loc.slug)).toEqual(["portland", "london"]);
+    expect(state.activeSlug).toBe("london");
+    const saved = await readFile(join(dir, "config.toml"), "utf8");
+    expect(saved).not.toContain("bogus");
+    store.getState().dispose();
+  });
+
+  test("concurrent loadForecast calls share one in-flight fetch", async () => {
+    const dir = await makeConfigDir(CONFIG_TOML);
+    const pending: Array<(v: { forecast: NormalizedForecast; stale: boolean }) => void> = [];
+    let calls = 0;
+    const fetcher: ForecastFetcher = () => {
+      calls += 1;
+      return new Promise((resolve) => {
+        pending.push(resolve);
+      });
+    };
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: fetcher,
+    });
+    store.setState({
+      config: {
+        ...DEFAULT_CONFIG,
+        default_location: "portland",
+        locations: [
+          { slug: "portland", label: "Portland", latitude: 45.5202, longitude: -122.6765 },
+        ],
+      },
+      activeSlug: "portland",
+    });
+
+    const a = store.getState().loadForecast("portland");
+    const b = store.getState().loadForecast("portland", { bypassCache: true });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(calls).toBe(1);
+
+    pending.shift()?.({ forecast: makeForecast(21), stale: false });
+    await Promise.all([a, b]);
+    expect(calls).toBe(1);
+    const entry = store.getState().forecastBySlug.portland;
+    expect(entry?.forecast.current.temperatureC).toBe(21);
+    expect(store.getState().loadingSlugs.portland).toBeUndefined();
+
+    const c = store.getState().loadForecast("portland");
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(calls).toBe(2);
+    pending.shift()?.({ forecast: makeForecast(22), stale: false });
+    await c;
+    expect(store.getState().forecastBySlug.portland?.forecast.current.temperatureC).toBe(22);
+    store.getState().dispose();
   });
 });
