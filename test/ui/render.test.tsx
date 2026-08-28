@@ -340,7 +340,7 @@ describe("App shell", () => {
       await waitUntilFrame(setup, (f) => f.includes("72°"));
       await setup.mockInput.pressKeys(["u"]);
       const metricFrame = await waitUntilFrame(setup, (f) => f.includes("22°"));
-      expect(metricFrame).toContain("☀ 22°");
+      expect(metricFrame).toContain("☀️ 22°");
       expect(store.getState().config.units).toBe("metric");
     } finally {
       await setup.renderer.destroy();

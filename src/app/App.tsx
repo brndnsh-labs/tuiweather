@@ -20,9 +20,9 @@ import { FirstRun } from "../features/onboarding/FirstRun";
 import { SearchOverlay } from "../features/search/SearchOverlay";
 import type { DisplayPrefs, TuiConfig } from "../lib/config/schema";
 import { resolveDisplayPrefs } from "../lib/config/schema";
-import { conditionGlyph } from "../lib/providers/openmeteo/wmo";
+import { conditionIcon } from "../lib/providers/openmeteo/wmo";
 import { deriveNowcast } from "../lib/weather/derive";
-import { formatTemp } from "../lib/weather/format";
+import { formatTemp, truncateCells } from "../lib/weather/format";
 import type { NormalizedForecast } from "../lib/weather/types";
 import { FALLBACK_APPEARANCE, type TerminalAppearance } from "../theme/detect";
 import { buildPalette } from "../theme/palette";
@@ -136,8 +136,7 @@ interface AppProps {
 }
 
 function truncateTo(text: string, width: number): string {
-  if (text.length <= width) return text;
-  return `${text.slice(0, Math.max(0, width - 1))}…`;
+  return truncateCells(text, width);
 }
 
 function clampLine(label: string, width: number): string {
@@ -521,7 +520,7 @@ export function App(props: AppProps = {}) {
             const locEntry = forecastBySlug[loc.slug];
             const bullet = loc.slug === activeSlug ? "●" : "○";
             const tail = locEntry
-              ? ` ${conditionGlyph(locEntry.forecast.current.condition)} ${formatTemp(
+              ? ` ${conditionIcon(locEntry.forecast.current.condition)} ${formatTemp(
                   locEntry.forecast.current.temperatureC,
                   prefs.temp,
                 )}`

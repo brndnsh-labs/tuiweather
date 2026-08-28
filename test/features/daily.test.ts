@@ -79,7 +79,7 @@ describe("dailyMetrics width budget", () => {
       showPrecip: true,
     });
     expect(m.chipTier).toBe("none");
-    expect(m.barWidth).toBe(26);
+    expect(m.barWidth).toBe(25);
   });
 
   test("probability-only chips reserve 7 columns", () => {
@@ -89,7 +89,7 @@ describe("dailyMetrics width budget", () => {
       showPrecip: true,
     });
     expect(m.chipTier).toBe("prob");
-    expect(m.barWidth).toBe(19);
+    expect(m.barWidth).toBe(18);
   });
 
   test("any accumulated day reserves the full-chip allowance for all rows", () => {
@@ -99,26 +99,26 @@ describe("dailyMetrics width budget", () => {
       showPrecip: true,
     });
     expect(m.chipTier).toBe("full");
-    expect(m.barWidth).toBe(7);
-    expect(19 - m.barWidth).toBe(CHIP_FULL_RESERVE - CHIP_PROB_ONLY_RESERVE);
+    expect(m.barWidth).toBe(6);
+    expect(18 - m.barWidth).toBe(CHIP_FULL_RESERVE - CHIP_PROB_ONLY_RESERVE);
   });
 
   test("showPrecip=false skips every reservation", () => {
     const m = dailyMetrics([day(90)], { width: 40, columns: 1, showPrecip: false });
     expect(m.chipTier).toBe("none");
-    expect(m.barWidth).toBe(26);
+    expect(m.barWidth).toBe(25);
   });
 
   test("two-column layout budgets per column width", () => {
     const days = [day(65)];
     expect(dailyMetrics(days, { width: 80, columns: 2, showPrecip: true })).toEqual({
       colWidth: 40,
-      barWidth: 7,
+      barWidth: 6,
       chipTier: "full",
     });
     expect(dailyMetrics(days, { width: 64, columns: 2, showPrecip: true })).toEqual({
       colWidth: 32,
-      barWidth: 11,
+      barWidth: 10,
       chipTier: "prob",
     });
   });
@@ -127,31 +127,28 @@ describe("dailyMetrics width budget", () => {
 describe("degradation ladder at shrinking widths", () => {
   const days = [day(65)];
 
-  test("full chip while the bar keeps its minimum", () => {
+  test("amount suffix drops first when the full allowance collapses the bar", () => {
     expect(dailyMetrics(days, { width: 35, columns: 1, showPrecip: true })).toEqual({
       colWidth: 35,
-      barWidth: 2,
-      chipTier: "full",
-    });
-  });
-
-  test("amount suffix drops first when the full allowance collapses the bar", () => {
-    expect(dailyMetrics(days, { width: 32, columns: 1, showPrecip: true })).toEqual({
-      colWidth: 32,
-      barWidth: 11,
+      barWidth: 13,
       chipTier: "prob",
     });
-    expect(dailyMetrics(days, { width: 23, columns: 1, showPrecip: true })).toEqual({
-      colWidth: 23,
-      barWidth: 2,
+    expect(dailyMetrics(days, { width: 32, columns: 1, showPrecip: true })).toEqual({
+      colWidth: 32,
+      barWidth: 10,
       chipTier: "prob",
     });
   });
 
   test("whole chip drops next, then the bar clamps at its minimum", () => {
+    expect(dailyMetrics(days, { width: 23, columns: 1, showPrecip: true })).toEqual({
+      colWidth: 23,
+      barWidth: 8,
+      chipTier: "none",
+    });
     expect(dailyMetrics(days, { width: 22, columns: 1, showPrecip: true })).toEqual({
       colWidth: 22,
-      barWidth: 8,
+      barWidth: 7,
       chipTier: "none",
     });
     expect(dailyMetrics(days, { width: 15, columns: 1, showPrecip: true })).toEqual({
@@ -165,6 +162,6 @@ describe("degradation ladder at shrinking widths", () => {
 describe("dailyChips", () => {
   test("renders one compact chip per day", () => {
     const chips = dailyChips([day(65)], "imperial");
-    expect(chips).toBe("Mon☂68°");
+    expect(chips).toBe("Mon\uD83C\uDF27\uFE0F68°");
   });
 });
