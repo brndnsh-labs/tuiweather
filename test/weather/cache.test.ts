@@ -253,6 +253,7 @@ describe("cachedForecast", () => {
     expect(provider.calls()).toBe(0);
     expect(result.stale).toBe(false);
     expect(result.forecast).toEqual(written);
+  });
 
   test("on-disk writes are 0o600, atomic, and leave no tmp files", async () => {
     const dir = await mkdtemp(join(tmpdir(), "tuiweather-cache-test-"));
