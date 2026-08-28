@@ -7,7 +7,7 @@ import {
   tuiConfigSchema,
 } from "../../src/lib/config/schema";
 
-const base = { schema_version: 2 };
+const base = { schema_version: 3 };
 
 function location(slug: string) {
   return { slug, label: "L", latitude: 0, longitude: 0 };
@@ -36,15 +36,16 @@ describe("tuiConfigSchema", () => {
     expect(cfg.locations).toEqual([]);
   });
 
-  test("DEFAULT_CONFIG matches parsed defaults at version 2", () => {
+  test("DEFAULT_CONFIG matches parsed defaults at version 3", () => {
     expect(DEFAULT_CONFIG).toEqual(tuiConfigSchema.parse(base));
-    expect(DEFAULT_CONFIG.schema_version).toBe(2);
+    expect(DEFAULT_CONFIG.schema_version).toBe(3);
+    expect(DEFAULT_CONFIG.provider).toBe("openmeteo");
     expect(DEFAULT_CONFIG.locations).toEqual([]);
   });
 
   test("full valid document parses verbatim", () => {
     const cfg = tuiConfigSchema.parse({
-      schema_version: 2,
+      schema_version: 3,
       time_format: "24h",
       unit_prefs: { temp: "metric", wind: "imperial", precip: "metric", pressure: "metric" },
       refresh_minutes: 5,
@@ -101,9 +102,17 @@ describe("tuiConfigSchema", () => {
     rejects({ ...base, theme: "system" });
   });
 
-  test("rejects schema_version other than 2", () => {
-    rejects({ schema_version: 3 });
-    rejects({ schema_version: "2" });
+  test("provider defaults to openmeteo and accepts the known ids", () => {
+    expect(tuiConfigSchema.parse(base).provider).toBe("openmeteo");
+    expect(tuiConfigSchema.parse({ ...base, provider: "nws" }).provider).toBe("nws");
+    expect(tuiConfigSchema.parse({ ...base, provider: "openmeteo" }).provider).toBe("openmeteo");
+    rejects({ ...base, provider: "meteosource" });
+    rejects({ ...base, provider: 1 });
+  });
+
+  test("rejects schema_version other than 3", () => {
+    rejects({ schema_version: 2 });
+    rejects({ schema_version: "3" });
     rejects({});
   });
 
@@ -240,9 +249,10 @@ describe("resolveDisplayPrefs", () => {
 });
 
 describe("migrateConfig", () => {
-  test("promotes a v1 document to v2 with derived defaults", () => {
+  test("promotes a v1 document to v3 with derived defaults and openmeteo provider", () => {
     const cfg = migrateConfig({ schema_version: 1, units: "metric" });
-    expect(cfg.schema_version).toBe(2);
+    expect(cfg.schema_version).toBe(3);
+    expect(cfg.provider).toBe("openmeteo");
     expect(cfg.units).toBe("metric");
     expect(cfg.unit_prefs).toEqual({
       temp: "metric",
@@ -251,6 +261,19 @@ describe("migrateConfig", () => {
       pressure: "metric",
     });
     expect(cfg.time_format).toBe("auto");
+  });
+
+  test("promotes a v2 document to v3, defaulting the provider", () => {
+    const cfg = migrateConfig({
+      schema_version: 2,
+      theme: "night",
+      default_location: "oslo",
+      locations: [location("oslo")],
+    });
+    expect(cfg.schema_version).toBe(3);
+    expect(cfg.provider).toBe("openmeteo");
+    expect(cfg.theme).toBe("night");
+    expect(cfg.locations.map((loc) => loc.slug)).toEqual(["oslo"]);
   });
 
   test("explicit partial overrides win over derived legacy values", () => {
@@ -268,9 +291,10 @@ describe("migrateConfig", () => {
   test("still validates the migrated document", () => {
     expect(() => migrateConfig({ schema_version: 1, units: "kelvin" })).toThrow();
     expect(() => migrateConfig({ schema_version: 1, daily_days: 99 })).toThrow();
+    expect(() => migrateConfig({ schema_version: 2, provider: "nope" })).toThrow();
   });
 
-  test("passes v2 documents through unchanged", () => {
+  test("passes v3 documents through unchanged", () => {
     const cfg = migrateConfig({ ...base, time_format: "12h" });
     expect(cfg.time_format).toBe("12h");
   });

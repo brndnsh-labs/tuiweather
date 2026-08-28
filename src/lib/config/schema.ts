@@ -1,9 +1,10 @@
 import { z } from "zod";
+import { PROVIDER_IDS } from "../providers/types";
 import type { Units } from "../weather/format";
 
 export const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export interface DisplayPrefs {
   temp: Units;
@@ -43,6 +44,7 @@ export const tuiConfigSchema = z
     unit_prefs: z.object(unitPrefsShape).prefault({}),
     refresh_minutes: z.number().int().min(1).default(10),
     theme: z.enum(["day", "night", "auto"]).default("auto"),
+    provider: z.enum(PROVIDER_IDS).default("openmeteo"),
     daily_days: z.number().int().min(1).max(16).default(7),
     hourly_hours: z.number().int().min(12).max(48).default(24),
     panels: panelsSchema.prefault({}),
@@ -89,13 +91,16 @@ export function resolveDisplayPrefs(config: TuiConfig): DisplayPrefs {
   };
 }
 
-/** Accepts a stored document at any historical version and returns a validated v2 config. */
+/** Accepts a stored document at any historical version and returns a validated current-version config. */
 export function migrateConfig(raw: unknown): TuiConfig {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
     return tuiConfigSchema.parse(raw);
   }
   const doc: Record<string, unknown> = { ...raw };
-  if ((raw as { schema_version?: unknown }).schema_version === 1) {
+  const version = (raw as { schema_version?: unknown }).schema_version;
+  // v1 predates the [units] table; v2 predates the `provider` key. Both are
+  // upgraded in place, relying on schema defaults for the added fields.
+  if (version === 1 || version === 2) {
     doc.schema_version = SCHEMA_VERSION;
   }
   // A [units] table parses under the `units` key; fold it into unit_prefs so
