@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtemp, readdir, rm, stat as statFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { ProviderError, type WeatherProvider } from "../../src/lib/providers/types";
 import { type CacheIo, cachedForecast, cacheKey } from "../../src/lib/weather/cache";
 import type { GeoPoint, NormalizedForecast } from "../../src/lib/weather/types";
@@ -250,5 +253,34 @@ describe("cachedForecast", () => {
     expect(provider.calls()).toBe(0);
     expect(result.stale).toBe(false);
     expect(result.forecast).toEqual(written);
+  });
+
+  test("on-disk writes are 0o600, atomic, and leave no tmp files", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "tuiweather-cache-test-"));
+    const prevCacheHome = process.env.XDG_CACHE_HOME;
+    process.env.XDG_CACHE_HOME = dir;
+    try {
+      const fresh = makeForecast(24);
+      const provider = stubProvider(() => Promise.resolve(fresh));
+      const result = await cachedForecast(provider, PORTLAND, { nowUtc: NOW });
+
+      expect(result.stale).toBe(false);
+      const files = await readdir(join(dir, "tuiweather"));
+      expect(files).toEqual([KEY]);
+      const stat = await statFile(join(dir, "tuiweather", KEY));
+      expect(stat.mode & 0o777).toBe(0o600);
+      const roundTripped = await cachedForecast(
+        stubProvider(() => {
+          throw new Error("must not be called");
+        }),
+        PORTLAND,
+        { nowUtc: NOW },
+      );
+      expect(roundTripped.forecast).toEqual(fresh);
+    } finally {
+      if (prevCacheHome === undefined) delete process.env.XDG_CACHE_HOME;
+      else process.env.XDG_CACHE_HOME = prevCacheHome;
+      await rm(join(dir, "tuiweather"), { recursive: true, force: true });
+    }
   });
 });
