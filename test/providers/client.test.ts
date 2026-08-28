@@ -90,6 +90,15 @@ describe("fetchForecast error mapping", () => {
     expect(error.message).toContain("quota exceeded");
   });
 
+  test("strips control characters and clamps a hostile API reason", async () => {
+    const reason = `${"\u001b]0;pwned\u0007".repeat(30)}${"x".repeat(500)}`;
+    mockResponds(JSON.stringify({ error: true, reason }), 400);
+    const error = await captureProviderError(fetchForecast(PORTLAND));
+    expect(error.message.includes("\u001b")).toBe(false);
+    expect(error.message.includes("\u0007")).toBe(false);
+    expect(error.message.length).toBeLessThan(300);
+  });
+
   test("wraps a non-JSON body in ProviderError", async () => {
     mockResponds("<html>gateway</html>", 502);
     const error = await captureProviderError(fetchForecast(PORTLAND));
