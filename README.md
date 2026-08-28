@@ -10,6 +10,7 @@ Keyboard-driven terminal weather app: Dark Sky-style rain nowcasting, hourly and
 - **Guided first run** — choose units and find a location without editing a config file
 - **Units** — metric/imperial toggle persisted across runs
 - **Themes** — day/night accent palettes follow the forecast location's sunrise/sunset; text ink adapts to your terminal's background
+- **Air quality** — US AQI with category label in the details grid, from the Open-Meteo Air Quality API
 - **Responsive layout** — four breakpoint tiers down to 32 columns; clamps gracefully below that
 - **One-line mode** — a single status line for tmux bars and prompts
 

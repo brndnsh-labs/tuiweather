@@ -4,9 +4,10 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 import { type ForecastWindow, ProviderError, type WeatherProvider } from "../providers/types";
-import type { Condition, GeoPoint, NormalizedForecast } from "./types";
+import type { AirQuality, Condition, GeoPoint, NormalizedForecast } from "./types";
 
 const DEFAULT_MAX_AGE_MINUTES = 10;
+const AQ_TTL_MINUTES = 60;
 const MIN_MS = 60_000;
 
 const conditionSchema = z.enum([
@@ -106,8 +107,29 @@ const envelopeSchema = z.object({
   forecast: normalizedForecastSchema,
 });
 
+const airQualitySchema = z.object({
+  usAqi: z.number().nullable(),
+  pm25UgM3: z.number().nullable(),
+  ozoneUgM3: z.number().nullable(),
+  observedAtUtc: z.string().refine((s) => !Number.isNaN(Date.parse(s)), {
+    message: "observedAtUtc is not a parseable instant",
+  }),
+});
+
+const aqEnvelopeSchema = z.object({
+  fetchedAtUtc: z.string().refine((s) => !Number.isNaN(Date.parse(s)), {
+    message: "fetchedAtUtc is not a parseable instant",
+  }),
+  airQuality: airQualitySchema,
+});
+
 export interface CacheResult {
   forecast: NormalizedForecast;
+  stale: boolean;
+}
+
+export interface AqCacheResult {
+  airQuality: AirQuality;
   stale: boolean;
 }
 
@@ -132,9 +154,25 @@ export function cacheKey(
   return `${digest}.json`;
 }
 
+export function airQualityCacheKey(
+  providerId: string,
+  latitude: number,
+  longitude: number,
+): string {
+  const digest = createHash("sha256")
+    .update(`${providerId}|aq|${latitude.toFixed(3)}|${longitude.toFixed(3)}`)
+    .digest("hex");
+  return `${digest}.json`;
+}
+
 interface Envelope {
   fetchedAtUtc: string;
   forecast: NormalizedForecast;
+}
+
+interface AqEnvelope {
+  fetchedAtUtc: string;
+  airQuality: AirQuality;
 }
 
 function parseEnvelope(raw: string | null): Envelope | null {
@@ -146,6 +184,19 @@ function parseEnvelope(raw: string | null): Envelope | null {
     return null;
   }
   const result = envelopeSchema.safeParse(parsed);
+  if (!result.success) return null;
+  return result.data;
+}
+
+function parseAqEnvelope(raw: string | null): AqEnvelope | null {
+  if (raw === null) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  const result = aqEnvelopeSchema.safeParse(parsed);
   if (!result.success) return null;
   return result.data;
 }
@@ -220,6 +271,41 @@ export async function cachedForecast(
   } catch (error) {
     if (envelope && error instanceof ProviderError) {
       return { forecast: envelope.forecast, stale: true };
+    }
+    throw error;
+  }
+}
+
+export async function cachedAirQuality(
+  provider: WeatherProvider,
+  location: GeoPoint,
+  opts?: { nowUtc?: string },
+  io: CacheIo = new FsCacheIo(),
+): Promise<AqCacheResult> {
+  const nowUtc = opts?.nowUtc ?? new Date().toISOString();
+  const nowMs = Date.parse(nowUtc);
+  const key = airQualityCacheKey(provider.id, location.latitude, location.longitude);
+
+  const raw = await io.read(key);
+  const envelope = parseAqEnvelope(raw);
+  if (raw !== null && envelope === null) {
+    await io.remove(key).catch(() => undefined);
+  }
+  if (envelope && nowMs - Date.parse(envelope.fetchedAtUtc) <= AQ_TTL_MINUTES * MIN_MS) {
+    return { airQuality: envelope.airQuality, stale: false };
+  }
+
+  if (!provider.getAirQuality) {
+    throw new ProviderError("provider does not support air quality", provider.id);
+  }
+
+  try {
+    const airQuality = await provider.getAirQuality(location);
+    await io.write(key, JSON.stringify({ fetchedAtUtc: nowUtc, airQuality } satisfies AqEnvelope));
+    return { airQuality, stale: false };
+  } catch (error) {
+    if (envelope && error instanceof ProviderError) {
+      return { airQuality: envelope.airQuality, stale: true };
     }
     throw error;
   }

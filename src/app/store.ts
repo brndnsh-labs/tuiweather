@@ -7,14 +7,15 @@ import { uniqueSlug } from "../features/search/SearchOverlay";
 import { loadConfig } from "../lib/config/load";
 import { saveConfig } from "../lib/config/save";
 import { DEFAULT_CONFIG, type TuiConfig } from "../lib/config/schema";
+import { fetchAirQuality } from "../lib/providers/openmeteo/aq";
 import { fetchForecast, OPENMETEO_PROVIDER_ID } from "../lib/providers/openmeteo/client";
 import {
   type GeocodingResult,
   searchLocations as geocodeLocations,
 } from "../lib/providers/openmeteo/geocoding";
 import type { ForecastWindow, WeatherProvider } from "../lib/providers/types";
-import { cachedForecast } from "../lib/weather/cache";
-import type { GeoPoint, NormalizedForecast } from "../lib/weather/types";
+import { cachedAirQuality, cachedForecast } from "../lib/weather/cache";
+import type { AirQuality, GeoPoint, NormalizedForecast } from "../lib/weather/types";
 
 export type ForecastFetcher = (
   location: GeoPoint,
@@ -23,6 +24,11 @@ export type ForecastFetcher = (
   forecast: NormalizedForecast;
   stale: boolean;
 }>;
+
+export type AirQualityFetcher = (
+  location: GeoPoint,
+  opts?: { nowUtc?: string },
+) => Promise<AirQuality>;
 
 export type LocationEntry = TuiConfig["locations"][number];
 export type SearchLocationsFn = (query: string) => Promise<GeocodingResult[]>;
@@ -48,7 +54,8 @@ export interface ForecastEntry {
 
 export interface StoreDeps {
   configPath?: string;
-  fetchForecast?: ForecastFetcher;
+  fetchForecast: ForecastFetcher;
+  fetchAirQuality: AirQualityFetcher;
   searchLocations?: SearchLocationsFn;
   refreshTimers?: RefreshTimerDeps;
 }
@@ -56,6 +63,7 @@ export interface StoreDeps {
 const OPENMETEO_PROVIDER: WeatherProvider = {
   id: OPENMETEO_PROVIDER_ID,
   getForecast: (location, window) => fetchForecast(location, window),
+  getAirQuality: (location) => fetchAirQuality(location),
 };
 
 export const defaultFetcher: ForecastFetcher = (location, opts) =>
@@ -64,10 +72,13 @@ export const defaultFetcher: ForecastFetcher = (location, opts) =>
     window: opts.window,
   });
 
+export const defaultAirQualityFetcher: AirQualityFetcher = (location, opts) =>
+  cachedAirQuality(OPENMETEO_PROVIDER, location, opts).then((r) => r.airQuality);
+
 export const defaultSearchLocations: SearchLocationsFn = (query) => geocodeLocations(query);
 
-export function prodDeps(): Required<Pick<StoreDeps, "fetchForecast">> {
-  return { fetchForecast: defaultFetcher };
+export function prodDeps(): Pick<StoreDeps, "fetchForecast" | "fetchAirQuality"> {
+  return { fetchForecast: defaultFetcher, fetchAirQuality: defaultAirQualityFetcher };
 }
 
 /** Armed delete expires lazily after this long; no timers involved. */
@@ -85,6 +96,8 @@ export interface WeatherState {
   loadingSlugs: Record<string, true>;
   errorBySlug: Record<string, string>;
   staleBySlug: Record<string, boolean>;
+  airQuality: AirQuality | null;
+  airQualityBySlug: Record<string, AirQuality>;
   lastActionError: string | undefined;
   helpOpen: boolean;
   overlayOpen: boolean;
@@ -132,7 +145,8 @@ export function resolveDefaultSlug(config: TuiConfig, explicitSlug?: string): st
 }
 
 export function createStoreInstance(deps: StoreDeps = prodDeps()) {
-  const fetcher = deps.fetchForecast ?? defaultFetcher;
+  const fetcher = deps.fetchForecast;
+  const aqFetcher = deps.fetchAirQuality;
   const geocoder = deps.searchLocations ?? defaultSearchLocations;
   const timerDeps = deps.refreshTimers ?? DEFAULT_REFRESH_TIMERS;
 
@@ -164,6 +178,32 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
       }, get().config.refresh_minutes * 60_000);
     }
 
+    function launchAirQuality(slug: string, location: GeoPoint): void {
+      void (async () => {
+        try {
+          const aq = await aqFetcher(location);
+          if (disposed) return;
+          set((s) => {
+            const nextBySlug = { ...s.airQualityBySlug, [slug]: aq };
+            if (s.activeSlug === slug) return { airQuality: aq, airQualityBySlug: nextBySlug };
+            return { airQualityBySlug: nextBySlug };
+          });
+        } catch {
+          if (disposed) return;
+          set((s) => {
+            if (s.activeSlug === slug) {
+              const nextBySlug = { ...s.airQualityBySlug };
+              delete nextBySlug[slug];
+              return { airQuality: null, airQualityBySlug: nextBySlug };
+            }
+            const nextBySlug = { ...s.airQualityBySlug };
+            delete nextBySlug[slug];
+            return { airQualityBySlug: nextBySlug };
+          });
+        }
+      })();
+    }
+
     return {
       initStatus: "idle",
       config: DEFAULT_CONFIG,
@@ -172,6 +212,8 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
       loadingSlugs: {},
       errorBySlug: {},
       staleBySlug: {},
+      airQuality: null,
+      airQualityBySlug: {},
       lastActionError: undefined,
       helpOpen: false,
       overlayOpen: false,
@@ -212,6 +254,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
             return;
           }
           set((s) => ({ loadingSlugs: { ...s.loadingSlugs, [slug]: true as const } }));
+          launchAirQuality(slug, { latitude: location.latitude, longitude: location.longitude });
           try {
             const result = await fetcher(
               { latitude: location.latitude, longitude: location.longitude },
@@ -252,7 +295,8 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
 
       switchLocation: (slug: string) => {
         if (!findLocation(get().config, slug)) return;
-        set({ activeSlug: slug });
+        const aq = get().airQualityBySlug[slug] ?? null;
+        set({ activeSlug: slug, airQuality: aq });
         scheduleRefreshLoop();
         void get().loadForecast(slug);
       },
@@ -375,7 +419,10 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
           }
         }
         const nextActive = remaining[Math.min(idx, remaining.length - 1)];
-        set({ config: next });
+        set((s) => ({
+          config: next,
+          airQualityBySlug: withoutKey(s.airQualityBySlug, activeSlug),
+        }));
         try {
           await saveConfig(next, deps.configPath);
         } catch (e) {
@@ -385,13 +432,15 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
           get().switchLocation(nextActive.slug);
         } else {
           clearRefreshTimer();
-          set({ activeSlug: null });
+          set({ activeSlug: null, airQuality: null });
         }
       },
 
       dispose: () => {
         disposed = true;
         clearRefreshTimer();
+        set({ airQuality: null, airQualityBySlug: {} });
+        inFlight.clear();
       },
     };
   });

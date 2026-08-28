@@ -14,6 +14,7 @@ import type { CurrentObs, NormalizedForecast } from "../../src/lib/weather/types
 import { MIN_WIDTH, tierFor } from "../../src/viewport/breakpoints";
 import { debounceTrailing } from "../../src/viewport/useViewport";
 import portlandFixture from "../fixtures/openmeteo/portland.json";
+import { stubNullAirQualityFetcher } from "../helpers";
 
 const NOW = "2026-08-24T19:00:00.000Z";
 
@@ -98,6 +99,7 @@ async function makeStore(opts?: { fetcher?: ForecastFetcher }): Promise<WeatherS
   const store = createStoreInstance({
     configPath,
     fetchForecast: opts?.fetcher ?? stubFetcher(),
+    fetchAirQuality: stubNullAirQualityFetcher,
   });
   return store;
 }

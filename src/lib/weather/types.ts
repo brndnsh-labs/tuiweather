@@ -84,6 +84,13 @@ export interface DailyPoint {
   windGustMaxKmh: number | null;
 }
 
+export interface AirQuality {
+  usAqi: number | null;
+  pm25UgM3: number | null;
+  ozoneUgM3: number | null;
+  observedAtUtc: string;
+}
+
 export interface NormalizedForecast {
   providerId: string;
   location: GeoPoint;

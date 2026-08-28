@@ -171,6 +171,17 @@ export function uvLabel(uv: number | null): string {
   return "Extreme";
 }
 
+export function aqiCategory(
+  aqi: number,
+): "good" | "moderate" | "usg" | "unhealthy" | "very-unhealthy" | "hazardous" {
+  if (aqi <= 50) return "good";
+  if (aqi <= 100) return "moderate";
+  if (aqi <= 150) return "usg";
+  if (aqi <= 200) return "unhealthy";
+  if (aqi <= 300) return "very-unhealthy";
+  return "hazardous";
+}
+
 const DEFAULT_EMOJI_PRESENTATION = new Set([0x2614, 0x26c4, 0x26c5, 0x26c8]);
 
 export function displayWidth(text: string): number {
@@ -202,7 +213,7 @@ export function truncateCells(text: string, width: number): string {
   let i = 0;
   while (i < chars.length) {
     const base = chars[i] ?? "";
-    const joined = chars[i + 1] === "\uFE0F" ? base + "\uFE0F" : base;
+    const joined = chars[i + 1] === "\uFE0F" ? `${base}\uFE0F` : base;
     const probe = out + joined;
     if (displayWidth(probe) > limit) break;
     out = probe;

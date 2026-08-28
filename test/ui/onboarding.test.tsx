@@ -12,6 +12,7 @@ import {
 } from "../../src/app/store";
 import type { GeocodingResult } from "../../src/lib/providers/openmeteo/geocoding";
 import type { CurrentObs, NormalizedForecast } from "../../src/lib/weather/types";
+import { stubNullAirQualityFetcher } from "../helpers";
 
 const NOW = "2026-08-24T19:00:00.000Z";
 const tmpDirs: string[] = [];
@@ -77,6 +78,7 @@ async function makeStore(
       configPath: path,
       fetchForecast: fetcher,
       searchLocations: search,
+      fetchAirQuality: stubNullAirQualityFetcher,
     }),
   };
 }
