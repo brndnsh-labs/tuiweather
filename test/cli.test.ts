@@ -12,6 +12,7 @@ describe("parseArgs", () => {
       location: null,
       latLon: null,
       json: false,
+      interval: null,
     });
   });
 
@@ -22,6 +23,7 @@ describe("parseArgs", () => {
       location: "portland",
       latLon: null,
       json: false,
+      interval: null,
     });
   });
 
@@ -50,6 +52,7 @@ describe("parseArgs", () => {
       location: null,
       latLon: { latitude: 45.52, longitude: -122.67 },
       json: true,
+      interval: null,
     });
   });
 
@@ -83,6 +86,40 @@ describe("parseArgs", () => {
     expect(HELP_TEXT).toContain("--lat <num>");
     expect(HELP_TEXT).toContain("--lon <num>");
     expect(HELP_TEXT).toContain("--json");
+  });
+
+  test("parses watch command", () => {
+    expect(parseArgs(["watch"]).command).toBe("watch");
+    expect(parseArgs(["watch"]).interval).toBeNull();
+  });
+
+  test("parses watch interval", () => {
+    expect(parseArgs(["watch", "--interval", "5"])).toEqual(
+      expect.objectContaining({ command: "watch", interval: 5 }),
+    );
+  });
+
+  test("interval requires watch", () => {
+    expect(() => parseArgs(["--interval", "5"])).toThrow("--interval can only be used with watch");
+  });
+
+  test("interval must be integer 1-120", () => {
+    expect(() => parseArgs(["watch", "--interval", "0"])).toThrow(
+      "--interval must be an integer between 1 and 120",
+    );
+    expect(() => parseArgs(["watch", "--interval", "121"])).toThrow(
+      "--interval must be an integer between 1 and 120",
+    );
+    expect(() => parseArgs(["watch", "--interval", "2.5"])).toThrow(
+      "--interval must be an integer between 1 and 120",
+    );
+  });
+
+  test("watch cannot be combined with json or one-line", () => {
+    expect(() => parseArgs(["watch", "--json"])).toThrow("--json cannot be combined with watch");
+    expect(() => parseArgs(["watch", "--one-line"])).toThrow(
+      "--one-line cannot be combined with watch",
+    );
   });
 });
 

@@ -3,6 +3,7 @@ import { createRoot } from "@opentui/react";
 import { App } from "./app/App";
 import { buildJsonLine, buildOneLine } from "./app/oneline";
 import { appStore } from "./app/store";
+import { runWatch } from "./app/watch";
 import type { CliArgs } from "./cli";
 import { HELP_TEXT, parseArgs, USAGE, VERSION } from "./cli";
 import { loadConfig } from "./lib/config/load";
@@ -41,24 +42,27 @@ function resolveSlugFromConfig(
   };
 }
 
+function resolveLocationForCli(
+  args: CliArgs,
+  config: TuiConfig,
+): { latitude: number; longitude: number; label: string | null } | { error: string } {
+  if (args.latLon) {
+    return { latitude: args.latLon.latitude, longitude: args.latLon.longitude, label: null };
+  }
+  const resolved = resolveSlugFromConfig(config, args.location);
+  if ("error" in resolved) return { error: resolved.error };
+  return { latitude: resolved.latitude, longitude: resolved.longitude, label: resolved.label };
+}
+
 async function runOneLine(args: CliArgs): Promise<number> {
   const config = await loadConfig();
-  let latitude: number;
-  let longitude: number;
-  let label: string | null = null;
-  if (args.latLon) {
-    ({ latitude, longitude } = args.latLon);
-  } else {
-    const resolved = resolveSlugFromConfig(config, args.location);
-    if ("error" in resolved) {
-      const hint = config.locations.length === 0 ? "; run tuiweather to set one up" : "";
-      stderr(`${resolved.error}${hint}`);
-      return 2;
-    }
-    latitude = resolved.latitude;
-    longitude = resolved.longitude;
-    label = resolved.label;
+  const resolved = resolveLocationForCli(args, config);
+  if ("error" in resolved) {
+    const hint = config.locations.length === 0 ? "; run tuiweather to set one up" : "";
+    stderr(`${resolved.error}${hint}`);
+    return 2;
   }
+  const { latitude, longitude, label } = resolved;
   const provider: WeatherProvider = {
     id: OPENMETEO_PROVIDER_ID,
     getForecast: (location) => fetchForecast(location),
@@ -99,6 +103,44 @@ async function runTui(locationArg: string | null): Promise<number> {
   return 0;
 }
 
+async function runWatchCli(args: CliArgs): Promise<number> {
+  const config = await loadConfig();
+  const resolved = resolveLocationForCli(args, config);
+  if ("error" in resolved) {
+    const hint = config.locations.length === 0 ? "; run tuiweather to set one up" : "";
+    stderr(`${resolved.error}${hint}`);
+    return 2;
+  }
+  const { latitude, longitude, label } = resolved;
+  const provider: WeatherProvider = {
+    id: OPENMETEO_PROVIDER_ID,
+    getForecast: (location) => fetchForecast(location),
+  };
+  const prefs = resolveDisplayPrefs(config);
+  const maxAgeMinutes = args.interval ?? config.refresh_minutes;
+  const intervalMs = maxAgeMinutes * 60_000;
+  const fetcher = () => cachedForecast(provider, { latitude, longitude }, { maxAgeMinutes });
+  const write = (text: string) => process.stdout.write(text);
+  const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+  const onSigint = () => {
+    process.exit(0);
+  };
+  process.on("SIGINT", onSigint);
+  try {
+    await runWatch({
+      fetch: fetcher,
+      prefs,
+      label,
+      intervalMs,
+      write,
+      sleep,
+    });
+  } finally {
+    process.off("SIGINT", onSigint);
+  }
+  return 0;
+}
+
 async function main(): Promise<number> {
   let args: CliArgs;
   try {
@@ -117,6 +159,7 @@ async function main(): Promise<number> {
     return 0;
   }
   try {
+    if (args.command === "watch") return await runWatchCli(args);
     if (args.oneLine || args.json) return await runOneLine(args);
     return await runTui(args.location);
   } catch (e) {
