@@ -65,32 +65,15 @@ fi
 PREV_TAG=$(git describe --abbrev=0 --tags 2>/dev/null || true)
 RANGE="${PREV_TAG:+${PREV_TAG}..}HEAD"
 
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 NOTES_FILE=$(mktemp)
 trap 'rm -f "${NOTES_FILE}"' EXIT
-{
-  echo "## ${TAG} ($(date +%Y-%m-%d))"
-  echo ""
-  if git log --format='%s' "${RANGE}" | grep -Eq '^feat(!|\(.+\))?(!)?:'; then
-    echo "### Features"
-    git log --format='- %s (%h)' "${RANGE}" | grep -E '^feat' || true
-    echo ""
-  fi
-  if git log --format='%s' "${RANGE}" | grep -Eq '^fix(!|\(.+\))?!?:'; then
-    echo "### Fixes"
-    git log --format='- %s (%h)' "${RANGE}" | grep -E '^fix' || true
-    echo ""
-  fi
-  OTHERS=$(git log --format='- %s (%h)' "${RANGE}" | grep -vE '^- (feat|fix)' || true)
-  if [[ -n "${OTHERS}" ]]; then
-    echo "### Other"
-    echo "${OTHERS}"
-    echo ""
-  fi
-} > "${NOTES_FILE}"
+"${SCRIPT_DIR}/changelog-notes.sh" "${TAG}" "$(date +%Y-%m-%d)" "${RANGE}" >"${NOTES_FILE}"
 
 {
-  cat "${CHANGELOG}"
+  awk '/^## /{exit} {print}' "${CHANGELOG}"
   cat "${NOTES_FILE}"
+  awk '/^## /{f=1} f' "${CHANGELOG}"
 } > "${CHANGELOG}.next"
 mv "${CHANGELOG}.next" "${CHANGELOG}"
 
