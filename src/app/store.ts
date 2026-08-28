@@ -302,12 +302,13 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
         if (isFirstLocation && config.default_location === undefined) {
           next.default_location = slug;
         }
-        set({ config: next });
         try {
           await saveConfig(next, deps.configPath);
         } catch (e) {
           set({ lastActionError: errorMessage(e) });
+          return;
         }
+        set({ config: next });
         get().switchLocation(slug);
       },
 
