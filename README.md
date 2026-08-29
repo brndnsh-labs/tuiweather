@@ -182,7 +182,7 @@ Locations added through the search overlay are appended here automatically. Pres
 
 ## Data attribution
 
-Weather data by [Open-Meteo](https://open-meteo.com), licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Open-Meteo's free tier is offered for non-commercial use; see [open-meteo.com/terms](https://open-meteo.com/terms) before relying on it commercially.
+Weather data by [Open-Meteo](https://open-meteo.com), licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Open-Meteo's free tier is offered for non-commercial use; see [open-meteo.com/terms](https://open-meteo.com/terms) before relying on it commercially. When `provider = "nws"` is configured, forecast data comes from the National Weather Service ([api.weather.gov](https://api.weather.gov)).
 
 ## Development
 
