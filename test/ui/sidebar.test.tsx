@@ -137,6 +137,12 @@ async function makeStore(toml: string): Promise<{ store: WeatherStore; path: str
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Why: setDefaultLocation and moveLocation only land store state after `await saveConfig`
+// (atomic tmp+rename with fsync), so waits on `config.*` absorb a disk round-trip on top of
+// CI contention; the 3s default blew through on the v0.3.0 release run's london wait.
+// Frame-content waits stay at 3s — those are render-loop bound, not disk bound.
+const PERSIST_WAIT_MS = 8000;
+
 async function waitUntilFrame(
   setup: Awaited<ReturnType<typeof testRender>>,
   predicate: (frame: string) => boolean,
@@ -331,7 +337,11 @@ describe("sidebar navigation", () => {
       await waitUntilFrame(setup, (f) => f.includes("Portland"));
 
       await setup.mockInput.pressKeys(["s"]);
-      await waitUntilFrame(setup, () => store.getState().config.default_location === "portland");
+      await waitUntilFrame(
+        setup,
+        () => store.getState().config.default_location === "portland",
+        PERSIST_WAIT_MS,
+      );
       expect(store.getState().config.default_location).toBe("portland");
       let loaded = await loadConfig(path);
       expect(loaded.default_location).toBe("portland");
@@ -342,7 +352,11 @@ describe("sidebar navigation", () => {
       await waitUntilFrame(setup, (f) => f.includes("▸ London"));
 
       await setup.mockInput.pressKeys(["s"]);
-      await waitUntilFrame(setup, () => store.getState().config.default_location === "london");
+      await waitUntilFrame(
+        setup,
+        () => store.getState().config.default_location === "london",
+        PERSIST_WAIT_MS,
+      );
       expect(store.getState().config.default_location).toBe("london");
       loaded = await loadConfig(path);
       expect(loaded.default_location).toBe("london");
@@ -373,7 +387,11 @@ describe("sidebar navigation", () => {
 
       await setup.mockInput.pressKeys(["s"]);
       await sleep(80);
-      await waitUntilStore(setup, () => store.getState().config.default_location === "portland");
+      await waitUntilStore(
+        setup,
+        () => store.getState().config.default_location === "portland",
+        PERSIST_WAIT_MS,
+      );
       expect(store.getState().config.default_location).toBe("portland");
       const loaded = await loadConfig(path);
       expect(loaded.default_location).toBe("portland");
@@ -405,6 +423,7 @@ describe("sidebar navigation", () => {
             .getState()
             .config.locations.map((l) => l.slug)
             .join(",") === "london,portland,tokyo",
+        PERSIST_WAIT_MS,
       );
       expect(store.getState().config.locations.map((l) => l.slug)).toEqual([
         "london",
@@ -437,6 +456,7 @@ describe("sidebar navigation", () => {
             .getState()
             .config.locations.map((l) => l.slug)
             .join(",") === "portland,london,tokyo",
+        PERSIST_WAIT_MS,
       );
       expect(store.getState().config.locations.map((l) => l.slug)).toEqual([
         "portland",
