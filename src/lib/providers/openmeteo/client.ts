@@ -1,7 +1,8 @@
 import type { GeoPoint, NormalizedForecast } from "../../weather/types";
+import { errorReason, httpError } from "../http";
 import { ProviderError } from "../types";
 import { normalizeForecast } from "./normalize";
-import { apiErrorBodySchema, forecastResponseSchema, sanitizedErrorReason } from "./schemas";
+import { apiErrorBodySchema, forecastResponseSchema } from "./schemas";
 
 export const OPENMETEO_PROVIDER_ID = "openmeteo";
 
@@ -82,18 +83,12 @@ export function buildForecastUrl(location: GeoPoint, opts: ForecastOptions = {})
   return `${FORECAST_ENDPOINT}?${params.toString()}`;
 }
 
-function errorReason(body: unknown): string | undefined {
-  const parsed = apiErrorBodySchema.safeParse(body);
-  if (!parsed.success || parsed.data.reason === undefined) return undefined;
-  return sanitizedErrorReason(parsed.data.reason);
-}
-
-function httpError(status: number, body: unknown): ProviderError {
-  const reason = errorReason(body);
-  return new ProviderError(
-    `openmeteo forecast failed (HTTP ${status})${reason ? `: ${reason}` : ""}`,
-    OPENMETEO_PROVIDER_ID,
-  );
+function httpErrorFor(status: number, body: unknown): ProviderError {
+  return httpError(status, body, {
+    label: "forecast",
+    providerId: OPENMETEO_PROVIDER_ID,
+    schema: apiErrorBodySchema,
+  });
 }
 
 export async function fetchForecast(
@@ -124,8 +119,8 @@ export async function fetchForecast(
     );
   }
 
-  if (!res.ok || errorReason(body) !== undefined) {
-    throw httpError(res.status, body);
+  if (!res.ok || errorReason(body, apiErrorBodySchema) !== undefined) {
+    throw httpErrorFor(res.status, body);
   }
 
   const parsed = forecastResponseSchema.safeParse(body);

@@ -1,9 +1,31 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import {
   buildGeocodingUrl,
   parseGeocodingResponse,
+  searchLocations,
 } from "../../src/lib/providers/openmeteo/geocoding";
 import { ProviderError } from "../../src/lib/providers/types";
+
+const originalFetch = globalThis.fetch;
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
+
+function mockResponds(payload: string, status: number): void {
+  globalThis.fetch = (() =>
+    Promise.resolve(new Response(payload, { status }))) as unknown as typeof fetch;
+}
+
+async function captureProviderError(promise: Promise<unknown>): Promise<ProviderError> {
+  try {
+    await promise;
+  } catch (error) {
+    if (error instanceof ProviderError) return error;
+    throw new Error(`expected ProviderError, got: ${String(error)}`);
+  }
+  throw new Error("expected promise to reject with ProviderError");
+}
 
 const BODY = {
   results: [
@@ -89,5 +111,25 @@ describe("parseGeocodingResponse", () => {
     expect(() => parseGeocodingResponse({ results: "nope", generationtime_ms: 1 })).toThrow(
       ProviderError,
     );
+  });
+});
+
+describe("searchLocations error mapping", () => {
+  test("rejects an HTTP 200 body carrying the API error shape with the sanitized reason", async () => {
+    mockResponds(JSON.stringify({ error: true, reason: "daily limit exceeded" }), 200);
+    const error = await captureProviderError(searchLocations("berlin"));
+    expect(error.providerId).toBe("openmeteo");
+    expect(error.message).toContain("200");
+    expect(error.message).toContain("daily limit exceeded");
+    expect(error.message).toContain("openmeteo geocoding failed (HTTP 200)");
+    expect(error.message).not.toContain("schema validation");
+  });
+
+  test("strips control characters from a 200 error body", async () => {
+    mockResponds(JSON.stringify({ error: true, reason: "\u001b]0;pwned\u0007 bad" }), 200);
+    const error = await captureProviderError(searchLocations("berlin"));
+    expect(error.message.includes("\u001b")).toBe(false);
+    expect(error.message.includes("\u0007")).toBe(false);
+    expect(error.message).toContain("bad");
   });
 });
