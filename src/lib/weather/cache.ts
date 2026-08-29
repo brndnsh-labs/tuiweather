@@ -95,6 +95,7 @@ const normalizedForecastSchema = z.object({
   utcOffsetSeconds: z.number(),
   fetchedAtUtc: z.string(),
   current: currentObsSchema,
+  hasMinutePrecip: z.boolean(),
   minutely15: z.array(precipIntervalSchema),
   hourly: z.array(hourlyPointSchema),
   daily: z.array(dailyPointSchema),

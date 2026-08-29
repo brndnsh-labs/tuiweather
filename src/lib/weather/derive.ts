@@ -11,6 +11,7 @@ export type Intensity = "light" | "moderate" | "heavy";
 
 export type Nowcast =
   | { kind: "dry" }
+  | { kind: "unavailable" }
   | { kind: "starting"; startsInMin: number; intensity: Intensity }
   | { kind: "stopping"; endsInMin: number }
   | { kind: "ongoing"; endsInMin: number | null; horizonMin: number; intensity: Intensity };
@@ -63,6 +64,7 @@ function sortedBuckets(f: NormalizedForecast): Bucket[] {
 }
 
 export function deriveNowcast(f: NormalizedForecast, nowUtc: string): Nowcast {
+  if (!f.hasMinutePrecip) return { kind: "unavailable" };
   const nowMs = Date.parse(nowUtc);
   const buckets = sortedBuckets(f);
 
@@ -138,6 +140,8 @@ export function describeNowcast(n: Nowcast): string {
   switch (n.kind) {
     case "dry":
       return "Dry";
+    case "unavailable":
+      return "Nowcast unavailable";
     case "starting": {
       const word = INTENSITY_WORD[n.intensity];
       return n.startsInMin < 1

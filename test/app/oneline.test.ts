@@ -88,6 +88,7 @@ interface ForecastOverrides {
   current?: Partial<CurrentObs>;
   minutely15?: PrecipInterval[];
   daily?: DailyPoint[];
+  hasMinutePrecip?: boolean;
 }
 
 function makeForecast(overrides: ForecastOverrides = {}): NormalizedForecast {
@@ -97,6 +98,7 @@ function makeForecast(overrides: ForecastOverrides = {}): NormalizedForecast {
     timezone: "America/Los_Angeles",
     utcOffsetSeconds: -7 * 3600,
     fetchedAtUtc: NOW,
+    hasMinutePrecip: overrides.hasMinutePrecip ?? true,
     current: currentObs(overrides.current),
     minutely15: overrides.minutely15 ?? [bucket(-15, 0), bucket(0, 0)],
     hourly: [],
@@ -160,6 +162,12 @@ describe("buildOneLine", () => {
     );
     expect(line.startsWith("☀ 22° fl18")).toBe(true);
     expect(line).toContain("16°–30°");
+  });
+
+  test("unavailable nowcast omits umbrella segment like dry", () => {
+    const forecast = makeForecast({ hasMinutePrecip: false, minutely15: [] });
+    expect(buildOneLine(forecast, IMPERIAL, NOW)).toBe("☀ 72° fl70 · 58°–75° · ↘6mph nw");
+    expect(buildOneLine(forecast, IMPERIAL, NOW)).not.toContain("☂");
   });
 });
 

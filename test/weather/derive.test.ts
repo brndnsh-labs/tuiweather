@@ -24,13 +24,14 @@ function buckets(specs: Array<[endLabel: string, precipMm: number]>): PrecipInte
   });
 }
 
-function forecast(minutely15: PrecipInterval[]): NormalizedForecast {
+function forecast(minutely15: PrecipInterval[], hasMinutePrecip = true): NormalizedForecast {
   return {
     providerId: "openmeteo",
     location: { latitude: 45.52, longitude: -122.68 },
     timezone: "UTC",
     utcOffsetSeconds: 0,
     fetchedAtUtc: instant("14:00"),
+    hasMinutePrecip,
     current: {
       timeUtc: instant("14:00"),
       temperatureC: 18,
@@ -299,6 +300,20 @@ describe("upcomingPrecipSeries", () => {
     );
     const shuffled = forecast([...ordered.minutely15].reverse());
     expect(upcomingPrecipSeries(shuffled, instant("14:05"))).toEqual([0.2, 0.7]);
+  });
+});
+
+describe("hasMinutePrecip capability", () => {
+  test("false → unavailable regardless of buckets", () => {
+    expect(deriveNowcast(forecast([], false), instant("14:12"))).toEqual({ kind: "unavailable" });
+    expect(deriveNowcast(forecast(buckets([["14:15", 0.5]]), false), instant("14:12"))).toEqual({
+      kind: "unavailable",
+    });
+    expect(describeNowcast({ kind: "unavailable" })).toBe("Nowcast unavailable");
+  });
+
+  test("true + empty buckets → dry (honest no-coverage)", () => {
+    expect(deriveNowcast(forecast([], true), instant("14:12"))).toEqual({ kind: "dry" });
   });
 });
 

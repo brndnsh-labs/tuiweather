@@ -60,6 +60,7 @@ function makeForecast(fetchedAtUtc: string): NormalizedForecast {
     timezone: "America/Los_Angeles",
     utcOffsetSeconds: -7 * 3600,
     fetchedAtUtc,
+    hasMinutePrecip: true,
     current,
     minutely15: [],
     hourly: [],

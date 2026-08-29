@@ -278,4 +278,31 @@ describe("panels config toggles", () => {
     const frame = await frameFor(configToml({ nowcast: false }), forecast);
     expect(frame).not.toContain("Rain");
   });
+
+  test("hasMinutePrecip:false hides banner even with panels.nowcast=true (NWS)", async () => {
+    const forecast = {
+      ...fixtureForecast(),
+      hasMinutePrecip: false,
+      minutely15: [],
+    };
+    const frame = await frameFor(configToml({}), forecast);
+    expect(frame).not.toContain("▔");
+    expect(frame).not.toContain("Nowcast unavailable");
+    expect(frame).not.toContain("Dry");
+    const wetAttempt = {
+      ...fixtureForecast(),
+      hasMinutePrecip: false,
+      minutely15: [
+        {
+          startUtc: "2026-08-24T16:15:00.000Z",
+          endUtc: "2026-08-24T16:30:00.000Z",
+          precipMm: 0.6,
+          probabilityPct: 80,
+        },
+      ],
+    };
+    const frame2 = await frameFor(configToml({}), wetAttempt);
+    expect(frame2).not.toContain("▔");
+    expect(frame2).not.toContain("Rain");
+  });
 });

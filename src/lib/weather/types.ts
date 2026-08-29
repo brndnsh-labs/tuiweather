@@ -98,6 +98,7 @@ export interface NormalizedForecast {
   utcOffsetSeconds: number;
   fetchedAtUtc: string;
   current: CurrentObs;
+  hasMinutePrecip: boolean;
   minutely15: PrecipInterval[];
   hourly: HourlyPoint[];
   daily: DailyPoint[];

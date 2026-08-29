@@ -132,6 +132,7 @@ export function normalizeForecast(
     utcOffsetSeconds: data.utc_offset_seconds,
     fetchedAtUtc: new Date().toISOString(),
     current,
+    hasMinutePrecip: true,
     minutely15,
     hourly,
     daily,

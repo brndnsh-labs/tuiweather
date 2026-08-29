@@ -78,6 +78,7 @@ interface ForecastOverrides {
   current?: Partial<CurrentObs>;
   minutely15?: PrecipInterval[];
   daily?: DailyPoint[];
+  hasMinutePrecip?: boolean;
 }
 
 function makeForecast(overrides: ForecastOverrides = {}): NormalizedForecast {
@@ -87,6 +88,7 @@ function makeForecast(overrides: ForecastOverrides = {}): NormalizedForecast {
     timezone: "America/Los_Angeles",
     utcOffsetSeconds: -7 * 3600,
     fetchedAtUtc: NOW,
+    hasMinutePrecip: overrides.hasMinutePrecip ?? true,
     current: currentObs(overrides.current),
     minutely15: overrides.minutely15 ?? [bucket(-15, 0), bucket(0, 0)],
     hourly: [],
@@ -97,6 +99,7 @@ function makeForecast(overrides: ForecastOverrides = {}): NormalizedForecast {
 describe("shouldBell", () => {
   test("truth table", () => {
     const dry = { kind: "dry" } as const;
+    const unavailable = { kind: "unavailable" } as const;
     const starting = { kind: "starting", startsInMin: 15, intensity: "heavy" } as const;
     const ongoing = {
       kind: "ongoing",
@@ -113,6 +116,22 @@ describe("shouldBell", () => {
     expect(shouldBell(ongoing, stopping)).toBe(false);
     expect(shouldBell(stopping, starting)).toBe(false);
     expect(shouldBell(dry, dry)).toBe(false);
+    expect(shouldBell(dry, unavailable)).toBe(false);
+    expect(shouldBell(unavailable, starting)).toBe(false);
+    expect(shouldBell(unavailable, unavailable)).toBe(false);
+  });
+
+  test("unavailable never bells, dry→wet still bells via derived nowcast", () => {
+    const unavailableForecast = makeForecast({ hasMinutePrecip: false, minutely15: [] });
+    const wetForecast = makeForecast({
+      minutely15: [bucket(-15, 0), bucket(0, 0), bucket(15, 0.5)],
+    });
+    expect(deriveNowcast(unavailableForecast, NOW)).toEqual({ kind: "unavailable" });
+    expect(
+      shouldBell(deriveNowcast(unavailableForecast, NOW), deriveNowcast(wetForecast, NOW)),
+    ).toBe(false);
+    const dryForecast = makeForecast({ minutely15: [bucket(-15, 0), bucket(0, 0)] });
+    expect(shouldBell(deriveNowcast(dryForecast, NOW), deriveNowcast(wetForecast, NOW))).toBe(true);
   });
 });
 

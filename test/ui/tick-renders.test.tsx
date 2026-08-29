@@ -68,6 +68,7 @@ function makeForecast(tempC = 20): NormalizedForecast {
     timezone: "UTC",
     utcOffsetSeconds: 0,
     fetchedAtUtc: "2026-08-24T19:00:00.000Z",
+    hasMinutePrecip: true,
     current,
     minutely15: [],
     hourly: [],

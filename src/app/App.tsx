@@ -119,7 +119,8 @@ export function estimateMainContentRows(input: MainOverflowInput): number | null
   ) {
     sections.push(1);
   }
-  if (tier !== "lg" && panels.nowcast && deriveNowcast(forecast, nowUtc).kind !== "dry") {
+  const nowcastKind = deriveNowcast(forecast, nowUtc).kind;
+  if (tier !== "lg" && panels.nowcast && nowcastKind !== "dry" && nowcastKind !== "unavailable") {
     sections.push(NOWCAST_BANNER_ROWS);
   }
   const hourlyRows = hourlyRowsFor(tier, width, forecast, panels, nowUtc);
