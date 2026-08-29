@@ -32,19 +32,23 @@ export function handleKey(
 ): void {
   const name = typeof nameOrEvent === "string" ? nameOrEvent : nameOrEvent.name;
   const shift = typeof nameOrEvent === "string" ? false : !!nameOrEvent.shift;
-  if (api.searchOpen()) return;
+  if (name === "escape") {
+    if (api.searchOpen()) return;
+    if (api.focusedSlug() !== null) {
+      api.setFocused(null);
+      return;
+    }
+    if (api.helpOpen()) {
+      api.toggleHelp();
+      return;
+    }
+    api.quit();
+    return;
+  }
+  if (api.searchOpen() || api.helpOpen()) return;
   switch (name) {
     case "q":
       api.quit();
-      break;
-    case "escape":
-      if (api.focusedSlug() !== null) {
-        api.setFocused(null);
-      } else if (api.helpOpen()) {
-        api.toggleHelp();
-      } else {
-        api.quit();
-      }
       break;
     case "r":
       api.refresh(api.activeSlug());
