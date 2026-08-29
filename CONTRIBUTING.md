@@ -30,7 +30,7 @@ CI runs all three on every PR and they are required checks on `main`. Run them l
 - No comments unless requested or genuinely load-bearing.
 - Metric units are stored, cached, and computed internally; convert for display only inside `src/lib/weather/format.ts`.
 - Time series are indexed by absolute UTC instants plus `utc_offset_seconds`, never array positions or device-local time.
-- Single-cell Unicode glyphs only — no emoji presentation, no variation selectors.
+- Weather-condition icons are two-cell emoji: base codepoint + U+FE0F, measured via `CONDITION_ICON_CELLS`, never string length. Everything else (bars, arrows, `☂ ❄ ▁▂▃▄▅▆▇█ ↑↗→ °`) stays single-cell without variation selectors.
 - Dependencies are kept minimal; additions require justification in the PR description.
 - Conventional commits (`feat:`, `fix:`, `chore:`, ...).
 
