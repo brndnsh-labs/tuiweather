@@ -151,14 +151,11 @@ function normalizeCurrent(obs: NwsObservationProperties): CurrentObs {
 }
 
 function normalizeHourly(periods: NwsPeriod[], forecastHours: number | undefined): HourlyPoint[] {
-  // NWS periods are forward intervals [startTime, endTime); label by startTime so each
-  // row matches the API's own "3 PM" reading. precipMm is always 0 here, so Open-Meteo's
-  // preceding-interval labeling convention is moot for this provider.
   const limited = forecastHours === undefined ? periods : periods.slice(0, forecastHours);
   return limited.map((period) => {
     const temperatureC = periodTempC(period);
     return {
-      timeUtc: toIsoUtc(period.startTime),
+      timeUtc: toIsoUtc(period.endTime),
       temperatureC,
       apparentC: temperatureC,
       precipMm: 0,
