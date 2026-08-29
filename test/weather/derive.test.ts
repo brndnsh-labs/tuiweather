@@ -330,29 +330,41 @@ describe("describeNowcast strings", () => {
 });
 
 describe("todayPrecipWindow", () => {
-  test("returns first future contiguous stretch, summing its buckets", () => {
+  test("returns first contiguous stretch including the bucket containing now, summing its buckets", () => {
     const f = forecast(
       buckets([
-        ["14:15", 1.1],
-        ["15:00", 0.2],
-        ["15:15", 0.5],
-        ["15:30", 0],
-        ["16:00", 0.9],
+        ["14:15", 0.5],
+        ["14:30", 0.2],
+        ["14:45", 0],
+        ["15:30", 0.9],
       ]),
     );
-    expect(todayPrecipWindow(f, instant("14:20"))).toEqual({
-      startUtc: instant("14:45"),
-      endUtc: instant("15:15"),
-      totalMm: 0.2 + 0.5,
+    expect(todayPrecipWindow(f, instant("14:12"))).toEqual({
+      startUtc: instant("14:00"),
+      endUtc: instant("14:30"),
+      totalMm: 0.5 + 0.2,
     });
   });
 
-  test("null when nothing wet starts at or after now", () => {
-    const onlyPastRain = forecast(buckets([["14:15", 0.5]]));
-    expect(todayPrecipWindow(onlyPastRain, instant("14:12"))).toBeNull();
+  test("includes rain in the bucket containing now", () => {
+    const containingRain = forecast(buckets([["14:15", 0.5]]));
+    expect(todayPrecipWindow(containingRain, instant("14:12"))).toEqual({
+      startUtc: instant("14:00"),
+      endUtc: instant("14:15"),
+      totalMm: 0.5,
+    });
 
     const noRainAtAll = forecast(buckets([["14:15", 0]]));
     expect(todayPrecipWindow(noRainAtAll, instant("14:12"))).toBeNull();
+  });
+
+  test("rain only in the bucket containing now returns that bucket's window", () => {
+    const f = forecast(buckets([["14:30", 0.7]]));
+    expect(todayPrecipWindow(f, instant("14:20"))).toEqual({
+      startUtc: instant("14:15"),
+      endUtc: instant("14:30"),
+      totalMm: 0.7,
+    });
   });
 
   test("stretch terminates where a dry bucket follows", () => {
