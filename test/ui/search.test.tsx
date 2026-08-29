@@ -291,7 +291,7 @@ describe("search overlay", () => {
       await openSearch(setup);
 
       await setup.mockInput.typeText("po");
-      await sleep(400);
+      await waitUntil(() => search.calls.includes("po"), 3000, 'debounced search fires for "po"');
       expect(search.calls).toEqual(["po"]);
       expect(setup.captureCharFrame()).toContain("searching…");
 

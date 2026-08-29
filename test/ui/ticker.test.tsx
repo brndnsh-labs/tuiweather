@@ -120,28 +120,38 @@ describe("ticker", () => {
   });
 
   test("with injected nowMs the header ago string stays frozen", async () => {
-    const baseNow = Date.now();
-    const fetchedAtUtc = new Date(baseNow - 89_500).toISOString();
-    const injectedNowMs = baseNow;
-    const store = await makeStore(makeForecast(fetchedAtUtc));
-    const setup = await testRender(
-      <App store={store} nowMs={injectedNowMs} nowUtc={new Date(injectedNowMs).toISOString()} />,
-      {
-        width: 90,
-        height: 24,
-      },
-    );
+    const original = TICK_INTERVAL_MS;
+    __setTickIntervalMs(30);
     try {
-      await setup.flush();
-      const initial = await waitUntilFrame(setup, (f) => f.includes("just now"), 3000);
-      expect(initial).toContain("just now");
-      await sleep(500);
-      await setup.flush().catch(() => undefined);
-      const later = setup.captureCharFrame();
-      expect(later).toContain("just now");
-      expect(later).not.toContain("1m ago");
+      const baseNow = Date.now();
+      const fetchedAtUtc = new Date(baseNow - 89_950).toISOString();
+      const injectedNowMs = baseNow;
+      const store = await makeStore(makeForecast(fetchedAtUtc));
+      const setup = await testRender(
+        <App store={store} nowMs={injectedNowMs} nowUtc={new Date(injectedNowMs).toISOString()} />,
+        {
+          width: 90,
+          height: 24,
+        },
+      );
+      try {
+        await setup.flush();
+        const initial = await waitUntilFrame(setup, (f) => f.includes("just now"), 3000);
+        expect(initial).toContain("just now");
+        // Negative assertion is load-bearing: a live ticker would have crossed the
+        // 90s "just now"→"1m ago" threshold after ~50ms + one injected tick (30ms).
+        // Keep a short fixed settle past that threshold; polling cannot prove the
+        // absence of a transition, so the brief sleep is intentional.
+        await sleep(80);
+        await setup.flush().catch(() => undefined);
+        const later = setup.captureCharFrame();
+        expect(later).toContain("just now");
+        expect(later).not.toContain("1m ago");
+      } finally {
+        await setup.renderer.destroy();
+      }
     } finally {
-      await setup.renderer.destroy();
+      __setTickIntervalMs(original);
     }
   });
 });

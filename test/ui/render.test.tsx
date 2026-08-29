@@ -276,7 +276,6 @@ describe("App shell", () => {
       await waitUntilFrame(setup, (f) => f.includes("●"));
 
       setup.resize(70, 24);
-      await sleep(160);
       const frame = await waitUntilFrame(
         setup,
         (f) => f.includes("45.5°, -122.7°") && !f.includes("●"),
