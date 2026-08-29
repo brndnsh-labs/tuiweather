@@ -127,4 +127,34 @@ describe("DetailsGrid air quality", () => {
       await setup.renderer.destroy();
     }
   });
+
+  test("air truncates at md floor 68 cols for very-unhealthy and stays on one row", async () => {
+    const forecast = fixtureForecast();
+    const aq: AirQuality = { usAqi: 250, pm25UgM3: 22, ozoneUgM3: 120, observedAtUtc: NOW };
+    const store = await makeStore(forecast, aq);
+    const setup = await testRender(<App store={store} nowMs={Date.parse(NOW)} nowUtc={NOW} />, {
+      width: 68,
+      height: 24,
+    });
+    try {
+      await setup.flush();
+      await waitUntilFrame(setup, (f) => f.includes("Portland"));
+      await sleep(40);
+      await setup.flush();
+      const frame = await waitUntilFrame(setup, (f) => f.includes("air"));
+      expect(frame).toContain("air");
+      expect(frame).not.toContain("very-unhealthy");
+      const lines = frame.split("\n");
+      const airLine = lines.find((line) => line.includes("air"));
+      expect(airLine).toBeDefined();
+      expect(airLine).toContain("…");
+      expect(airLine).toContain("250");
+      const airIdx = lines.indexOf(airLine ?? "");
+      const nextLine = lines[airIdx + 1] ?? "";
+      expect(nextLine).not.toContain("unhealthy");
+      expect(nextLine).not.toContain("very-");
+    } finally {
+      await setup.renderer.destroy();
+    }
+  });
 });
