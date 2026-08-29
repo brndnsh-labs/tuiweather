@@ -97,7 +97,12 @@ describe("shouldBell", () => {
   test("truth table", () => {
     const dry = { kind: "dry" } as const;
     const starting = { kind: "starting", startsInMin: 15, intensity: "heavy" } as const;
-    const ongoing = { kind: "ongoing", endsInMin: null, intensity: "heavy" } as const;
+    const ongoing = {
+      kind: "ongoing",
+      endsInMin: null,
+      horizonMin: 10,
+      intensity: "heavy",
+    } as const;
     const stopping = { kind: "stopping", endsInMin: 10 } as const;
 
     expect(shouldBell(dry, starting)).toBe(true);

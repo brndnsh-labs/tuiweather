@@ -13,7 +13,7 @@ export type Nowcast =
   | { kind: "dry" }
   | { kind: "starting"; startsInMin: number; intensity: Intensity }
   | { kind: "stopping"; endsInMin: number }
-  | { kind: "ongoing"; endsInMin: number | null; intensity: Intensity };
+  | { kind: "ongoing"; endsInMin: number | null; horizonMin: number; intensity: Intensity };
 
 export interface PrecipWindow {
   startUtc: string;
@@ -90,7 +90,8 @@ export function deriveNowcast(f: NormalizedForecast, nowUtc: string): Nowcast {
     const intensity = toIntensity(current.precipMm);
     const seriesEnd = buckets.at(-1);
     if (lastIdx === wet.length - 1 && seriesEnd && seriesEnd.endMs <= stretchEndMs) {
-      return { kind: "ongoing", endsInMin: null, intensity };
+      const horizonMin = Math.max(1, Math.round((seriesEnd.endMs - nowMs) / MIN_MS));
+      return { kind: "ongoing", endsInMin: null, horizonMin, intensity };
     }
     return { kind: "stopping", endsInMin: minutesUntil(stretchEndMs, nowMs) };
   }
@@ -147,7 +148,7 @@ export function describeNowcast(n: Nowcast): string {
       return `Rain stopping in ${n.endsInMin} min`;
     case "ongoing":
       return n.endsInMin === null
-        ? "Rain for at least 2 hr"
+        ? `Rain for at least ${n.horizonMin} min`
         : `Rain stopping in ${n.endsInMin} min`;
   }
 }
