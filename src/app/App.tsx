@@ -1,5 +1,5 @@
 import { useKeyboard, useRenderer } from "@opentui/react";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { memo, type ReactNode, useEffect, useMemo, useState } from "react";
 import { DAYLIGHT_MIN_WIDTH, DaylightBar } from "../components/DaylightBar";
 import { Sparkline } from "../components/Sparkline";
 import { DetailsGrid } from "../features/current/DetailsGrid";
@@ -20,9 +20,8 @@ import { FirstRun } from "../features/onboarding/FirstRun";
 import { SearchOverlay } from "../features/search/SearchOverlay";
 import type { DisplayPrefs, TuiConfig } from "../lib/config/schema";
 import { resolveDisplayPrefs } from "../lib/config/schema";
-import { conditionIcon } from "../lib/weather/condition-display";
 import { deriveNowcast } from "../lib/weather/derive";
-import { displayWidth, formatTemp, truncateCells } from "../lib/weather/format";
+import { truncateCells } from "../lib/weather/format";
 import type { AirQuality, NormalizedForecast } from "../lib/weather/types";
 import { FALLBACK_APPEARANCE, type TerminalAppearance } from "../theme/detect";
 import { buildPalette } from "../theme/palette";
@@ -32,21 +31,19 @@ import { useViewport } from "../viewport/useViewport";
 import { Footer } from "./components/Footer";
 import { Header } from "./components/Header";
 import { HelpOverlay } from "./components/HelpOverlay";
+import { SIDEBAR_WIDTH, Sidebar } from "./components/Sidebar";
 import { StatusArea } from "./components/StatusArea";
+import { useNowMs } from "./hooks/useNowMs";
 import { handleKey, type KeymapApi } from "./keymap";
 import { appStore, isDeleteArmed, type WeatherStore } from "./store";
 
-const SIDEBAR_WIDTH = 26;
+export { __setTickIntervalMs, TICK_INTERVAL_MS } from "./tick";
+
 /** Width budgeted for the slick-font hero digits when laying out the details grid beside it. */
 const HERO_RESERVE = 22;
 
 const EMPTY_FORECAST_HINT = "no forecast loaded — press r to refresh";
 const SCROLL_HINT_MORE = "↓ more";
-
-export let TICK_INTERVAL_MS = 30_000; // exported for tests to override ticker cadence
-export function __setTickIntervalMs(ms: number) {
-  TICK_INTERVAL_MS = ms;
-}
 
 const SLICK_HERO_ROWS = 7;
 const COMPACT_HERO_ROWS = 2;
@@ -183,7 +180,7 @@ function XsChips({
   );
 }
 
-function MainContent({
+const MainContent = memo(function MainContent({
   tier,
   width,
   forecast,
@@ -340,7 +337,7 @@ function MainContent({
       </box>
     </scrollbox>
   );
-}
+});
 
 export function App(props: AppProps = {}) {
   const store = props.store ?? appStore;
@@ -355,7 +352,6 @@ export function App(props: AppProps = {}) {
   const stale = store((s) => (activeSlug === null ? false : (s.staleBySlug[activeSlug] ?? false)));
   const helpOpen = store((s) => s.helpOpen);
   const overlayOpen = store((s) => s.overlayOpen);
-  const forecastBySlug = store((s) => s.forecastBySlug);
   const airQuality = store((s) => s.airQuality);
   const lastActionError = store((s) => s.lastActionError);
   const deleteArmedAtMs = store((s) => s.deleteArmedAtMs);
@@ -385,14 +381,7 @@ export function App(props: AppProps = {}) {
   const activeLocation =
     activeSlug === null ? undefined : config.locations.find((loc) => loc.slug === activeSlug);
   const label = activeLocation?.label ?? "tuiweather";
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    if (props.nowMs !== undefined) return;
-    const h = setInterval(() => setTick((v) => v + 1), TICK_INTERVAL_MS);
-    h.unref?.();
-    return () => clearInterval(h);
-  }, [props.nowMs]);
-  const nowMs = props.nowMs ?? Date.now();
+  const nowMs = useNowMs(props.nowMs);
   const nowUtc = props.nowUtc ?? new Date(nowMs).toISOString();
   const tier = viewport.tier;
   const forecast = entry?.forecast;
@@ -549,42 +538,7 @@ export function App(props: AppProps = {}) {
   } else if (tier === "lg") {
     body = (
       <box flexDirection="row" flexGrow={1}>
-        <box
-          width={SIDEBAR_WIDTH}
-          border
-          borderColor={palette.border}
-          title="locations"
-          flexDirection="column"
-        >
-          {config.locations.map((loc) => {
-            const locEntry = forecastBySlug[loc.slug];
-            const isFocused = loc.slug === focusedSlug;
-            const isActive = loc.slug === activeSlug;
-            const bullet = isFocused ? "▸" : isActive ? "●" : "○";
-            const fg = isFocused
-              ? isActive
-                ? palette.accent
-                : palette.fg
-              : isActive
-                ? palette.accent
-                : palette.fgDim;
-            const tail = locEntry
-              ? ` ${conditionIcon(locEntry.forecast.current.condition)} ${formatTemp(
-                  locEntry.forecast.current.temperatureC,
-                  prefs.temp,
-                )}`
-              : "";
-            const labelBudget = Math.max(0, SIDEBAR_WIDTH - 2 - displayWidth(tail) - 2 - 1);
-            return (
-              <text key={loc.slug} fg={fg}>
-                {truncateTo(
-                  `${bullet} ${truncateTo(loc.label, labelBudget)}${tail}`,
-                  SIDEBAR_WIDTH - 3,
-                )}
-              </text>
-            );
-          })}
-        </box>
+        <Sidebar store={store} focusedSlug={focusedSlug} prefs={prefs} />
         <box flexDirection="column" flexGrow={1} gap={1}>
           {header}
           {status}

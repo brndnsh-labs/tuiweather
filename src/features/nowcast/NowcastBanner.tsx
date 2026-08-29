@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   describeNowcast,
   type Nowcast,
@@ -30,7 +31,7 @@ function stripFor(series: number[], width: number): string | null {
   return shown.map((mm) => precipGlyph(mm)).join("");
 }
 
-export function NowcastBanner({
+export const NowcastBanner = memo(function NowcastBanner({
   nowcast,
   hideWhenDry = false,
   width,
@@ -63,4 +64,4 @@ export function NowcastBanner({
       <text fg={fg}>{strip}</text>
     </box>
   );
-}
+});

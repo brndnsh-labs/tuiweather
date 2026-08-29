@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { resample, SPARKLINE_RAMP } from "../../components/Sparkline";
 import type { DisplayPrefs } from "../../lib/config/schema";
 import { conditionGlyph } from "../../lib/weather/condition-display";
@@ -309,7 +310,7 @@ export function segmentRow(row: string, marks: readonly AreaNote[]): RowSegment[
   return segments;
 }
 
-export function HourlyStrip({
+export const HourlyStrip = memo(function HourlyStrip({
   points,
   nowUtc,
   utcOffsetSeconds,
@@ -399,4 +400,4 @@ export function HourlyStrip({
       ) : null}
     </box>
   );
-}
+});

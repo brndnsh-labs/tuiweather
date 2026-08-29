@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { RangeBar } from "../../components/RangeBar";
 import type { DisplayPrefs } from "../../lib/config/schema";
 import { CONDITION_ICON_CELLS, conditionIcon } from "../../lib/weather/condition-display";
@@ -141,7 +142,13 @@ function DailyRow({
   );
 }
 
-export function DailyList({ days, prefs, columns, width, showPrecip = true }: DailyListProps) {
+export const DailyList = memo(function DailyList({
+  days,
+  prefs,
+  columns,
+  width,
+  showPrecip = true,
+}: DailyListProps) {
   if (days.length === 0 || width < 12) return null;
 
   const weekMin = Math.min(...days.map((d) => d.tempMinC));
@@ -188,7 +195,7 @@ export function DailyList({ days, prefs, columns, width, showPrecip = true }: Da
       ))}
     </box>
   );
-}
+});
 
 export function dailyChips(days: DailyPoint[], units: Units): string {
   return days
