@@ -202,9 +202,22 @@ function parseAqEnvelope(raw: string | null): AqEnvelope | null {
   return result.data;
 }
 
+export function cacheRoot(
+  platform: NodeJS.Platform,
+  env: Record<string, string | undefined>,
+): string {
+  const xdg = env.XDG_CACHE_HOME?.trim();
+  if (xdg) return xdg;
+  if (platform === "win32") {
+    const localAppData = env.LOCALAPPDATA?.trim();
+    if (localAppData) return localAppData;
+  }
+  return join(homedir(), ".cache");
+}
+
 class FsCacheIo implements CacheIo {
   async baseDir(): Promise<string> {
-    const root = process.env.XDG_CACHE_HOME?.trim() || join(homedir(), ".cache");
+    const root = cacheRoot(process.platform, process.env);
     const dir = join(root, "tuiweather");
     await mkdir(dir, { recursive: true, mode: 0o700 });
     return dir;

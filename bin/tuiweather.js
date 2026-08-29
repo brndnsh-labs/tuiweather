@@ -28,7 +28,11 @@ if (underBun || hasFlags || !nodeAtLeast(FFI_MIN_NODE)) {
     console.error(child.error.message);
     process.exitCode = 1;
   } else if (child.signal) {
-    process.kill(process.pid, child.signal);
+    try {
+      process.kill(process.pid, child.signal);
+    } catch {
+      process.exitCode = child.status ?? 1;
+    }
   } else {
     process.exitCode = child.status ?? 1;
   }
