@@ -2,6 +2,54 @@
 
 All notable changes to this project are documented here.
 
+## v0.3.0 (2026-08-29)
+
+### Features
+- feat: location sidebar navigation and reordering (#46) (cc7331a)
+- feat: NWS as a selectable second weather provider (#45) (6facbb7)
+- feat: US AQI air-quality cell in the details grid (#44) (2ed5f0e)
+- feat: honor units.pressure in the details grid (#43) (ca92ae3)
+- feat: hourly uv/humidity/visibility summary row at md+ widths (#42) (eb1b32a)
+- feat: rain-start watch mode with terminal bell (#41) (f67a907)
+- feat: emoji condition icons with two-cell slots (#17) (770d2c5)
+- feat: vertical density, precipitation clarity, and safety polish for the main views (#12) (a71c283)
+
+### Fixes
+- fix: sidebar labels disambiguate by region and reserve the temp tail (#80) (8fb85b4)
+- fix: help overlay is fully modal (#78) (5d73824)
+- fix: NWS hourly rows honor the end-labeled domain contract (#77) (c31d607)
+- fix: toggleUnits preserves mixed unit_prefs (#76) (3c7c282)
+- fix: todayPrecipWindow includes the bucket containing now (#73) (909d3d9)
+- fix: NWS daily precip max covers the night segment (#71) (64eaf84)
+- fix: attribute the active data provider in the help overlay and README (#69) (04cab5f)
+- fix: clear ghost sidebar focus below lg so s always targets the visible location (#66) (b1caa80)
+- fix: nowcast states the real remaining horizon instead of 'at least 2 hr' (#65) (5aa8711)
+- fix: truncate the DetailsGrid air cell to its half-width budget (#64) (9d635f1)
+- fix: advance time-driven UI between refreshes with a 30s ticker (#40) (233bfec)
+- fix: clamp help overlay to narrow viewports instead of overflowing (#30) (ca3a160)
+- fix: write cache entries 0o600 via atomic tmp+rename (#29) (487b48c)
+- fix: sanitize server-supplied error reasons before they reach the terminal (#28) (79c3e03)
+- fix: validate cached forecast envelopes with zod before trusting them (#27) (ac81a83)
+- fix: share one in-flight fetch per slug in loadForecast (#32) (df6c664)
+- fix: bound geocoder coordinates and persist before applying config (#26) (7a9ff9c)
+- fix: blend palettes with the terminal's theme (#16) (addad2c)
+- fix(release): deterministic changelog section generation (#13) (9036925)
+
+### Other
+- perf: scope the 30s tick to time-dependent subtrees (#81) (ccd79b2)
+- refactor: provider-neutral condition display and geocoding contracts (#79) (48b0411)
+- docs: config ignores unknown fields (README matched strict validation the schema does not have) (#75) (6b6b80c)
+- chore: bump zod 4.5.1 -> 4.5.2 (patch) (#74) (12a2fd4)
+- test: replace fixed sleeps with polling helpers (#72) (365cc99)
+- refactor: extract shared provider HTTP/sanitizer helpers (#70) (308677c)
+- docs: update AGENTS.md provider map and data-source line for the NWS/AQ work (#67) (a9410f8)
+- chore: record NWS API fixtures and add qwen-spark agent for #39 experiment (d8fd2e8)
+- chore: add muse-spark implementer subagent definition (910532b)
+- chore(deps): bump @opentui/core, @opentui/react, zod, biome (#33) (02cbd9f)
+- docs: align AGENTS.md architecture map with the real tree (#31) (ed1a3cc)
+- chore: update cycle skills (c4db60b)
+- docs: install guidance for the supported release; repair changelog sections (4f9140e)
+
 ## v0.2.0 (2026-08-25)
 
 Code-identical re-cut of v0.1.0 published back-to-back on release day; contains no changes over v0.1.0. `latest` points here.
