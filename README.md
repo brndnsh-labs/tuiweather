@@ -52,15 +52,20 @@ Use `tuiweather --help` for command-line options and `tuiweather --version` to p
 | --- | --- |
 | `r` | Refresh current location (bypasses cache) |
 | `[` / `]` | Previous / next location |
+| `1`–`9` | Jump to location N by sidebar order (1-based; no-op out of range) |
 | `u` | Toggle metric / imperial units |
 | `/` | Search locations |
 | `d` | Delete active location (press twice to confirm) |
+| `j` / `k` | Move sidebar focus down/up (lg tier only, wraps) |
+| `enter` | Activate focused location (lg tier) |
+| `s` | Set focused (or active when no focus) as default location |
+| `J` / `K` | Move focused location down/up in sidebar order (lg tier) |
 | `↑` / `↓` | Scroll the main panel when content overflows |
 | `?` | Toggle help overlay |
-| `esc` | Close help overlay; quits otherwise |
+| `esc` | Clear sidebar focus if set; otherwise close help overlay or quit |
 | `q` | Quit |
 
-While the search overlay is open it owns the keyboard: type to search, up/down to move the cursor, enter to add the highlighted result, esc to cancel.
+While the search overlay is open it owns the keyboard: type to search, up/down to move the cursor, enter to add the highlighted result, esc to cancel. Number, focus, and reorder keys are ignored while the search input is focused (same as `d`/`r`).
 
 ### One-line mode
 
@@ -173,7 +178,7 @@ Each `[[locations]]` entry:
 | `latitude` | number | Required; `-90`–`90` |
 | `longitude` | number | Required; `-180`–`180` |
 
-Locations added through the search overlay are appended here automatically. Writes are atomic (temp file plus rename).
+Locations added through the search overlay are appended here automatically. Press `s` (focused or active) to set `default_location` and `J`/`K` (lg tier, focused) to reorder `[[locations]]`. Writes are atomic (temp file plus rename).
 
 ## Data attribution
 

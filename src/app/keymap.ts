@@ -12,6 +12,13 @@ export interface KeymapApi {
   armDelete(): void;
   disarmDelete(): void;
   deleteActive(): void;
+  locations(): string[];
+  switchLocation(slug: string): void;
+  focusedSlug(): string | null;
+  setFocused(slug: string | null): void;
+  isLg(): boolean;
+  setDefault(slug: string): void;
+  moveLocation(slug: string, delta: 1 | -1): void;
 }
 
 /**
@@ -19,14 +26,21 @@ export interface KeymapApi {
  * keys must reach the input (not "d"/"q"/"u" actions) and escape must close
  * the overlay rather than quit.
  */
-export function handleKey(name: string, api: KeymapApi): void {
+export function handleKey(
+  nameOrEvent: string | { name: string; shift?: boolean },
+  api: KeymapApi,
+): void {
+  const name = typeof nameOrEvent === "string" ? nameOrEvent : nameOrEvent.name;
+  const shift = typeof nameOrEvent === "string" ? false : !!nameOrEvent.shift;
   if (api.searchOpen()) return;
   switch (name) {
     case "q":
       api.quit();
       break;
     case "escape":
-      if (api.helpOpen()) {
+      if (api.focusedSlug() !== null) {
+        api.setFocused(null);
+      } else if (api.helpOpen()) {
         api.toggleHelp();
       } else {
         api.quit();
@@ -57,6 +71,105 @@ export function handleKey(name: string, api: KeymapApi): void {
         api.armDelete();
       }
       break;
+    case "1":
+    case "2":
+    case "3":
+    case "4":
+    case "5":
+    case "6":
+    case "7":
+    case "8":
+    case "9": {
+      const idx = Number.parseInt(name, 10) - 1;
+      const slugs = api.locations();
+      if (idx >= 0 && idx < slugs.length) {
+        const target = slugs[idx];
+        if (target) api.switchLocation(target);
+      }
+      break;
+    }
+    case "j": {
+      if (shift) {
+        if (!api.isLg()) break;
+        const focused = api.focusedSlug();
+        if (focused === null) break;
+        api.moveLocation(focused, 1);
+        break;
+      }
+      if (!api.isLg()) break;
+      const slugs = api.locations();
+      if (slugs.length === 0) break;
+      const focused = api.focusedSlug();
+      if (focused === null) {
+        const first = slugs[0];
+        if (first) api.setFocused(first);
+      } else {
+        const idx = slugs.indexOf(focused);
+        if (idx === -1) {
+          const first = slugs[0];
+          if (first) api.setFocused(first);
+        } else {
+          const next = slugs[(idx + 1) % slugs.length];
+          if (next) api.setFocused(next);
+        }
+      }
+      break;
+    }
+    case "k": {
+      if (shift) {
+        if (!api.isLg()) break;
+        const focused = api.focusedSlug();
+        if (focused === null) break;
+        api.moveLocation(focused, -1);
+        break;
+      }
+      if (!api.isLg()) break;
+      const slugs = api.locations();
+      if (slugs.length === 0) break;
+      const focused = api.focusedSlug();
+      if (focused === null) {
+        const last = slugs[slugs.length - 1];
+        if (last) api.setFocused(last);
+      } else {
+        const idx = slugs.indexOf(focused);
+        if (idx === -1) {
+          const last = slugs[slugs.length - 1];
+          if (last) api.setFocused(last);
+        } else {
+          const next = slugs[(idx - 1 + slugs.length) % slugs.length];
+          if (next) api.setFocused(next);
+        }
+      }
+      break;
+    }
+    case "enter":
+    case "return": {
+      if (!api.isLg()) break;
+      const focused = api.focusedSlug();
+      if (focused === null) break;
+      api.switchLocation(focused);
+      break;
+    }
+    case "s": {
+      const target = api.focusedSlug() ?? api.activeSlug();
+      if (target === null) break;
+      api.setDefault(target);
+      break;
+    }
+    case "J": {
+      if (!api.isLg()) break;
+      const focused = api.focusedSlug();
+      if (focused === null) break;
+      api.moveLocation(focused, 1);
+      break;
+    }
+    case "K": {
+      if (!api.isLg()) break;
+      const focused = api.focusedSlug();
+      if (focused === null) break;
+      api.moveLocation(focused, -1);
+      break;
+    }
     default:
       break;
   }

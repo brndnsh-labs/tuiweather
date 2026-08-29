@@ -113,6 +113,8 @@ export interface WeatherState {
   addLocation(entry: LocationEntry): Promise<void>;
   completeOnboarding(entry: LocationEntry, units: TuiConfig["units"]): Promise<boolean>;
   deleteActiveLocation(): Promise<void>;
+  setDefaultLocation(slug: string): Promise<void>;
+  moveLocation(slug: string, delta: 1 | -1): Promise<void>;
   dispose(): void;
 }
 
@@ -434,6 +436,39 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
           clearRefreshTimer();
           set({ activeSlug: null, airQuality: null });
         }
+      },
+
+      setDefaultLocation: async (slug: string) => {
+        const config = get().config;
+        if (!findLocation(config, slug)) return;
+        const next: TuiConfig = { ...config, default_location: slug };
+        try {
+          await saveConfig(next, deps.configPath);
+        } catch (e) {
+          set({ lastActionError: errorMessage(e) });
+          return;
+        }
+        set({ config: next });
+      },
+
+      moveLocation: async (slug: string, delta: 1 | -1) => {
+        const config = get().config;
+        const idx = config.locations.findIndex((loc) => loc.slug === slug);
+        if (idx === -1) return;
+        const nextIdx = idx + delta;
+        if (nextIdx < 0 || nextIdx >= config.locations.length) return;
+        const nextLocations = [...config.locations];
+        const [moved] = nextLocations.splice(idx, 1);
+        if (!moved) return;
+        nextLocations.splice(nextIdx, 0, moved);
+        const next: TuiConfig = { ...config, locations: nextLocations };
+        try {
+          await saveConfig(next, deps.configPath);
+        } catch (e) {
+          set({ lastActionError: errorMessage(e) });
+          return;
+        }
+        set({ config: next });
       },
 
       dispose: () => {

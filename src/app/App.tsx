@@ -399,6 +399,13 @@ export function App(props: AppProps = {}) {
   const onboardingOpen = initStatus === "ready" && config.locations.length === 0;
   const deleteArmed = isDeleteArmed(deleteArmedAtMs, nowMs);
 
+  const [focusedSlug, setFocusedSlug] = useState<string | null>(null);
+  useEffect(() => {
+    if (focusedSlug !== null && !config.locations.some((loc) => loc.slug === focusedSlug)) {
+      setFocusedSlug(null);
+    }
+  }, [config.locations, focusedSlug]);
+
   const api = useMemo<KeymapApi>(
     () => ({
       quit,
@@ -419,12 +426,19 @@ export function App(props: AppProps = {}) {
       armDelete: () => store.getState().armDelete(),
       disarmDelete: () => store.getState().disarmDelete(),
       deleteActive: () => void store.getState().deleteActiveLocation(),
+      locations: () => store.getState().config.locations.map((loc) => loc.slug),
+      switchLocation: (slug) => store.getState().switchLocation(slug),
+      focusedSlug: () => focusedSlug,
+      setFocused: (slug) => setFocusedSlug(slug),
+      isLg: () => tier === "lg",
+      setDefault: (slug) => void store.getState().setDefaultLocation(slug),
+      moveLocation: (slug, delta) => void store.getState().moveLocation(slug, delta),
     }),
-    [store, quit],
+    [store, quit, focusedSlug, tier],
   );
 
   useKeyboard((key) => {
-    handleKey(key.name, api);
+    handleKey(key, api);
   });
 
   const header = (
@@ -543,7 +557,16 @@ export function App(props: AppProps = {}) {
         >
           {config.locations.map((loc) => {
             const locEntry = forecastBySlug[loc.slug];
-            const bullet = loc.slug === activeSlug ? "●" : "○";
+            const isFocused = loc.slug === focusedSlug;
+            const isActive = loc.slug === activeSlug;
+            const bullet = isFocused ? "▸" : isActive ? "●" : "○";
+            const fg = isFocused
+              ? isActive
+                ? palette.accent
+                : palette.fg
+              : isActive
+                ? palette.accent
+                : palette.fgDim;
             const tail = locEntry
               ? ` ${conditionIcon(locEntry.forecast.current.condition)} ${formatTemp(
                   locEntry.forecast.current.temperatureC,
@@ -551,7 +574,7 @@ export function App(props: AppProps = {}) {
                 )}`
               : "";
             return (
-              <text key={loc.slug} fg={loc.slug === activeSlug ? palette.accent : palette.fgDim}>
+              <text key={loc.slug} fg={fg}>
                 {truncateTo(`${bullet} ${loc.label}${tail}`, SIDEBAR_WIDTH - 2)}
               </text>
             );
