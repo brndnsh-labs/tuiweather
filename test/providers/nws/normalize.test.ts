@@ -156,9 +156,12 @@ describe("nws normalize — day/night merge", () => {
       expect(nightPeriod).toBeDefined();
       if (dayPeriod) {
         expect(point.tempMaxC).toBeCloseTo(((dayPeriod.temperature - 32) * 5) / 9, 5);
-        expect(point.precipProbabilityMaxPct).toBe(
+        const values = [
           dayPeriod.probabilityOfPrecipitation?.value ?? null,
-        );
+          nightPeriod?.probabilityOfPrecipitation?.value ?? null,
+        ].filter((value): value is number => value !== null);
+        const expected = values.length === 0 ? null : Math.max(...values);
+        expect(point.precipProbabilityMaxPct).toBe(expected);
       }
       if (nightPeriod) {
         expect(point.tempMinC).toBeCloseTo(((nightPeriod.temperature - 32) * 5) / 9, 5);
@@ -208,5 +211,145 @@ describe("nws normalize — forecast windows", () => {
     const days = normalize({ forecastDays: 3 }).daily;
     expect(days.length).toBe(3);
     expect(days.map((day) => day.dateLocal)).toEqual(["2026-08-28", "2026-08-29", "2026-08-30"]);
+  });
+});
+
+describe("nws normalize — precipProbabilityMaxPct max across day and night", () => {
+  function makePeriod(
+    overrides: Partial<import("../../../src/lib/providers/nws/schemas").NwsPeriod>,
+  ): import("../../../src/lib/providers/nws/schemas").NwsPeriod {
+    return {
+      number: 1,
+      name: "Test",
+      startTime: "2026-09-10T06:00:00-07:00",
+      endTime: "2026-09-10T18:00:00-07:00",
+      isDaytime: true,
+      temperature: 70,
+      temperatureUnit: "F",
+      probabilityOfPrecipitation: { unitCode: "wmoUnit:percent", value: null },
+      windSpeed: "5 mph",
+      windDirection: "N",
+      icon: "https://api.weather.gov/icons/land/day/skc?size=medium",
+      shortForecast: "Sunny",
+      ...overrides,
+    } as import("../../../src/lib/providers/nws/schemas").NwsPeriod;
+  }
+
+  test("returns the max when night exceeds day (20 vs 80 → 80)", () => {
+    const result = normalizeNwsForecast(
+      {
+        points: pointsBody.properties,
+        hourly: hourlyBody.properties.periods.slice(0, 1),
+        daily: [
+          makePeriod({
+            number: 1,
+            startTime: "2026-09-10T06:00:00-07:00",
+            isDaytime: true,
+            probabilityOfPrecipitation: { unitCode: "wmoUnit:percent", value: 20 },
+          }),
+          makePeriod({
+            number: 2,
+            startTime: "2026-09-10T18:00:00-07:00",
+            isDaytime: false,
+            temperature: 55,
+            probabilityOfPrecipitation: { unitCode: "wmoUnit:percent", value: 80 },
+          }),
+        ],
+        obs: obsBody.properties,
+      },
+      PORTLAND,
+    );
+    expect(result.daily[0]?.precipProbabilityMaxPct).toBe(80);
+  });
+
+  test("returns null when both day and night pop are null", () => {
+    const result = normalizeNwsForecast(
+      {
+        points: pointsBody.properties,
+        hourly: hourlyBody.properties.periods.slice(0, 1),
+        daily: [
+          makePeriod({
+            startTime: "2026-09-10T06:00:00-07:00",
+            isDaytime: true,
+            probabilityOfPrecipitation: { unitCode: "wmoUnit:percent", value: null },
+          }),
+          makePeriod({
+            number: 2,
+            startTime: "2026-09-10T18:00:00-07:00",
+            isDaytime: false,
+            temperature: 55,
+            probabilityOfPrecipitation: { unitCode: "wmoUnit:percent", value: null },
+          }),
+        ],
+        obs: obsBody.properties,
+      },
+      PORTLAND,
+    );
+    expect(result.daily[0]?.precipProbabilityMaxPct).toBeNull();
+  });
+
+  test("returns day value when night is missing (day-only group)", () => {
+    const result = normalizeNwsForecast(
+      {
+        points: pointsBody.properties,
+        hourly: hourlyBody.properties.periods.slice(0, 1),
+        daily: [
+          makePeriod({
+            startTime: "2026-09-11T06:00:00-07:00",
+            isDaytime: true,
+            probabilityOfPrecipitation: { unitCode: "wmoUnit:percent", value: 33 },
+          }),
+        ],
+        obs: obsBody.properties,
+      },
+      PORTLAND,
+    );
+    expect(result.daily[0]?.precipProbabilityMaxPct).toBe(33);
+  });
+
+  test("returns night value when day is missing (night-only group)", () => {
+    const result = normalizeNwsForecast(
+      {
+        points: pointsBody.properties,
+        hourly: hourlyBody.properties.periods.slice(0, 1),
+        daily: [
+          makePeriod({
+            startTime: "2026-09-11T18:00:00-07:00",
+            isDaytime: false,
+            temperature: 52,
+            probabilityOfPrecipitation: { unitCode: "wmoUnit:percent", value: 44 },
+          }),
+        ],
+        obs: obsBody.properties,
+      },
+      PORTLAND,
+    );
+    expect(result.daily[0]?.precipProbabilityMaxPct).toBe(44);
+  });
+
+  test("returns the greater of day vs night when day exceeds night", () => {
+    const result = normalizeNwsForecast(
+      {
+        points: pointsBody.properties,
+        hourly: hourlyBody.properties.periods.slice(0, 1),
+        daily: [
+          makePeriod({
+            startTime: "2026-09-12T06:00:00-07:00",
+            isDaytime: true,
+            probabilityOfPrecipitation: { unitCode: "wmoUnit:percent", value: 60 },
+          }),
+          makePeriod({
+            number: 2,
+            startTime: "2026-09-12T18:00:00-07:00",
+            isDaytime: false,
+            temperature: 54,
+            probabilityOfPrecipitation: { unitCode: "wmoUnit:percent", value: 15 },
+          }),
+        ],
+        obs: obsBody.properties,
+      },
+      PORTLAND,
+    );
+    expect(result.daily[0]?.precipProbabilityMaxPct).toBe(60);
   });
 });
