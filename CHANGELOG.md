@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here.
 
+## v0.3.5 (2026-08-29)
+
+### Fixes
+- fix: Windows cache dir + relax engines floor (#119) (87b71f6)
+- fix: gate --experimental-ffi behind a bin launcher so pre-FFI Node keeps CLI paths (#116) (8145064)
+
 ## v0.3.4 (2026-08-29)
 
 ### Fixes
