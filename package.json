@@ -45,7 +45,7 @@
     "@opentui/react": "^0.5.9",
     "react": "^19.2.8",
     "smol-toml": "^1.8.0",
-    "zod": "^4.5.1",
+    "zod": "4.5.2",
     "zustand": "^5.0.15"
   },
   "devDependencies": {
