@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { sanitizeText } from "../http";
 
 export const LOCAL_NAIVE_TIME = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2})?)?$/;
 const LOCAL_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -16,16 +17,8 @@ export const apiErrorBodySchema = z.object({
 
 const MAX_REASON_CHARS = 200;
 
-function isControl(code: number): boolean {
-  return code <= 0x1f || code === 0x7f;
-}
-
 export function sanitizedErrorReason(reason: string): string {
-  let out = "";
-  for (const ch of reason) {
-    if (!isControl(ch.codePointAt(0) ?? 0)) out += ch;
-  }
-  return out.slice(0, MAX_REASON_CHARS);
+  return sanitizeText(reason, MAX_REASON_CHARS);
 }
 
 export const currentBlockSchema = z.object({

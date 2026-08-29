@@ -1,7 +1,8 @@
 import { z } from "zod";
 import type { AirQuality, GeoPoint } from "../../weather/types";
+import { errorReason, httpError } from "../http";
 import { ProviderError } from "../types";
-import { apiErrorBodySchema, LOCAL_NAIVE_TIME, sanitizedErrorReason } from "./schemas";
+import { apiErrorBodySchema, LOCAL_NAIVE_TIME } from "./schemas";
 
 export const AIR_QUALITY_ENDPOINT = "https://air-quality-api.open-meteo.com/v1/air-quality";
 const TIMEOUT_MS = 10_000;
@@ -38,18 +39,12 @@ export function buildAirQualityUrl(location: GeoPoint): string {
   return `${AIR_QUALITY_ENDPOINT}?${params.toString()}`;
 }
 
-function errorReason(body: unknown): string | undefined {
-  const parsed = apiErrorBodySchema.safeParse(body);
-  if (!parsed.success || parsed.data.reason === undefined) return undefined;
-  return sanitizedErrorReason(parsed.data.reason);
-}
-
-function httpError(status: number, body: unknown): ProviderError {
-  const reason = errorReason(body);
-  return new ProviderError(
-    `openmeteo air-quality failed (HTTP ${status})${reason ? `: ${reason}` : ""}`,
-    "openmeteo",
-  );
+function httpErrorFor(status: number, body: unknown): ProviderError {
+  return httpError(status, body, {
+    label: "air-quality",
+    providerId: "openmeteo",
+    schema: apiErrorBodySchema,
+  });
 }
 
 function normalizeAirQuality(data: AqResponse): AirQuality {
@@ -88,8 +83,8 @@ export async function fetchAirQuality(location: GeoPoint): Promise<AirQuality> {
     );
   }
 
-  if (!res.ok || errorReason(body) !== undefined) {
-    throw httpError(res.status, body);
+  if (!res.ok || errorReason(body, apiErrorBodySchema) !== undefined) {
+    throw httpErrorFor(res.status, body);
   }
 
   const parsed = aqResponseSchema.safeParse(body);

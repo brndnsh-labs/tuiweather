@@ -1,5 +1,6 @@
 import type { z } from "zod";
 import type { GeoPoint, NormalizedForecast } from "../../weather/types";
+import { sanitizeText } from "../http";
 import { type ForecastWindow, ProviderError, type WeatherProvider } from "../types";
 import { normalizeNwsForecast } from "./normalize";
 import {
@@ -27,23 +28,11 @@ export function buildPointsUrl(location: GeoPoint): string {
   return `${API_ROOT}/points/${location.latitude},${location.longitude}`;
 }
 
-function isControl(code: number): boolean {
-  return code <= 0x1f || code === 0x7f;
-}
-
-function sanitizeText(text: string): string {
-  let out = "";
-  for (const ch of text) {
-    if (!isControl(ch.codePointAt(0) ?? 0)) out += ch;
-  }
-  return out.slice(0, MAX_DETAIL_CHARS);
-}
-
 function problemDetail(body: unknown): string | undefined {
   const parsed = nwsProblemSchema.safeParse(body);
   if (!parsed.success) return undefined;
   const detail = parsed.data.detail ?? parsed.data.title;
-  return detail === undefined ? undefined : sanitizeText(detail);
+  return detail === undefined ? undefined : sanitizeText(detail, MAX_DETAIL_CHARS);
 }
 
 async function getJson(url: string, label: string): Promise<unknown> {
