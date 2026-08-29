@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { buildJsonLine, buildOneLine } from "../../src/app/oneline";
 import type { DisplayPrefs } from "../../src/lib/config/schema";
-import { conditionGlyph } from "../../src/lib/providers/openmeteo/wmo";
+import { conditionGlyph } from "../../src/lib/weather/condition-display";
 import type {
   CurrentObs,
   DailyPoint,

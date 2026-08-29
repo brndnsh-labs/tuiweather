@@ -3,6 +3,18 @@ import type { AirQuality, GeoPoint, NormalizedForecast } from "../weather/types"
 export const PROVIDER_IDS = ["openmeteo", "nws"] as const;
 export type ProviderId = (typeof PROVIDER_IDS)[number];
 
+export interface GeocodingResult {
+  id: number;
+  name: string;
+  latitude: number;
+  longitude: number;
+  country?: string;
+  country_code?: string;
+  admin1?: string;
+  admin2?: string;
+  timezone?: string;
+}
+
 export interface ForecastWindow {
   forecastDays?: number;
   forecastHours?: number;

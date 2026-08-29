@@ -10,7 +10,7 @@ import {
   type SearchLocationsFn,
   type WeatherStore,
 } from "../../src/app/store";
-import type { GeocodingResult } from "../../src/lib/providers/openmeteo/geocoding";
+import type { GeocodingResult } from "../../src/lib/providers/types";
 import type { CurrentObs, NormalizedForecast } from "../../src/lib/weather/types";
 import { stubNullAirQualityFetcher } from "../helpers";
 

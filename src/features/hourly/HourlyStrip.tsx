@@ -1,6 +1,6 @@
 import { resample, SPARKLINE_RAMP } from "../../components/Sparkline";
 import type { DisplayPrefs } from "../../lib/config/schema";
-import { conditionGlyph } from "../../lib/providers/openmeteo/wmo";
+import { conditionGlyph } from "../../lib/weather/condition-display";
 import {
   displayWidth,
   formatHourLabel,

@@ -1,6 +1,6 @@
 import { RangeBar } from "../../components/RangeBar";
 import type { DisplayPrefs } from "../../lib/config/schema";
-import { CONDITION_ICON_CELLS, conditionIcon } from "../../lib/providers/openmeteo/wmo";
+import { CONDITION_ICON_CELLS, conditionIcon } from "../../lib/weather/condition-display";
 import {
   formatDayLabel,
   formatPct,

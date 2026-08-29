@@ -1,6 +1,6 @@
 import { lerpHex } from "../../components/RangeBar";
 import type { DisplayPrefs } from "../../lib/config/schema";
-import { conditionIcon, conditionLabel } from "../../lib/providers/openmeteo/wmo";
+import { conditionIcon, conditionLabel } from "../../lib/weather/condition-display";
 import { convertTempC, formatTemp, formatWind, tempWarmthT } from "../../lib/weather/format";
 import type { CurrentObs } from "../../lib/weather/types";
 import { usePalette } from "../../theme/tokens";

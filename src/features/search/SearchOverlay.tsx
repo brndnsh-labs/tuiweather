@@ -1,7 +1,7 @@
 import { useKeyboard } from "@opentui/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { LocationEntry, SearchLocationsFn, WeatherStore } from "../../app/store";
-import type { GeocodingResult } from "../../lib/providers/openmeteo/geocoding";
+import type { GeocodingResult } from "../../lib/providers/types";
 import { usePalette } from "../../theme/tokens";
 
 export const SEARCH_DEBOUNCE_MS = 300;

@@ -1,10 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import {
-  conditionGlyph,
-  conditionLabel,
-  WMO_TABLE,
-  wmoToCondition,
-} from "../../src/lib/providers/openmeteo/wmo";
+import { WMO_TABLE, wmoToCondition } from "../../src/lib/providers/openmeteo/wmo";
+import { conditionGlyph, conditionLabel } from "../../src/lib/weather/condition-display";
 import type { Condition } from "../../src/lib/weather/types";
 
 const DOCUMENTED_CODES = [

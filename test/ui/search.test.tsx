@@ -11,7 +11,7 @@ import {
   type WeatherStore,
 } from "../../src/app/store";
 import { loadConfig } from "../../src/lib/config/load";
-import type { GeocodingResult } from "../../src/lib/providers/openmeteo/geocoding";
+import type { GeocodingResult } from "../../src/lib/providers/types";
 import type { CurrentObs, NormalizedForecast } from "../../src/lib/weather/types";
 import { stubNullAirQualityFetcher } from "../helpers";
 
