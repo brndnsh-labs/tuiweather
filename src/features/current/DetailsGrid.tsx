@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { DisplayPrefs } from "../../lib/config/schema";
 import {
   aqiCategory,
@@ -33,7 +34,7 @@ function Cell({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function DetailsGrid({
+export const DetailsGrid = memo(function DetailsGrid({
   obs,
   today,
   utcOffsetSeconds,
@@ -98,4 +99,4 @@ export function DetailsGrid({
       ))}
     </box>
   );
-}
+});

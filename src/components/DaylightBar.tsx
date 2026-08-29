@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { formatClock, type TimeFormat } from "../lib/weather/format";
 import { usePalette } from "../theme/tokens";
 
@@ -85,7 +86,7 @@ export function buildDaylightRow(props: DaylightBarProps): string | null {
   return segments ? segments.map((segment) => segment.text).join("") : null;
 }
 
-export function DaylightBar(props: DaylightBarProps) {
+export const DaylightBar = memo(function DaylightBar(props: DaylightBarProps) {
   const palette = usePalette();
   const segments = buildDaylightSegments(props);
   if (!segments) return null;
@@ -103,4 +104,4 @@ export function DaylightBar(props: DaylightBarProps) {
       })}
     </text>
   );
-}
+});

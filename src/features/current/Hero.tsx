@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { lerpHex } from "../../components/RangeBar";
 import type { DisplayPrefs } from "../../lib/config/schema";
 import { conditionIcon, conditionLabel } from "../../lib/weather/condition-display";
@@ -22,7 +23,7 @@ function StatLine({ parts, dim }: { parts: (string | null)[]; dim: string }) {
   return <text fg={dim}>{joined}</text>;
 }
 
-export function Hero({ obs, prefs, compact = false, mini = false }: HeroProps) {
+export const Hero = memo(function Hero({ obs, prefs, compact = false, mini = false }: HeroProps) {
   const palette = usePalette();
 
   if (mini) {
@@ -76,4 +77,4 @@ export function Hero({ obs, prefs, compact = false, mini = false }: HeroProps) {
       </text>
     </box>
   );
-}
+});
