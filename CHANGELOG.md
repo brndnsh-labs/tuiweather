@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here.
 
+## v0.3.4 (2026-08-29)
+
+### Fixes
+- fix: resolve config path on Windows via os.homedir fallback (#114) (8e8c00f)
+
 ## v0.3.3 (2026-08-29)
 
 ### Fixes
