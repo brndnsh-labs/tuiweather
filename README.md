@@ -16,8 +16,9 @@ Keyboard-driven terminal weather app: Dark Sky-style rain nowcasting, hourly and
 
 ## Install
 
-Requires Node.js to run: the interactive TUI needs Node >= 26.4.0; the command-line paths
-(`--version`, `--help`, `--one-line`) work on any supported Node. Install globally with npm:
+Requires Node.js to run: the package declares `engines.node >= 20`, and the command-line
+paths (`--version`, `--help`, `--one-line`) work on any such Node; the interactive TUI
+needs Node >= 26.4.0, enforced at runtime by the launcher. Install globally with npm:
 
 ```sh
 npm install --global tuiweather
