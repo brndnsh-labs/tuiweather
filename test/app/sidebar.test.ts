@@ -83,6 +83,7 @@ function makeForecast(): NormalizedForecast {
     timezone: "UTC",
     utcOffsetSeconds: 0,
     fetchedAtUtc: NOW,
+    hasMinutePrecip: true,
     current,
     minutely15: [],
     hourly: [],

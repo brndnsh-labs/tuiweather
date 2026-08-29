@@ -40,6 +40,7 @@ export const NowcastBanner = memo(function NowcastBanner({
 }: NowcastBannerProps) {
   const palette = usePalette();
 
+  if (nowcast.kind === "unavailable") return null;
   if (nowcast.kind === "dry") {
     if (hideWhenDry) return null;
     return (

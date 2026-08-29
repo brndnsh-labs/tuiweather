@@ -33,6 +33,7 @@ function nowcastSegment(forecast: NormalizedForecast, nowUtc: string): string {
   const nowcast = deriveNowcast(forecast, nowUtc);
   switch (nowcast.kind) {
     case "dry":
+    case "unavailable":
       return "";
     case "starting":
       return `☂ in ${nowcast.startsInMin}min`;

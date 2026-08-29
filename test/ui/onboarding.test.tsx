@@ -48,6 +48,7 @@ function forecast(): NormalizedForecast {
     timezone: "Asia/Tokyo",
     utcOffsetSeconds: 9 * 3600,
     fetchedAtUtc: NOW,
+    hasMinutePrecip: true,
     current,
     minutely15: [],
     hourly: [],

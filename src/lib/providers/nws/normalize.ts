@@ -242,6 +242,7 @@ export function normalizeNwsForecast(
     utcOffsetSeconds,
     fetchedAtUtc: new Date().toISOString(),
     current: normalizeCurrent(data.obs),
+    hasMinutePrecip: false,
     minutely15: [],
     hourly: normalizeHourly(data.hourly, window?.forecastHours),
     daily: normalizeDaily(data.daily, window?.forecastDays),

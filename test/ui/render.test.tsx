@@ -100,6 +100,7 @@ function makeForecast(overrides: Partial<CurrentObs> = {}): NormalizedForecast {
     timezone: "America/Los_Angeles",
     utcOffsetSeconds: -7 * 3600,
     fetchedAtUtc: NOW,
+    hasMinutePrecip: true,
     current: {
       timeUtc: NOW,
       temperatureC: 22.2222,
@@ -670,6 +671,7 @@ describe("scroll affordance", () => {
     const forecast = {
       ...normalizeForecast(forecastResponseSchema.parse(portlandFixture)),
       fetchedAtUtc: NOW,
+      hasMinutePrecip: true,
     };
     const store = await makeStore({ fetcher: () => Promise.resolve({ forecast, stale: false }) });
     const setup = await testRender(<App store={store} nowMs={Date.parse(NOW)} nowUtc={NOW} />, {

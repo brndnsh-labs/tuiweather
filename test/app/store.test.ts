@@ -114,6 +114,7 @@ function makeForecast(temperatureC = 18): NormalizedForecast {
     timezone: "America/Los_Angeles",
     utcOffsetSeconds: -7 * 3600,
     fetchedAtUtc: NOW,
+    hasMinutePrecip: true,
     current,
     minutely15: [],
     hourly: [],

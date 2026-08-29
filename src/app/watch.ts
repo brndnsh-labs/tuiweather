@@ -4,7 +4,8 @@ import type { NormalizedForecast } from "../lib/weather/types";
 import { buildOneLine } from "./oneline";
 
 export function shouldBell(prev: Nowcast, next: Nowcast): boolean {
-  return prev.kind === "dry" && next.kind !== "dry";
+  if (prev.kind !== "dry") return false;
+  return next.kind === "starting" || next.kind === "ongoing" || next.kind === "stopping";
 }
 
 export interface WatchOptions {
