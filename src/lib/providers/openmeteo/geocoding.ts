@@ -1,12 +1,13 @@
 import type { z } from "zod";
 import { errorReason, httpError, sanitizeText } from "../http";
+import type { GeocodingResult } from "../types";
 import { ProviderError } from "../types";
 import { apiErrorBodySchema, geocodingResponseSchema, type geocodingResultSchema } from "./schemas";
 
 const GEOCODING_ENDPOINT = "https://geocoding-api.open-meteo.com/v1/search";
 const TIMEOUT_MS = 10_000;
 
-export type GeocodingResult = z.infer<typeof geocodingResultSchema>;
+export type OpenMeteoGeocodingResult = z.infer<typeof geocodingResultSchema>;
 
 export function buildGeocodingUrl(query: string, count = 8): string {
   const params = new URLSearchParams({

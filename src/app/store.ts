@@ -7,12 +7,9 @@ import { uniqueSlug } from "../features/search/SearchOverlay";
 import { loadConfig } from "../lib/config/load";
 import { saveConfig } from "../lib/config/save";
 import { DEFAULT_CONFIG, resolveDisplayPrefs, type TuiConfig } from "../lib/config/schema";
-import {
-  type GeocodingResult,
-  searchLocations as geocodeLocations,
-} from "../lib/providers/openmeteo/geocoding";
+import { searchLocations as geocodeLocations } from "../lib/providers/openmeteo/geocoding";
 import { selectProvider } from "../lib/providers/select";
-import type { ForecastWindow, ProviderId } from "../lib/providers/types";
+import type { ForecastWindow, GeocodingResult, ProviderId } from "../lib/providers/types";
 import { cachedAirQuality, cachedForecast } from "../lib/weather/cache";
 import type { AirQuality, GeoPoint, NormalizedForecast } from "../lib/weather/types";
 

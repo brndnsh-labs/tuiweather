@@ -20,7 +20,7 @@ import { FirstRun } from "../features/onboarding/FirstRun";
 import { SearchOverlay } from "../features/search/SearchOverlay";
 import type { DisplayPrefs, TuiConfig } from "../lib/config/schema";
 import { resolveDisplayPrefs } from "../lib/config/schema";
-import { conditionIcon } from "../lib/providers/openmeteo/wmo";
+import { conditionIcon } from "../lib/weather/condition-display";
 import { deriveNowcast } from "../lib/weather/derive";
 import { formatTemp, truncateCells } from "../lib/weather/format";
 import type { AirQuality, NormalizedForecast } from "../lib/weather/types";

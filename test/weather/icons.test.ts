@@ -3,7 +3,7 @@ import {
   CONDITION_ICON_CELLS,
   conditionGlyph,
   conditionIcon,
-} from "../../src/lib/providers/openmeteo/wmo";
+} from "../../src/lib/weather/condition-display";
 import { displayWidth, truncateCells } from "../../src/lib/weather/format";
 import type { Condition } from "../../src/lib/weather/types";
 

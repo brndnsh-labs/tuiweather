@@ -1,5 +1,5 @@
 import { fetchForecast } from "../src/lib/providers/openmeteo/client";
-import { conditionLabel } from "../src/lib/providers/openmeteo/wmo";
+import { conditionLabel } from "../src/lib/weather/condition-display";
 
 const PORTLAND = { latitude: 45.5202, longitude: -122.6742 };
 
