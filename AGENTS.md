@@ -5,7 +5,7 @@ Guidance for humans and AI agents working in this repository.
 ## What this is
 
 tuiweather — a keyboard-driven terminal weather app built with Bun + TypeScript + OpenTUI (`@opentui/react`).
-Data source: Open-Meteo (free, no key, non-commercial). Config: TOML at `~/.config/tuiweather/config.toml`.
+Data sources: Open-Meteo (default; free, no key, non-commercial) and NWS `api.weather.gov` (selectable via `provider = "nws"`; US-only, no key, identified by User-Agent). Config: TOML at `~/.config/tuiweather/config.toml`.
 
 ## Commands
 
@@ -31,8 +31,12 @@ src/
   features/              current/ (incl. DetailsGrid) hourly/ daily/ nowcast/ search/ onboarding/
   lib/weather/types.ts   DOMAIN MODEL — Condition enum, CurrentObs, NormalizedForecast
   lib/providers/
-    types.ts             WeatherProvider interface
-    openmeteo/           client, zod schemas, normalize, WMO table  <- only place WMO codes exist
+    types.ts             WeatherProvider interface, PROVIDER_IDS
+    select.ts            selectProvider(id) — the only place provider impls are chosen
+    openmeteo/           client, zod schemas, normalize, WMO table, aq (air quality), geocoding
+                         <- only place WMO codes exist
+    nws/                 client, zod schemas, normalize, condition table
+                         <- only place NWS icon codes exist
   lib/weather/           derive.ts (nowcast rules), format.ts (units/display), cache.ts (TTL)
   lib/config/            zod schema, load/save (atomic tmp+rename)
   theme/                 palettes: ink (terminal-adaptive) + day/night accents, detection, tokens
@@ -43,7 +47,7 @@ scripts/                 dev smoke + release tooling (see docs/RELEASING.md)
 
 Dependency direction is one-way: `lib/` must never import from `app/`, `features/`, or `components/`.
 The UI consumes domain types from `lib/weather/types.ts` only — provider response shapes (including
-WMO weather codes) must not leak past `lib/providers/<provider>/`.
+WMO weather codes and NWS icon codes) must not leak past `lib/providers/<provider>/`.
 
 ## Hard rules (non-negotiable)
 
