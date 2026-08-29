@@ -44,6 +44,22 @@ const BODY = {
   generationtime_ms: 0.52,
 };
 
+const HOSTILE_BODY = {
+  results: [
+    {
+      id: 3025557,
+      name: "Toulouse\u001b]0;pwn\u0007-le-comte",
+      latitude: 43.6045,
+      longitude: 1.4442,
+      country: "France\u0007",
+      country_code: "FR",
+      admin1: "Occitanie\u001b[31m",
+      admin2: "Gers\u001b",
+    },
+  ],
+  generationtime_ms: 0.4,
+};
+
 describe("buildGeocodingUrl", () => {
   test("targets the geocoding endpoint with language and format pinned", () => {
     const url = buildGeocodingUrl("Reykjavík", 3);
@@ -131,5 +147,35 @@ describe("searchLocations error mapping", () => {
     expect(error.message.includes("\u001b")).toBe(false);
     expect(error.message.includes("\u0007")).toBe(false);
     expect(error.message).toContain("bad");
+  });
+});
+
+describe("searchLocations name sanitization", () => {
+  test("strips terminal control characters from geocoder-supplied names on the success path", async () => {
+    mockResponds(JSON.stringify(HOSTILE_BODY), 200);
+    const [host] = await searchLocations("toulouse");
+    expect(host).toEqual({
+      id: 3025557,
+      name: "Toulouse]0;pwn-le-comte",
+      latitude: 43.6045,
+      longitude: 1.4442,
+      country: "France",
+      country_code: "FR",
+      admin1: "Occitanie[31m",
+      admin2: "Gers",
+    });
+    for (const value of Object.values(host ?? {})) {
+      if (typeof value !== "string") continue;
+      for (const ch of value) {
+        const code = ch.codePointAt(0) ?? 0;
+        expect(code <= 0x1f || code === 0x7f).toBe(false);
+      }
+    }
+  });
+
+  test("passes legitimate names through byte-identical", async () => {
+    mockResponds(JSON.stringify(BODY), 200);
+    const results = await searchLocations("boston");
+    expect(results).toEqual(BODY.results);
   });
 });

@@ -6,6 +6,7 @@ import { apiErrorBodySchema, geocodingResponseSchema, type geocodingResultSchema
 
 const GEOCODING_ENDPOINT = "https://geocoding-api.open-meteo.com/v1/search";
 const TIMEOUT_MS = 10_000;
+const NAME_MAX_CELLS = 120;
 
 export type OpenMeteoGeocodingResult = z.infer<typeof geocodingResultSchema>;
 
@@ -35,7 +36,17 @@ export function parseGeocodingResponse(body: unknown): GeocodingResult[] {
       parsed.error,
     );
   }
-  return parsed.data.results ?? [];
+  const results = parsed.data.results ?? [];
+  // Sanitize at the provider boundary: names flow verbatim into the search
+  // list, the sidebar, and config.toml, so no host string may carry terminal
+  // control sequences into the TUI.
+  for (const r of results) {
+    r.name = sanitizeText(r.name, NAME_MAX_CELLS);
+    if (r.country !== undefined) r.country = sanitizeText(r.country, NAME_MAX_CELLS);
+    if (r.admin1 !== undefined) r.admin1 = sanitizeText(r.admin1, NAME_MAX_CELLS);
+    if (r.admin2 !== undefined) r.admin2 = sanitizeText(r.admin2, NAME_MAX_CELLS);
+  }
+  return results;
 }
 
 export async function searchLocations(query: string, count = 8): Promise<GeocodingResult[]> {
