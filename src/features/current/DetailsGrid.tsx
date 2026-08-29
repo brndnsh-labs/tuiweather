@@ -6,6 +6,7 @@ import {
   formatTemp,
   formatVisibility,
   formatWind,
+  truncateCells,
   uvLabel,
 } from "../../lib/weather/format";
 import type { AirQuality, CurrentObs, DailyPoint } from "../../lib/weather/types";
@@ -52,12 +53,15 @@ export function DetailsGrid({
   const sunset = today?.sunsetUtc
     ? formatClock(today.sunsetUtc, utcOffsetSeconds, prefs.timeFormat)
     : "--";
+  const halfWidth = colWidth ?? 20;
+
   const air =
     airQuality?.usAqi != null
-      ? `${Math.round(airQuality.usAqi)} ${aqiCategory(airQuality.usAqi)}`
+      ? truncateCells(
+          `${Math.round(airQuality.usAqi)} ${aqiCategory(airQuality.usAqi)}`,
+          Math.max(1, halfWidth - LABEL_PAD),
+        )
       : null;
-
-  const halfWidth = colWidth ?? 20;
 
   const rows: [string, string][][] = [
     [
