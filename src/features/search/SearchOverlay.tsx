@@ -2,6 +2,7 @@ import { useKeyboard } from "@opentui/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { LocationEntry, SearchLocationsFn, WeatherStore } from "../../app/store";
 import type { GeocodingResult } from "../../lib/providers/types";
+import { displayWidth, truncateCells } from "../../lib/weather/format";
 import { usePalette } from "../../theme/tokens";
 
 export const SEARCH_DEBOUNCE_MS = 300;
@@ -35,8 +36,7 @@ function errorMessage(e: unknown): string {
 }
 
 function truncateTo(text: string, width: number): string {
-  if (text.length <= width) return text;
-  return `${text.slice(0, Math.max(0, width - 1))}…`;
+  return truncateCells(text, width);
 }
 
 export function slugifyCandidate(
@@ -70,7 +70,7 @@ export function buildLocationEntry(
       slugifyCandidate(result.name, result.admin1, result.country_code),
       existingSlugs,
     ),
-    label: (label.length > 0 ? label : "unnamed").slice(0, 80),
+    label: truncateCells(label.length > 0 ? label : "unnamed", 80),
     latitude: result.latitude,
     longitude: result.longitude,
   };
@@ -86,13 +86,14 @@ function regionText(result: GeocodingResult): string {
   return `${main}${suffix}`;
 }
 
-function resultLine(result: GeocodingResult, selected: boolean, width: number): string {
+export function resultLine(result: GeocodingResult, selected: boolean, width: number): string {
   const right = formatCoords(result.latitude, result.longitude);
   const leftRaw = `${result.name} · ${regionText(result)}`;
-  const avail = Math.max(0, width - 2 - right.length);
-  const left = truncateTo(leftRaw, avail).padEnd(avail);
   const prefix = selected ? "›" : " ";
-  return `${prefix} ${left}${right}`.slice(0, width);
+  const avail = Math.max(0, width - displayWidth(prefix) - 1 - displayWidth(right));
+  const left = truncateTo(leftRaw, avail);
+  const padded = `${left}${" ".repeat(Math.max(0, avail - displayWidth(left)))}`;
+  return `${prefix} ${padded}${right}`;
 }
 
 export function LocationPicker({

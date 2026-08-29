@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { buildLocationEntry, slugifyCandidate } from "../../src/features/search/SearchOverlay";
+import {
+  buildLocationEntry,
+  resultLine,
+  slugifyCandidate,
+} from "../../src/features/search/SearchOverlay";
 import type { GeocodingResult } from "../../src/lib/providers/types";
+import { displayWidth } from "../../src/lib/weather/format";
 
 function geo(overrides: Partial<GeocodingResult> = {}): GeocodingResult {
   return {
@@ -73,5 +78,58 @@ describe("buildLocationEntry", () => {
     const entry = buildLocationEntry(result, []);
     expect(entry.label).toBe("Los Angeles, California");
     expect(entry.label).not.toContain(", US");
+  });
+});
+
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+
+describe("buildLocationEntry label cap", () => {
+  test("caps labels at 80 cells", () => {
+    const result = geo({ name: "🏙".repeat(100), admin1: undefined, country_code: undefined });
+    const entry = buildLocationEntry(result, []);
+    expect(displayWidth(entry.label)).toBeLessThanOrEqual(80);
+  });
+
+  test("never splits a surrogate pair when truncating", () => {
+    const result = geo({ name: "🏙️".repeat(100), admin1: undefined, country_code: undefined });
+    const entry = buildLocationEntry(result, []);
+    expect(entry.label.length).toBeGreaterThan(0);
+    expect(LONE_SURROGATE.test(entry.label)).toBe(false);
+  });
+
+  test("leaves short labels untouched including wide glyphs", () => {
+    const result = geo({ name: "東京🌆", admin1: undefined, country_code: undefined });
+    const entry = buildLocationEntry(result, []);
+    expect(entry.label).toBe("東京🌆");
+  });
+});
+
+describe("resultLine", () => {
+  test("stays within the column budget for ASCII names", () => {
+    const line = resultLine(geo(), true, 40);
+    expect(displayWidth(line)).toBeLessThanOrEqual(40);
+  });
+
+  test("stays within the column budget for emoji/CJK names", () => {
+    const result = geo({ name: "🏙️Honolulu🏙️Honolulu", admin1: "HonoluluHonolulu" });
+    for (const width of [20, 30, 40, 60]) {
+      expect(displayWidth(resultLine(result, true, width))).toBeLessThanOrEqual(width);
+    }
+  });
+
+  test("pads to exactly the budget on the right when the name is short", () => {
+    const line = resultLine(
+      geo({ name: "AB", admin1: undefined, country_code: undefined }),
+      false,
+      30,
+    );
+    expect(displayWidth(line)).toBe(30);
+  });
+
+  test("truncating the left column never yields a lone surrogate", () => {
+    const result = geo({ name: "🏙️".repeat(50), admin1: "StateStateState" });
+    const line = resultLine(result, true, 30);
+    expect(LONE_SURROGATE.test(line)).toBe(false);
+    expect(displayWidth(line)).toBeLessThanOrEqual(30);
   });
 });

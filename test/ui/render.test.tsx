@@ -10,6 +10,7 @@ import { createStoreInstance, type ForecastFetcher } from "../../src/app/store";
 import { normalizeForecast } from "../../src/lib/providers/openmeteo/normalize";
 import { forecastResponseSchema } from "../../src/lib/providers/openmeteo/schemas";
 import { ProviderError } from "../../src/lib/providers/types";
+import { displayWidth } from "../../src/lib/weather/format";
 import type { CurrentObs, NormalizedForecast } from "../../src/lib/weather/types";
 import { MIN_WIDTH, tierFor } from "../../src/viewport/breakpoints";
 import { debounceTrailing } from "../../src/viewport/useViewport";
@@ -145,6 +146,22 @@ async function makeNwsStore(opts?: { fetcher?: ForecastFetcher }): Promise<Weath
     fetchAirQuality: stubNullAirQualityFetcher,
   });
   return store;
+}
+
+async function makeStoreWithLabel(label: string): Promise<WeatherStore> {
+  const dir = await mkdtemp(join(tmpdir(), "tuiweather-ui-test-"));
+  tmpDirs.push(dir);
+  const configPath = join(dir, "config.toml");
+  await writeFile(
+    configPath,
+    CONFIG_TOML.replace('label = "Portland"', `label = ${JSON.stringify(label)}`),
+    "utf8",
+  );
+  return createStoreInstance({
+    configPath,
+    fetchForecast: stubFetcher(),
+    fetchAirQuality: stubNullAirQualityFetcher,
+  });
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -567,6 +584,81 @@ describe("App shell", () => {
       await setup.flush();
       const frame = await waitUntilFrame(setup, (f) => f.includes("Portland"));
       expect(frame).not.toContain("↓ more");
+    } finally {
+      await setup.renderer.destroy();
+    }
+  });
+});
+
+describe("cell-aware label truncation", () => {
+  test("xs header keeps an 80-char label on exactly one row at 32 cols", async () => {
+    const store = await makeStoreWithLabel("L".repeat(80));
+    const setup = await testRender(<App store={store} nowMs={Date.parse(NOW)} />, {
+      width: 32,
+      height: 16,
+    });
+    try {
+      await setup.flush();
+      const frame = await waitUntilFrame(
+        setup,
+        (f) => f.includes("┌─main") && !f.includes("syncing"),
+      );
+      const rows = frame.split("\n");
+      expect(rows[0]?.trimEnd()).toBe(`${"L".repeat(30)}…`);
+      expect(rows[1]?.trim()).toBe("");
+      expect(rows[2]).toContain("┌─main");
+      for (const row of rows) {
+        expect(displayWidth(row.trimEnd())).toBeLessThanOrEqual(32);
+      }
+    } finally {
+      await setup.renderer.destroy();
+    }
+  });
+
+  test("xs header keeps an emoji-heavy label on one row at 32 cols", async () => {
+    const store = await makeStoreWithLabel("⛅️Honolulu".repeat(5));
+    const setup = await testRender(<App store={store} nowMs={Date.parse(NOW)} />, {
+      width: 32,
+      height: 16,
+    });
+    try {
+      await setup.flush();
+      const frame = await waitUntilFrame(
+        setup,
+        (f) => f.includes("┌─main") && !f.includes("syncing"),
+      );
+      const rows = frame.split("\n");
+      expect(rows[0]?.trimEnd()).toBe(`${"⛅️Honolulu".repeat(3)}…`);
+      expect(rows[1]?.trim()).toBe("");
+      expect(rows[2]).toContain("┌─main");
+      for (const row of rows) {
+        expect(displayWidth(row.trimEnd())).toBeLessThanOrEqual(32);
+      }
+    } finally {
+      await setup.renderer.destroy();
+    }
+  });
+
+  test("delete-arm line with an emoji label stays one row at 32 cols", async () => {
+    const store = await makeStoreWithLabel("⛅️Honolulu☔️".repeat(5));
+    const setup = await testRender(<App store={store} />, {
+      width: 32,
+      height: 16,
+    });
+    try {
+      await setup.flush();
+      await waitUntilFrame(setup, (f) => f.includes("┌─main") && !f.includes("syncing"));
+
+      await setup.mockInput.pressKeys(["d"]);
+      const frame = await waitUntilFrame(setup, (f) => f.includes("press d again"));
+      const rows = frame.split("\n");
+      const armRows = rows.filter((row) => row.includes("press d again"));
+      expect(armRows).toHaveLength(1);
+      const armRow = armRows[0] ?? "";
+      expect(armRow.trimEnd().endsWith("…")).toBe(true);
+      expect(rows.findIndex((row) => row.includes("┌─main"))).toBe(
+        rows.findIndex((row) => row.includes("press d again")) + 2,
+      );
     } finally {
       await setup.renderer.destroy();
     }
