@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented here.
 
+## v0.3.1 (2026-08-29)
+
+### Features
+- feat: capability-aware nowcast so NWS stops reporting a false Dry (#104) (bb0f649)
+
+### Fixes
+- fix: route label truncation through cell-aware primitives (#95) (7659417)
+- fix: make lg footer hint width-aware so it never wraps (#93) (3c4d9f7)
+- fix: pin NWS fetches to the api.weather.gov allowlist (#100) (915e902)
+- fix: derive NWS User-Agent from package.json version instead of stale 0.1 literal (#92) (#99) (f6f12cd)
+- fix: schedule refresh loops with a margin below the cache TTL (#97) (13a243c)
+- fix: sliceUpcoming honors end-labeled intervals at exact-boundary now (#96) (5cd3540)
+- fix: sanitize geocoder names at the provider boundary (#94) (9e0d7c9)
+
+### Other
+- docs: qualify nowcast/watch-bell/precip bars as Open-Meteo-only under provider=nws (#101) (cc8d4d4)
+- docs: CONTRIBUTING glyph rule mirrors the two-cell emoji icon contract (#90) (#98) (849b654)
+- test: sidebar persist-wait budget covers fsynced config saves on loaded CI (#83) (ad58ddb)
+
 ## v0.3.0 (2026-08-29)
 
 ### Features

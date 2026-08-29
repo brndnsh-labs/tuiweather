@@ -1,6 +1,6 @@
 {
   "name": "tuiweather",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Keyboard-driven terminal weather app powered by Open-Meteo",
   "license": "MIT",
   "type": "module",
