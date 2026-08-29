@@ -511,4 +511,64 @@ describe("sidebar navigation", () => {
       await setup.renderer.destroy();
     }
   });
+
+  test("long label reserves tail and leaves a spare column (no exact-width row)", async () => {
+    const LONG_TOML = `schema_version = 3
+units = "imperial"
+refresh_minutes = 10
+theme = "night"
+default_location = "long"
+provider = "openmeteo"
+daily_days = 7
+hourly_hours = 24
+
+[panels]
+nowcast = true
+details = true
+hourly = true
+daily = true
+
+[[locations]]
+slug = "long"
+label = "A Very Long Location Name That Exceeds Sidebar Width By Far"
+latitude = 45.52
+longitude = -122.68
+`;
+    const { store } = await makeStore(LONG_TOML);
+    const setup = await testRender(<App store={store} nowMs={NOW_MS} />, {
+      width: 100,
+      height: 24,
+    });
+    try {
+      await setup.flush();
+      const frame = await waitUntilFrame(setup, (f) => f.includes("A Very Long"));
+      const lines = frame.split("\n");
+      const sidebarLine = lines.find(
+        (l) =>
+          l.includes("│") &&
+          (l.includes("●") || l.includes("○") || l.includes("▸")) &&
+          l.includes("°") &&
+          (l.includes("A Very Long") || l.includes("…")),
+      );
+      expect(sidebarLine).toBeDefined();
+      if (!sidebarLine) throw new Error("sidebar line with tail not found");
+      expect(sidebarLine).toContain("…");
+      expect(sidebarLine).toContain("°");
+      const idxEllipsis = sidebarLine.indexOf("…");
+      const idxTemp = sidebarLine.indexOf("°");
+      expect(idxEllipsis).toBeGreaterThan(-1);
+      expect(idxTemp).toBeGreaterThan(idxEllipsis);
+      const firstPipe = sidebarLine.indexOf("│");
+      const secondPipe = sidebarLine.indexOf("│", firstPipe + 1);
+      if (firstPipe !== -1 && secondPipe !== -1) {
+        const inner = sidebarLine.slice(firstPipe + 1, secondPipe);
+        const trimmed = inner.replace(/\s+$/, "");
+        const { displayWidth } = await import("../../src/lib/weather/format");
+        expect(displayWidth(trimmed)).toBeLessThanOrEqual(23);
+        expect(displayWidth(trimmed)).toBeLessThan(24);
+      }
+    } finally {
+      await setup.renderer.destroy();
+    }
+  });
 });

@@ -63,7 +63,7 @@ export function buildLocationEntry(
   result: GeocodingResult,
   existingSlugs: readonly string[],
 ): LocationEntry {
-  const region = result.country_code ?? result.admin1 ?? "";
+  const region = result.admin1 ?? result.country_code ?? "";
   const label = region.length > 0 ? `${result.name}, ${region}` : result.name;
   return {
     slug: uniqueSlug(
