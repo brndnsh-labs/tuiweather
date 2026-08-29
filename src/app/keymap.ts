@@ -151,7 +151,7 @@ export function handleKey(
       break;
     }
     case "s": {
-      const target = api.focusedSlug() ?? api.activeSlug();
+      const target = (api.isLg() ? api.focusedSlug() : null) ?? api.activeSlug();
       if (target === null) break;
       api.setDefault(target);
       break;

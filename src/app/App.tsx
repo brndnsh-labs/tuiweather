@@ -401,10 +401,11 @@ export function App(props: AppProps = {}) {
 
   const [focusedSlug, setFocusedSlug] = useState<string | null>(null);
   useEffect(() => {
-    if (focusedSlug !== null && !config.locations.some((loc) => loc.slug === focusedSlug)) {
+    if (tier !== "lg") setFocusedSlug(null);
+    else if (focusedSlug !== null && !config.locations.some((loc) => loc.slug === focusedSlug)) {
       setFocusedSlug(null);
     }
-  }, [config.locations, focusedSlug]);
+  }, [config.locations, focusedSlug, tier]);
 
   const api = useMemo<KeymapApi>(
     () => ({

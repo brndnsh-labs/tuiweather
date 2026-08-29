@@ -351,6 +351,37 @@ describe("sidebar navigation", () => {
     }
   });
 
+  test("s after resize below lg ignores ghost focus and uses active location", async () => {
+    const { store, path } = await makeStore(THREE_TOML);
+    const setup = await testRender(<App store={store} nowMs={NOW_MS} />, {
+      width: 100,
+      height: 24,
+    });
+    try {
+      await setup.flush();
+      await waitUntilFrame(setup, (f) => f.includes("Portland"));
+
+      await setup.mockInput.pressKeys(["j"]);
+      await waitUntilFrame(setup, (f) => f.includes("▸ Portland"));
+      await setup.mockInput.pressKeys(["j"]);
+      await waitUntilFrame(setup, (f) => f.includes("▸ London"));
+      expect(store.getState().activeSlug).toBe("portland");
+
+      setup.resize(70, 24);
+      await sleep(160);
+      await waitUntilFrame(setup, (f) => !f.includes("▸") && f.includes("Portland"));
+
+      await setup.mockInput.pressKeys(["s"]);
+      await sleep(80);
+      await waitUntilStore(setup, () => store.getState().config.default_location === "portland");
+      expect(store.getState().config.default_location).toBe("portland");
+      const loaded = await loadConfig(path);
+      expect(loaded.default_location).toBe("portland");
+    } finally {
+      await setup.renderer.destroy();
+    }
+  });
+
   test("J/K reorder focused location down/up and persist order", async () => {
     const { store, path } = await makeStore(THREE_TOML);
     const setup = await testRender(<App store={store} nowMs={NOW_MS} />, {
