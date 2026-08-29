@@ -114,7 +114,7 @@ export function peakProbability(points: HourlyPoint[]): { pct: number; point: Ho
 
 export function sliceUpcoming(points: HourlyPoint[], nowUtc: string, max: number): HourlyPoint[] {
   const nowMs = Date.parse(nowUtc);
-  const upcoming = points.filter((p) => Date.parse(p.timeUtc) >= nowMs);
+  const upcoming = points.filter((p) => Date.parse(p.timeUtc) > nowMs);
   return upcoming.slice(0, Math.max(0, max));
 }
 
