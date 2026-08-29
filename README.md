@@ -4,7 +4,7 @@ Keyboard-driven terminal weather app: Dark Sky-style rain nowcasting, hourly and
 
 ## Features
 
-- **Rain nowcast** — minute-level "umbrella in N min" warnings derived from 15-minute precipitation buckets
+- **Rain nowcast** — minute-level "umbrella in N min" warnings derived from 15-minute precipitation buckets (Open-Meteo only; NWS has no minute-level precipitation feed — nowcast and the watch bell stay dry under `provider = "nws"`)
 - **Hourly + daily forecast** — sparkline temperature strip, emoji condition icons, precipitation probabilities, and (md+ widths) a UV/humidity/visibility summary row
 - **Location search** — type `/`, search the Open-Meteo geocoder, enter to add; locations persist to config
 - **Guided first run** — choose units and find a location without editing a config file
@@ -113,7 +113,9 @@ tuiweather watch --location seattle
 
 Each poll prints the one-line status (prefixed with the location label). The bell rings only on a
 dry → wet transition, not on every poll. Rain already in progress when the watch starts does not
-bell. Desktop notifications are a planned follow-up.
+bell. The bell depends on the minute-level nowcast, which is Open-Meteo only: under
+`provider = "nws"` every poll reads dry and the bell never rings. Desktop notifications are a
+planned follow-up.
 
 ## Configuration
 
@@ -154,7 +156,7 @@ longitude = -122.6765
 | `time_format` | `12h` / `24h` / `auto` | `"auto"` | `auto` picks 12h when temperature units are imperial, else 24h |
 | `refresh_minutes` | integer | `10` | Minimum `1` |
 | `theme` | `day` / `night` / `auto` | `"auto"` | Accent palette; `auto` follows the location's sunrise/sunset. Text ink always adapts to your terminal's background |
-| `provider` | `openmeteo` / `nws` | `"openmeteo"` | Weather data source; NWS air quality is not provided |
+| `provider` | `openmeteo` / `nws` | `"openmeteo"` | Weather data source. Under `nws` these go quiet: no minute-level precipitation (rain nowcast and the watch bell stay dry), no hourly/daily precipitation amounts (blank bars/chips), no air quality. Conditions and precipitation *probabilities* are unaffected |
 | `daily_days` | integer | `7` | `1`–`16` forecast days |
 | `hourly_hours` | integer | `24` | `12`–`48` forecast hours |
 | `default_location` | string | none | Must match a `[[locations]]` slug |
