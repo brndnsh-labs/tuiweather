@@ -15,6 +15,7 @@ import {
   TEMP_AREA_ROWS_WIDE,
   windowIsDry,
 } from "../features/hourly/HourlyStrip";
+import { LocationsOverlay } from "../features/locations/LocationsOverlay";
 import { NowcastBanner } from "../features/nowcast/NowcastBanner";
 import { FirstRun } from "../features/onboarding/FirstRun";
 import { SearchOverlay } from "../features/search/SearchOverlay";
@@ -353,6 +354,7 @@ export function App(props: AppProps = {}) {
   const stale = store((s) => (activeSlug === null ? false : (s.staleBySlug[activeSlug] ?? false)));
   const helpOpen = store((s) => s.helpOpen);
   const overlayOpen = store((s) => s.overlayOpen);
+  const locationsOpen = store((s) => s.locationsOpen);
   const airQuality = store((s) => s.airQuality);
   const lastActionError = store((s) => s.lastActionError);
   const deleteArmedAtMs = store((s) => s.deleteArmedAtMs);
@@ -413,6 +415,12 @@ export function App(props: AppProps = {}) {
         );
       },
       openSearch: () => store.getState().setOverlayOpen(true),
+      locationsOpen: () => store.getState().locationsOpen,
+      openLocations: () => {
+        const state = store.getState();
+        if (state.initStatus !== "ready" || state.config.locations.length === 0) return;
+        state.setLocationsOpen(true);
+      },
       deleteArmed: () => store.getState().deleteArmed(Date.now()),
       armDelete: () => store.getState().armDelete(),
       disarmDelete: () => store.getState().disarmDelete(),
@@ -468,7 +476,7 @@ export function App(props: AppProps = {}) {
 
   const mainWidth = tier === "lg" ? viewport.width - SIDEBAR_WIDTH - 4 : viewport.width - 4;
 
-  const forecastVisible = forecast !== undefined && !helpOpen && !overlayOpen;
+  const forecastVisible = forecast !== undefined && !helpOpen && !overlayOpen && !locationsOpen;
   const overflowEstimate =
     forecastVisible && forecast
       ? estimateMainContentRows({
@@ -498,7 +506,7 @@ export function App(props: AppProps = {}) {
   );
 
   const mainView =
-    forecast !== undefined && !helpOpen && !overlayOpen ? (
+    forecast !== undefined && !helpOpen && !overlayOpen && !locationsOpen ? (
       <MainContent
         tier={tier}
         width={mainWidth}
@@ -588,6 +596,9 @@ export function App(props: AppProps = {}) {
             ) : null}
             {overlayOpen ? (
               <SearchOverlay store={store} width={viewport.width} height={viewport.height} />
+            ) : null}
+            {locationsOpen ? (
+              <LocationsOverlay store={store} width={viewport.width} height={viewport.height} />
             ) : null}
           </>
         )}

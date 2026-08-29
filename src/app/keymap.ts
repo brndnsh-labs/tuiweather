@@ -8,6 +8,8 @@ export interface KeymapApi {
   toggleHelp(): void;
   searchOpen(): boolean;
   openSearch(): void;
+  locationsOpen(): boolean;
+  openLocations(): void;
   deleteArmed(): boolean;
   armDelete(): void;
   disarmDelete(): void;
@@ -34,6 +36,7 @@ export function handleKey(
   const shift = typeof nameOrEvent === "string" ? false : !!nameOrEvent.shift;
   if (name === "escape") {
     if (api.searchOpen()) return;
+    if (api.locationsOpen()) return;
     if (api.focusedSlug() !== null) {
       api.setFocused(null);
       return;
@@ -45,7 +48,7 @@ export function handleKey(
     api.quit();
     return;
   }
-  if (api.searchOpen() || api.helpOpen()) return;
+  if (api.searchOpen() || api.locationsOpen() || api.helpOpen()) return;
   switch (name) {
     case "q":
       api.quit();
@@ -67,6 +70,9 @@ export function handleKey(
       break;
     case "/":
       api.openSearch();
+      break;
+    case "l":
+      api.openLocations();
       break;
     case "d":
       if (api.deleteArmed()) {

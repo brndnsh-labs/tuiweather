@@ -64,7 +64,7 @@ export const Sidebar = memo(function Sidebar({ store, focusedSlug, prefs }: Side
       width={SIDEBAR_WIDTH}
       border
       borderColor={palette.border}
-      title="locations"
+      title="locations · l"
       flexDirection="column"
     >
       {config.locations.map((loc) => (

@@ -10,6 +10,7 @@ import {
   type RefreshTimerDeps,
   refreshLoopPeriodMs,
 } from "../../src/app/store";
+import { loadConfig } from "../../src/lib/config/load";
 import { DEFAULT_CONFIG } from "../../src/lib/config/schema";
 import { ProviderError } from "../../src/lib/providers/types";
 import type { CurrentObs, NormalizedForecast } from "../../src/lib/weather/types";
@@ -731,6 +732,69 @@ longitude = -0.1276
     expect(store.getState().activeSlug).toBe("portland");
     expect(store.getState().lastActionError).toBe("cannot delete the only location");
     expect(store.getState().deleteArmedAtMs).toBeNull();
+  });
+});
+
+describe("deleteLocation (arbitrary slug)", () => {
+  async function makeStore() {
+    const dir = await makeConfigDir(CONFIG_TOML);
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: stubFetcher(),
+      fetchAirQuality: stubNullAirQualityFetcher,
+    });
+    await store.getState().init();
+    return { store, dir };
+  }
+
+  test("deleting a non-active location persists and leaves active untouched", async () => {
+    const { store, dir } = await makeStore();
+    expect(store.getState().activeSlug).toBe("london");
+
+    await store.getState().deleteLocation("portland");
+
+    expect(store.getState().config.locations.map((loc) => loc.slug)).toEqual(["london"]);
+    expect(store.getState().activeSlug).toBe("london");
+    expect(store.getState().lastActionError).toBeUndefined();
+    const text = await readFile(join(dir, "config.toml"), "utf8");
+    expect(text).not.toContain('slug = "portland"');
+    expect(text).toContain('slug = "london"');
+  });
+
+  test("deleting the default (non-active) reassigns default to the first remaining", async () => {
+    const { store, dir } = await makeStore();
+    expect(store.getState().activeSlug).toBe("london");
+
+    await store.getState().deleteLocation("london");
+
+    expect(store.getState().config.locations.map((loc) => loc.slug)).toEqual(["portland"]);
+    expect(store.getState().activeSlug).toBe("portland");
+    const loaded = await loadConfig(join(dir, "config.toml"));
+    expect(loaded.default_location).toBe("portland");
+  });
+
+  test("unknown slug is a no-op", async () => {
+    const { store } = await makeStore();
+    await store.getState().deleteLocation("nope");
+    expect(store.getState().config.locations).toHaveLength(2);
+    expect(store.getState().lastActionError).toBeUndefined();
+  });
+
+  test("setLocationsOpen disarms and closes the search overlay; setOverlayOpen closes locations", async () => {
+    const { store } = await makeStore();
+    store.getState().armDelete();
+    store.getState().setOverlayOpen(true);
+
+    store.getState().setLocationsOpen(true);
+
+    expect(store.getState().locationsOpen).toBe(true);
+    expect(store.getState().overlayOpen).toBe(false);
+    expect(store.getState().deleteArmedAtMs).toBeNull();
+
+    store.getState().setOverlayOpen(true);
+
+    expect(store.getState().overlayOpen).toBe(true);
+    expect(store.getState().locationsOpen).toBe(false);
   });
 });
 

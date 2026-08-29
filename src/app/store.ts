@@ -105,6 +105,7 @@ export interface WeatherState {
   lastActionError: string | undefined;
   helpOpen: boolean;
   overlayOpen: boolean;
+  locationsOpen: boolean;
   deleteArmedAtMs: number | null;
 
   init(explicitSlug?: string): Promise<void>;
@@ -115,6 +116,7 @@ export interface WeatherState {
   toggleUnits(): Promise<void>;
   toggleHelp(): void;
   setOverlayOpen(open: boolean): void;
+  setLocationsOpen(open: boolean): void;
   armDelete(): void;
   disarmDelete(): void;
   deleteArmed(nowMs: number): boolean;
@@ -122,6 +124,7 @@ export interface WeatherState {
   addLocation(entry: LocationEntry): Promise<void>;
   completeOnboarding(entry: LocationEntry, units: TuiConfig["units"]): Promise<boolean>;
   deleteActiveLocation(): Promise<void>;
+  deleteLocation(slug: string): Promise<void>;
   setDefaultLocation(slug: string): Promise<void>;
   moveLocation(slug: string, delta: 1 | -1): Promise<void>;
   dispose(): void;
@@ -223,6 +226,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
       lastActionError: undefined,
       helpOpen: false,
       overlayOpen: false,
+      locationsOpen: false,
       deleteArmedAtMs: null,
 
       init: async (explicitSlug?: string) => {
@@ -346,7 +350,18 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
       toggleHelp: () => set((s) => ({ helpOpen: !s.helpOpen })),
 
       setOverlayOpen: (open: boolean) =>
-        set(open ? { overlayOpen: true, deleteArmedAtMs: null } : { overlayOpen: false }),
+        set(
+          open
+            ? { overlayOpen: true, locationsOpen: false, deleteArmedAtMs: null }
+            : { overlayOpen: false },
+        ),
+
+      setLocationsOpen: (open: boolean) =>
+        set(
+          open
+            ? { locationsOpen: true, overlayOpen: false, deleteArmedAtMs: null }
+            : { locationsOpen: false },
+        ),
 
       armDelete: () => set({ deleteArmedAtMs: Date.now() }),
 
@@ -413,19 +428,24 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
       },
 
       deleteActiveLocation: async () => {
-        const { config, activeSlug } = get();
+        const slug = get().activeSlug;
+        if (!slug) return;
+        await get().deleteLocation(slug);
+      },
+
+      deleteLocation: async (slug: string) => {
+        const config = get().config;
         set({ deleteArmedAtMs: null });
-        if (!activeSlug) return;
         const locations = config.locations;
         if (locations.length <= 1) {
           set({ lastActionError: "cannot delete the only location" });
           return;
         }
-        const idx = locations.findIndex((loc) => loc.slug === activeSlug);
+        const idx = locations.findIndex((loc) => loc.slug === slug);
         if (idx === -1) return;
         const remaining = locations.filter((_, i) => i !== idx);
         const next: TuiConfig = { ...config, locations: remaining };
-        if (config.default_location === activeSlug) {
+        if (config.default_location === slug) {
           const fallback = remaining[0];
           if (fallback) {
             next.default_location = fallback.slug;
@@ -436,18 +456,20 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
         const nextActive = remaining[Math.min(idx, remaining.length - 1)];
         set((s) => ({
           config: next,
-          airQualityBySlug: withoutKey(s.airQualityBySlug, activeSlug),
+          airQualityBySlug: withoutKey(s.airQualityBySlug, slug),
         }));
         try {
           await saveConfig(next, deps.configPath);
         } catch (e) {
           set({ lastActionError: errorMessage(e) });
         }
-        if (nextActive) {
-          get().switchLocation(nextActive.slug);
-        } else {
-          clearRefreshTimer();
-          set({ activeSlug: null, airQuality: null });
+        if (slug === get().activeSlug) {
+          if (nextActive) {
+            get().switchLocation(nextActive.slug);
+          } else {
+            clearRefreshTimer();
+            set({ activeSlug: null, airQuality: null });
+          }
         }
       },
 
