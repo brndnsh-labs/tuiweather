@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { mkdtemp, readdir, rm, stat as statFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { ProviderError, type WeatherProvider } from "../../src/lib/providers/types";
-import { type CacheIo, cachedForecast, cacheKey } from "../../src/lib/weather/cache";
+import { type CacheIo, cachedForecast, cacheKey, cacheRoot } from "../../src/lib/weather/cache";
 import type { GeoPoint, NormalizedForecast } from "../../src/lib/weather/types";
 
 const NOW = "2026-08-24T12:00:00.000Z";
@@ -111,6 +111,36 @@ describe("cacheKey", () => {
     expect(cacheKey("stub", 45.5202, -122.6765, { forecastDays: 7 })).toBe(
       cacheKey("stub", 45.5204, -122.6765, { forecastDays: 7 }),
     );
+  });
+});
+
+describe("cacheRoot", () => {
+  test("XDG_CACHE_HOME wins on every platform when set and non-blank", () => {
+    expect(cacheRoot("linux", { XDG_CACHE_HOME: "/xdg" })).toBe("/xdg");
+    expect(cacheRoot("win32", { XDG_CACHE_HOME: "C:\\xdg", LOCALAPPDATA: "C:\\lad" })).toBe(
+      "C:\\xdg",
+    );
+  });
+
+  test("blank XDG_CACHE_HOME falls through like unset", () => {
+    expect(cacheRoot("linux", { XDG_CACHE_HOME: "   " })).toBe(join(homedir(), ".cache"));
+    expect(cacheRoot("win32", { XDG_CACHE_HOME: "", LOCALAPPDATA: "C:\\lad" })).toBe("C:\\lad");
+  });
+
+  test("win32 uses LOCALAPPDATA when XDG is unset", () => {
+    expect(cacheRoot("win32", { LOCALAPPDATA: "C:\\Users\\b\\AppData\\Local" })).toBe(
+      "C:\\Users\\b\\AppData\\Local",
+    );
+  });
+
+  test("non-win32 ignores LOCALAPPDATA", () => {
+    expect(cacheRoot("linux", { LOCALAPPDATA: "C:\\lad" })).toBe(join(homedir(), ".cache"));
+    expect(cacheRoot("darwin", { LOCALAPPDATA: "C:\\lad" })).toBe(join(homedir(), ".cache"));
+  });
+
+  test("win32 with both unset falls back to ~/.cache", () => {
+    expect(cacheRoot("win32", {})).toBe(join(homedir(), ".cache"));
+    expect(cacheRoot("win32", { LOCALAPPDATA: "  " })).toBe(join(homedir(), ".cache"));
   });
 });
 
