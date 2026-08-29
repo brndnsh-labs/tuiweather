@@ -60,9 +60,22 @@ describe("nws normalize — absolute UTC instants (hard rule 2)", () => {
   });
 
   test("15:00-07:00 local hourly periods land on the right UTC instant", () => {
-    expect(forecast.hourly[0]?.timeUtc).toBe("2026-08-28T22:00:00.000Z");
-    expect(forecast.hourly[1]?.timeUtc).toBe("2026-08-28T23:00:00.000Z");
-    expect(forecast.hourly[24]?.timeUtc).toBe("2026-08-29T22:00:00.000Z");
+    expect(forecast.hourly[0]?.timeUtc).toBe("2026-08-28T23:00:00.000Z");
+    expect(forecast.hourly[1]?.timeUtc).toBe("2026-08-29T00:00:00.000Z");
+    expect(forecast.hourly[24]?.timeUtc).toBe("2026-08-29T23:00:00.000Z");
+  });
+
+  test("hourly timeUtc equals the period endTime (end-labeled [timeUtc-1h, timeUtc))", () => {
+    const firstPeriod = hourlyBody.properties.periods[0];
+    if (!firstPeriod) throw new Error("expected a first hourly period");
+    expect(forecast.hourly[0]?.timeUtc).toBe(
+      new Date(Date.parse(firstPeriod.endTime)).toISOString(),
+    );
+    for (const [index, period] of hourlyBody.properties.periods.entries()) {
+      expect(forecast.hourly[index]?.timeUtc).toBe(
+        new Date(Date.parse(period.endTime)).toISOString(),
+      );
+    }
   });
 
   test("derives utcOffsetSeconds from the period offsets", () => {
