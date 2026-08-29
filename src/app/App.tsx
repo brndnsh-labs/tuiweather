@@ -21,7 +21,7 @@ import { SearchOverlay } from "../features/search/SearchOverlay";
 import type { DisplayPrefs, TuiConfig } from "../lib/config/schema";
 import { resolveDisplayPrefs } from "../lib/config/schema";
 import { deriveNowcast } from "../lib/weather/derive";
-import { truncateCells } from "../lib/weather/format";
+import { displayWidth, truncateCells } from "../lib/weather/format";
 import type { AirQuality, NormalizedForecast } from "../lib/weather/types";
 import { FALLBACK_APPEARANCE, type TerminalAppearance } from "../theme/detect";
 import { buildPalette } from "../theme/palette";
@@ -148,8 +148,8 @@ function truncateTo(text: string, width: number): string {
 
 function clampLine(label: string, width: number): string {
   if (width <= 1) return "";
-  if (label.length <= width - 2) return `${label} …`;
-  return `${label.slice(0, width - 1)}…`;
+  if (displayWidth(label) <= width - 2) return `${label} …`;
+  return `${truncateCells(label, width - 2)} …`;
 }
 
 interface MainContentProps {
@@ -446,6 +446,7 @@ export function App(props: AppProps = {}) {
       fetchedAtMs={entry?.fetchedAtMs}
       stale={stale}
       nowMs={nowMs}
+      width={viewport.width}
     />
   );
 

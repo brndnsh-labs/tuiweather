@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { displayWidth, truncateCells } from "../../lib/weather/format";
 import { usePalette } from "../../theme/tokens";
 
 const SPINNER_FRAMES = ["|", "/", "-", "\\"] as const;
@@ -17,11 +18,6 @@ function Spinner() {
   return <text>{SPINNER_FRAMES[frame] ?? "|"}</text>;
 }
 
-function truncate(text: string, width: number): string {
-  if (text.length <= width) return text;
-  return `${text.slice(0, Math.max(0, width - 1))}…`;
-}
-
 interface StatusAreaProps {
   loading: boolean;
   error: string | undefined;
@@ -30,15 +26,19 @@ interface StatusAreaProps {
   width?: number | undefined;
 }
 
+export function deleteArmLine(label: string, width: number | undefined): string {
+  const line = `press d again to delete ${label}`;
+  const budget = width === undefined ? displayWidth(line) : Math.max(0, width - 1);
+  return truncateCells(line, budget);
+}
+
 export function StatusArea({ loading, error, stale, deleteArm, width }: StatusAreaProps) {
   const palette = usePalette();
 
   if (deleteArm !== undefined) {
-    const line = `press d again to delete ${deleteArm.label}`;
-    const budget = width === undefined ? line.length : Math.max(0, width - 1);
     return (
       <box flexDirection="row">
-        <text fg={palette.warn}>{truncate(line, budget)}</text>
+        <text fg={palette.warn}>{deleteArmLine(deleteArm.label, width)}</text>
       </box>
     );
   }

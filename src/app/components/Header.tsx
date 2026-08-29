@@ -1,4 +1,9 @@
-import { formatClock, formatDayDate, type TimeFormat } from "../../lib/weather/format";
+import {
+  formatClock,
+  formatDayDate,
+  type TimeFormat,
+  truncateCells,
+} from "../../lib/weather/format";
 import { usePalette } from "../../theme/tokens";
 
 export function formatUpdatedAgo(fetchedAtMs: number, nowMs: number): string {
@@ -24,6 +29,7 @@ interface HeaderProps {
   fetchedAtMs?: number | undefined;
   stale?: boolean | undefined;
   nowMs?: number | undefined;
+  width?: number | undefined;
 }
 
 export function Header({
@@ -36,6 +42,7 @@ export function Header({
   fetchedAtMs,
   stale = false,
   nowMs = Date.now(),
+  width,
 }: HeaderProps) {
   const palette = usePalette();
 
@@ -47,9 +54,10 @@ export function Header({
         ? formatDayDate(clockUtc, utcOffsetSeconds, "short")
         : undefined;
     const line = [label, date, clock].filter((part) => part !== undefined).join(" · ");
+    const clipped = width === undefined ? line : truncateCells(line, Math.max(1, width - 1));
     return (
       <box flexDirection="row">
-        <text fg={palette.fg}>{line}</text>
+        <text fg={palette.fg}>{clipped}</text>
       </box>
     );
   }

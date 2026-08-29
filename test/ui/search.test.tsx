@@ -10,10 +10,14 @@ import {
   type SearchLocationsFn,
   type WeatherStore,
 } from "../../src/app/store";
+import { buildLocationEntry } from "../../src/features/search/SearchOverlay";
 import { loadConfig } from "../../src/lib/config/load";
 import type { GeocodingResult } from "../../src/lib/providers/types";
+import { displayWidth } from "../../src/lib/weather/format";
 import type { CurrentObs, NormalizedForecast } from "../../src/lib/weather/types";
 import { stubNullAirQualityFetcher } from "../helpers";
+
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
 
 const NOW = "2026-08-24T19:00:00.000Z";
 const NOW_MS = Date.parse(NOW);
@@ -461,5 +465,59 @@ describe("search overlay", () => {
     } finally {
       await setup.renderer.destroy();
     }
+  });
+});
+
+describe("search overlay cell-aware labels", () => {
+  test("selecting a wide-named result at 32 cols keeps every row within the frame", async () => {
+    const wide = geo({
+      id: 7,
+      name: "🏙️Honolulu🏙️",
+      admin1: "HonoluluHonoluluHonolulu",
+    });
+    const search = stubSearch(() => Promise.resolve([wide]));
+    const { store } = await makeStore({ search });
+    const setup = await testRender(<App store={store} nowMs={NOW_MS} />, {
+      width: 32,
+      height: 16,
+    });
+    try {
+      await setup.flush();
+      await waitUntilFrame(setup, (f) => f.includes("London"));
+      await openSearch(setup);
+      await setup.mockInput.typeText("honolulu");
+      const frame = await waitUntilFrame(setup, (f) => f.includes("45.52, -122.68"));
+      for (const row of frame.split("\n")) {
+        expect(displayWidth(row.trimEnd())).toBeLessThanOrEqual(32);
+      }
+      const resultRows = frame.split("\n").filter((row) => row.includes("45.52, -122.68"));
+      expect(resultRows).toHaveLength(1);
+    } finally {
+      await setup.renderer.destroy();
+    }
+  });
+
+  test("a >80-code-unit result name round-trips through config as valid UTF-8 with no lone surrogate", async () => {
+    const longName = "🏙️".repeat(50);
+    expect(longName.length).toBeGreaterThan(80);
+    const search = stubSearch(() => Promise.resolve([geo({ id: 8, name: longName })]));
+    const { store, path } = await makeStore({ search });
+    await store.getState().init();
+
+    await store
+      .getState()
+      .addLocation(
+        buildLocationEntry(geo({ id: 8, name: longName, admin1: "HonoluluCounty" }), []),
+      );
+
+    const raw = await readFile(path, "utf8");
+    expect(raw).not.toContain("\uFFFD");
+    expect(LONE_SURROGATE.test(raw)).toBe(false);
+
+    const loaded = await loadConfig(path);
+    const stored = loaded.locations.find((loc) => loc.label.includes("🏙️"));
+    expect(stored).toBeDefined();
+    expect(displayWidth(stored?.label ?? "")).toBeLessThanOrEqual(80);
+    expect(LONE_SURROGATE.test(stored?.label ?? "")).toBe(false);
   });
 });
