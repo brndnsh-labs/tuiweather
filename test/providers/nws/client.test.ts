@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { join } from "node:path";
+import packageJson from "../../../package.json";
 import {
   buildPointsUrl,
   fetchForecast,
@@ -105,7 +106,9 @@ describe("nws client — request composition", () => {
     expect(calls.length).toBe(5);
     for (const call of calls) {
       expect(call.headers["User-Agent"]).toBe(NWS_USER_AGENT);
-      expect(NWS_USER_AGENT).toBe("tuiweather/0.1 (github.com/brndnsh-labs/tuiweather)");
+      expect(NWS_USER_AGENT).toBe(
+        `tuiweather/${packageJson.version} (github.com/brndnsh-labs/tuiweather)`,
+      );
     }
   });
 
