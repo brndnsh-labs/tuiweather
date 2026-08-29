@@ -137,7 +137,7 @@ async function runWatchCli(args: CliArgs): Promise<number> {
 async function main(): Promise<number> {
   let args: CliArgs;
   try {
-    args = parseArgs(Bun.argv.slice(2));
+    args = parseArgs(process.argv.slice(2));
   } catch (e) {
     stderr(e instanceof Error ? e.message : String(e));
     stderr(USAGE);

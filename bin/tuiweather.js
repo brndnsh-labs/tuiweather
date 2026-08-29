@@ -1,2 +1,2 @@
-#!/usr/bin/env bun
+#!/usr/bin/env -S node --experimental-ffi --disable-warning=ExperimentalWarning
 import "../dist/index.js";
