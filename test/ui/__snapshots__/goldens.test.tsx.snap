@@ -40,7 +40,7 @@ exports[`golden frames portland fixture at lg 120x40: lg 120x40 1`] = `
 │                        ││                                                                                            │
 │                        │└────────────────────────────────────────────────────────────────────────────────────────────┘
 │                        │                                                                                              
-└────────────────────────┘/ search · r refresh · d del×2 · u units · [ ]/l locations · ↑↓ scroll · ? help · q quit      
+└────────────────────────┘/ search · r refresh · u units · [ ]/l locations · ↑↓ scroll · ? help · q quit                
 "
 `;
 
@@ -68,7 +68,7 @@ exports[`golden frames portland fixture at md 80x24: md 80x24 1`] = `
 │                                                                       ↓ more │
 └──────────────────────────────────────────────────────────────────────────────┘
                                                                                 
-/ search · r refresh · d del×2 · ↑↓ scroll · ? help · q quit                    
+/ search · r refresh · l locations · ↑↓ scroll · ? help · q quit                
 "
 `;
 
@@ -136,7 +136,7 @@ exports[`golden frames portland fixture at md 80x24 with 24h clock and mixed uni
 │                                                                       ↓ more │
 └──────────────────────────────────────────────────────────────────────────────┘
                                                                                 
-/ search · r refresh · d del×2 · ↑↓ scroll · ? help · q quit                    
+/ search · r refresh · l locations · ↑↓ scroll · ? help · q quit                
 "
 `;
 
