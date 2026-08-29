@@ -618,7 +618,13 @@ export function App(props: AppProps = {}) {
         ) : (
           <>
             {body}
-            {helpOpen ? <HelpOverlay width={viewport.width} height={viewport.height} /> : null}
+            {helpOpen ? (
+              <HelpOverlay
+                width={viewport.width}
+                height={viewport.height}
+                providerLabel={config.provider === "nws" ? "api.weather.gov" : "open-meteo.com"}
+              />
+            ) : null}
             {overlayOpen ? (
               <SearchOverlay store={store} width={viewport.width} height={viewport.height} />
             ) : null}

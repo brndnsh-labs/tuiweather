@@ -43,6 +43,32 @@ hourly = true
 daily = true
 `;
 
+const CONFIG_TOML_NWS = `schema_version = 1
+units = "imperial"
+refresh_minutes = 10
+theme = "night"
+provider = "nws"
+default_location = "portland"
+
+[[locations]]
+slug = "portland"
+label = "Portland"
+latitude = 45.5202
+longitude = -122.6765
+
+[[locations]]
+slug = "london"
+label = "London"
+latitude = 51.5072
+longitude = -0.1276
+
+[panels]
+nowcast = true
+details = true
+hourly = true
+daily = true
+`;
+
 const tmpDirs: string[] = [];
 
 afterEach(async () => {
@@ -56,6 +82,13 @@ async function makeConfigFile(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "tuiweather-ui-test-"));
   tmpDirs.push(dir);
   await writeFile(join(dir, "config.toml"), CONFIG_TOML, "utf8");
+  return join(dir, "config.toml");
+}
+
+async function makeNwsConfigFile(): Promise<string> {
+  const dir = await mkdtemp(join(tmpdir(), "tuiweather-ui-test-"));
+  tmpDirs.push(dir);
+  await writeFile(join(dir, "config.toml"), CONFIG_TOML_NWS, "utf8");
   return join(dir, "config.toml");
 }
 
@@ -96,6 +129,16 @@ function stubFetcher(forecast = makeForecast()): ForecastFetcher {
 
 async function makeStore(opts?: { fetcher?: ForecastFetcher }): Promise<WeatherStore> {
   const configPath = await makeConfigFile();
+  const store = createStoreInstance({
+    configPath,
+    fetchForecast: opts?.fetcher ?? stubFetcher(),
+    fetchAirQuality: stubNullAirQualityFetcher,
+  });
+  return store;
+}
+
+async function makeNwsStore(opts?: { fetcher?: ForecastFetcher }): Promise<WeatherStore> {
+  const configPath = await makeNwsConfigFile();
   const store = createStoreInstance({
     configPath,
     fetchForecast: opts?.fetcher ?? stubFetcher(),
@@ -308,6 +351,41 @@ describe("App shell", () => {
       const closedFrame = await waitUntilFrame(setup, (f) => !f.includes("esc close"));
       expect(closedFrame).not.toContain("toggle help");
       expect(quits).toBe(0);
+    } finally {
+      await setup.renderer.destroy();
+    }
+  });
+
+  test("help overlay shows open-meteo.com attribution by default", async () => {
+    const store = await makeStore();
+    const setup = await testRender(<App store={store} />, { width: 100, height: 24 });
+    try {
+      await setup.flush();
+      await waitUntilFrame(setup, (f) => f.includes("Portland"));
+      await setup.mockInput.pressKeys(["?"]);
+      const frame = await waitUntilFrame(setup, (f) => f.includes("open-meteo.com"));
+      expect(frame).toContain("data by open-meteo.com");
+      await setup.mockInput.pressEscape();
+      await sleep(30);
+      await waitUntilFrame(setup, (f) => !f.includes("open-meteo.com"));
+    } finally {
+      await setup.renderer.destroy();
+    }
+  });
+
+  test("help overlay shows api.weather.gov attribution when provider is nws", async () => {
+    const store = await makeNwsStore();
+    const setup = await testRender(<App store={store} />, { width: 100, height: 24 });
+    try {
+      await setup.flush();
+      await waitUntilFrame(setup, (f) => f.includes("Portland"));
+      await setup.mockInput.pressKeys(["?"]);
+      const frame = await waitUntilFrame(setup, (f) => f.includes("api.weather.gov"));
+      expect(frame).toContain("data by api.weather.gov");
+      expect(frame).not.toContain("open-meteo.com");
+      await setup.mockInput.pressEscape();
+      await sleep(30);
+      await waitUntilFrame(setup, (f) => !f.includes("api.weather.gov"));
     } finally {
       await setup.renderer.destroy();
     }

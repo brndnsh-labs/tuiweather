@@ -4,6 +4,7 @@ import { usePalette } from "../../theme/tokens";
 interface HelpOverlayProps {
   width: number;
   height: number;
+  providerLabel: string;
 }
 
 export const HELP_BOX_WIDTH = 46;
@@ -16,15 +17,18 @@ const HELP_LINES: { text: string; dim?: boolean }[] = [
   { text: "J/K reorder focused (lg)  ↑↓ scroll" },
   { text: "/ search     d delete (press twice)", dim: true },
   { text: "esc close / clear focus" },
-  { text: "data by open-meteo.com · MIT licensed", dim: true },
 ];
 
-export function HelpOverlay({ width, height }: HelpOverlayProps) {
+export function HelpOverlay({ width, height, providerLabel }: HelpOverlayProps) {
   const palette = usePalette();
   const boxWidth = Math.max(1, Math.min(HELP_BOX_WIDTH, width >= 32 ? width - 2 : width));
   const left = Math.max(0, Math.floor((width - boxWidth) / 2));
   const top = Math.max(0, Math.floor((height - HELP_BOX_HEIGHT) / 2));
   const clip = (line: string) => truncateCells(line, Math.max(1, boxWidth - 3));
+  const lines: { text: string; dim?: boolean }[] = [
+    ...HELP_LINES,
+    { text: `data by ${providerLabel} · MIT licensed`, dim: true },
+  ];
 
   return (
     <box
@@ -39,7 +43,7 @@ export function HelpOverlay({ width, height }: HelpOverlayProps) {
       title="keys"
       flexDirection="column"
     >
-      {HELP_LINES.map(({ text, dim }) =>
+      {lines.map(({ text, dim }) =>
         dim ? (
           <text key={text} fg={palette.fgDim} bg={palette.surface}>
             {clip(text)}
