@@ -496,6 +496,114 @@ describe("store", () => {
     expect(store.getState().config.units).toBe("metric");
   });
 
+  test("toggleUnits with mixed prefs flips only temp and preserves other prefs on disk", async () => {
+    const dir = await makeConfigDir(CONFIG_TOML);
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: stubFetcher(),
+      fetchAirQuality: stubNullAirQualityFetcher,
+    });
+    await store.getState().init();
+    store.setState({
+      config: {
+        ...store.getState().config,
+        units: "metric",
+        unit_prefs: { temp: "metric", wind: "imperial", precip: "metric", pressure: "metric" },
+      },
+    });
+    await store.getState().toggleUnits();
+    const cfg = store.getState().config;
+    expect(cfg.units).toBe("imperial");
+    expect(cfg.unit_prefs).toEqual({
+      temp: "imperial",
+      wind: "imperial",
+      precip: "metric",
+      pressure: "metric",
+    });
+    const text = await readFile(join(dir, "config.toml"), "utf8");
+    expect(text).toContain("[units]");
+    expect(text).toContain('temp = "imperial"');
+    expect(text).toContain('wind = "imperial"');
+    expect(text).toContain('precip = "metric"');
+    expect(text).toContain('pressure = "metric"');
+    store.getState().dispose();
+  });
+
+  test("toggleUnits with uniform prefs flips all four", async () => {
+    const dir = await makeConfigDir(CONFIG_TOML);
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: stubFetcher(),
+      fetchAirQuality: stubNullAirQualityFetcher,
+    });
+    await store.getState().init();
+    store.setState({
+      config: {
+        ...store.getState().config,
+        units: "imperial",
+        unit_prefs: {
+          temp: "imperial",
+          wind: "imperial",
+          precip: "imperial",
+          pressure: "imperial",
+        },
+      },
+    });
+    await store.getState().toggleUnits();
+    const cfg = store.getState().config;
+    expect(cfg.units).toBe("metric");
+    expect(cfg.unit_prefs).toEqual({
+      temp: "metric",
+      wind: "metric",
+      precip: "metric",
+      pressure: "metric",
+    });
+    const text = await readFile(join(dir, "config.toml"), "utf8");
+    expect(text).toContain('units = "metric"');
+    expect(text).not.toContain("[units]");
+    store.getState().dispose();
+  });
+
+  test("toggleUnits with legacy scalar-only config treats as uniform and flips all", async () => {
+    const toml = `schema_version = 3
+units = "metric"
+refresh_minutes = 10
+theme = "night"
+
+[[locations]]
+slug = "london"
+label = "London"
+latitude = 51.5072
+longitude = -0.1276
+`;
+    const dir = await makeConfigDir(toml);
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: stubFetcher(),
+      fetchAirQuality: stubNullAirQualityFetcher,
+    });
+    await store.getState().init();
+    expect(store.getState().config.units).toBe("metric");
+    expect(store.getState().config.unit_prefs).toEqual({
+      temp: "metric",
+      wind: "metric",
+      precip: "metric",
+      pressure: "metric",
+    });
+    await store.getState().toggleUnits();
+    const cfg = store.getState().config;
+    expect(cfg.units).toBe("imperial");
+    expect(cfg.unit_prefs).toEqual({
+      temp: "imperial",
+      wind: "imperial",
+      precip: "imperial",
+      pressure: "imperial",
+    });
+    const text = await readFile(join(dir, "config.toml"), "utf8");
+    expect(text).toContain('units = "imperial"');
+    store.getState().dispose();
+  });
+
   test("persist failure surfaces in lastActionError", async () => {
     const dir = await makeConfigDir(CONFIG_TOML);
     await writeFile(join(dir, "blocked"), "", "utf8");

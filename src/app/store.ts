@@ -6,7 +6,7 @@ import { create } from "zustand";
 import { uniqueSlug } from "../features/search/SearchOverlay";
 import { loadConfig } from "../lib/config/load";
 import { saveConfig } from "../lib/config/save";
-import { DEFAULT_CONFIG, type TuiConfig } from "../lib/config/schema";
+import { DEFAULT_CONFIG, resolveDisplayPrefs, type TuiConfig } from "../lib/config/schema";
 import {
   type GeocodingResult,
   searchLocations as geocodeLocations,
@@ -318,12 +318,16 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
 
       toggleUnits: async () => {
         const config = get().config;
+        const prefs = resolveDisplayPrefs(config);
+        const mixed = new Set([prefs.temp, prefs.wind, prefs.precip, prefs.pressure]).size > 1;
         const units: TuiConfig["units"] = config.units === "metric" ? "imperial" : "metric";
-        const next: TuiConfig = {
-          ...config,
-          units,
-          unit_prefs: { temp: units, wind: units, precip: units, pressure: units },
-        };
+        const next: TuiConfig = mixed
+          ? { ...config, units, unit_prefs: { ...config.unit_prefs, temp: units } }
+          : {
+              ...config,
+              units,
+              unit_prefs: { temp: units, wind: units, precip: units, pressure: units },
+            };
         set({ config: next });
         await saveConfig(next, deps.configPath).catch((e: unknown) => {
           set({ lastActionError: errorMessage(e) });
