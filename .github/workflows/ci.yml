@@ -83,3 +83,17 @@ jobs:
           tuiweather --help > /dev/null
           tuiweather --one-line --lat 44.98 --lon -93.27
           env -u HOME -u XDG_CONFIG_HOME tuiweather --one-line --lat 44.98 --lon -93.27
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: "24"
+
+      - name: Smoke under pre-FFI Node (CLI paths only)
+        run: |
+          node --version
+          OUTPUT=$(tuiweather --version)
+          if [ "$OUTPUT" != "tuiweather $(node -p "require('./package.json').version")" ]; then
+            echo "::error::unexpected --version output under node 24: $OUTPUT"
+            exit 1
+          fi
+          tuiweather --one-line --lat 44.98 --lon -93.27

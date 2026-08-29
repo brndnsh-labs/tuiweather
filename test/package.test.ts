@@ -57,7 +57,8 @@ test("the packed artifact contains only the supported product surface and can ex
     ).toBe(`tuiweather ${packageJson.version}`);
 
     const bin = await Bun.file(join(ROOT, "bin", "tuiweather.js")).text();
-    expect(bin.startsWith("#!/usr/bin/env -S node --experimental-ffi")).toBe(true);
+    expect(bin.startsWith("#!/usr/bin/env node")).toBe(true);
+    expect(bin.includes("--experimental-ffi")).toBe(true);
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
