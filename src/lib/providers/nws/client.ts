@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import packageJson from "../../../../package.json";
 import type { GeoPoint, NormalizedForecast } from "../../weather/types";
 import { sanitizeText } from "../http";
 import { type ForecastWindow, ProviderError, type WeatherProvider } from "../types";
@@ -13,7 +14,7 @@ import {
 
 export const NWS_PROVIDER_ID = "nws";
 
-export const NWS_USER_AGENT = "tuiweather/0.1 (github.com/brndnsh-labs/tuiweather)";
+export const NWS_USER_AGENT = `tuiweather/${packageJson.version} (github.com/brndnsh-labs/tuiweather)`;
 
 const API_ROOT = "https://api.weather.gov";
 const TIMEOUT_MS = 10_000;
