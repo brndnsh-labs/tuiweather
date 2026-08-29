@@ -155,7 +155,7 @@ export function describeNowcast(n: Nowcast): string {
 
 export function todayPrecipWindow(f: NormalizedForecast, nowUtc: string): PrecipWindow | null {
   const nowMs = Date.parse(nowUtc);
-  const wet = sortedBuckets(f).filter((b) => b.precipMm >= WET_MM && b.startMs >= nowMs);
+  const wet = sortedBuckets(f).filter((b) => b.precipMm >= WET_MM && b.endMs > nowMs);
   const firstWet = wet[0];
   if (!firstWet) return null;
   let endMs = firstWet.endMs;

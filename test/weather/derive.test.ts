@@ -347,9 +347,13 @@ describe("todayPrecipWindow", () => {
     });
   });
 
-  test("null when nothing wet starts at or after now", () => {
-    const onlyPastRain = forecast(buckets([["14:15", 0.5]]));
-    expect(todayPrecipWindow(onlyPastRain, instant("14:12"))).toBeNull();
+  test("includes rain in the containing bucket", () => {
+    const containingRain = forecast(buckets([["14:15", 0.5]]));
+    expect(todayPrecipWindow(containingRain, instant("14:12"))).toEqual({
+      startUtc: instant("14:00"),
+      endUtc: instant("14:15"),
+      totalMm: 0.5,
+    });
 
     const noRainAtAll = forecast(buckets([["14:15", 0]]));
     expect(todayPrecipWindow(noRainAtAll, instant("14:12"))).toBeNull();
