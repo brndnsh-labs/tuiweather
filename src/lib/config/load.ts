@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { parse } from "smol-toml";
 import { ZodError } from "zod";
@@ -8,7 +9,7 @@ import { DEFAULT_CONFIG, migrateConfig, type TuiConfig } from "./schema";
 export function defaultConfigPath(): string {
   const xdg = process.env.XDG_CONFIG_HOME?.trim();
   if (xdg) return join(xdg, "tuiweather", "config.toml");
-  const home = process.env.HOME?.trim();
+  const home = process.env.HOME?.trim() || homedir();
   if (!home) throw new ConfigError("cannot resolve config path: set XDG_CONFIG_HOME or HOME");
   return join(home, ".config", "tuiweather", "config.toml");
 }
