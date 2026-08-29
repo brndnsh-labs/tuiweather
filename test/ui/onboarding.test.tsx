@@ -165,7 +165,7 @@ describe("first-run onboarding", () => {
 
       const weather = await waitUntilFrame(
         setup,
-        (frame) => frame.includes("Tokyo, jp") && frame.includes("┌─main"),
+        (frame) => frame.includes("Tokyo, Tokyo") && frame.includes("┌─main"),
       );
       expect(weather).not.toContain("find your first location");
       expect(store.getState().config.units).toBe("metric");
@@ -198,7 +198,10 @@ describe("first-run onboarding", () => {
 
       await rm(path, { recursive: true });
       await setup.mockInput.pressEnter();
-      await waitUntilFrame(setup, (frame) => frame.includes("Tokyo, jp") && frame.includes("main"));
+      await waitUntilFrame(
+        setup,
+        (frame) => frame.includes("Tokyo, Tokyo") && frame.includes("main"),
+      );
       expect(store.getState().config.locations).toHaveLength(1);
     } finally {
       await setup.renderer.destroy();

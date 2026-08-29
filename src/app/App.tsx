@@ -22,7 +22,7 @@ import type { DisplayPrefs, TuiConfig } from "../lib/config/schema";
 import { resolveDisplayPrefs } from "../lib/config/schema";
 import { conditionIcon } from "../lib/weather/condition-display";
 import { deriveNowcast } from "../lib/weather/derive";
-import { formatTemp, truncateCells } from "../lib/weather/format";
+import { displayWidth, formatTemp, truncateCells } from "../lib/weather/format";
 import type { AirQuality, NormalizedForecast } from "../lib/weather/types";
 import { FALLBACK_APPEARANCE, type TerminalAppearance } from "../theme/detect";
 import { buildPalette } from "../theme/palette";
@@ -574,9 +574,13 @@ export function App(props: AppProps = {}) {
                   prefs.temp,
                 )}`
               : "";
+            const labelBudget = Math.max(0, SIDEBAR_WIDTH - 2 - displayWidth(tail) - 2 - 1);
             return (
               <text key={loc.slug} fg={fg}>
-                {truncateTo(`${bullet} ${loc.label}${tail}`, SIDEBAR_WIDTH - 2)}
+                {truncateTo(
+                  `${bullet} ${truncateTo(loc.label, labelBudget)}${tail}`,
+                  SIDEBAR_WIDTH - 3,
+                )}
               </text>
             );
           })}
