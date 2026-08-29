@@ -461,7 +461,8 @@ export function App(props: AppProps = {}) {
     />
   );
 
-  const footer = <Footer tier={tier} />;
+  const footerColumnWidth = tier === "lg" ? viewport.width - SIDEBAR_WIDTH : viewport.width;
+  const footer = <Footer tier={tier} width={footerColumnWidth} />;
 
   const mainWidth = tier === "lg" ? viewport.width - SIDEBAR_WIDTH - 4 : viewport.width - 4;
 
