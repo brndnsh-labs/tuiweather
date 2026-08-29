@@ -7,14 +7,15 @@ interface HelpOverlayProps {
 }
 
 export const HELP_BOX_WIDTH = 46;
-const HELP_BOX_HEIGHT = 10;
+const HELP_BOX_HEIGHT = 12;
 
 const HELP_LINES: { text: string; dim?: boolean }[] = [
   { text: "q quit        r refresh      u units" },
-  { text: "[ ] prev/next location   ? toggle help" },
-  { text: "↑↓ scroll" },
+  { text: "[ ] prev/next  1-9 jump  ? toggle help" },
+  { text: "j/k focus  enter open  s default (lg)" },
+  { text: "J/K reorder focused (lg)  ↑↓ scroll" },
   { text: "/ search     d delete (press twice)", dim: true },
-  { text: "esc close" },
+  { text: "esc close / clear focus" },
   { text: "data by open-meteo.com · MIT licensed", dim: true },
 ];
 
