@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here.
 
+## v0.3.3 (2026-08-29)
+
+### Fixes
+- fix: ship a Node-target ESM bundle so npm installs run without Bun (#110) (e4ac8a0)
+
+### Other
+- docs: record npm-artifact Node-runtime knowledge in AGENTS quirks (0fcda5b)
+- chore: add windows-latest CI smoke job for the npm install surface (#112) (20d0e71)
+
 ## v0.3.2 (2026-08-29)
 
 ### Features
