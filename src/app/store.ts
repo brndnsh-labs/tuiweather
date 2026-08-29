@@ -43,6 +43,18 @@ const DEFAULT_REFRESH_TIMERS: RefreshTimerDeps = {
   clearInterval: (handle) => timersClearInterval(handle as NodeJS.Timeout),
 };
 
+/**
+ * Cache freshness is compared inclusively at `refresh_minutes`, so a loop
+ * scheduled at exactly the TTL can be served its own cache entry when a tick
+ * fires a hair early. Pads the period below the TTL so every tick refetches.
+ */
+export const REFRESH_LOOP_MARGIN_MS = 30_000;
+export const MIN_REFRESH_LOOP_PERIOD_MS = 60_000;
+
+export function refreshLoopPeriodMs(refreshMinutes: number): number {
+  return Math.max(MIN_REFRESH_LOOP_PERIOD_MS, refreshMinutes * 60_000 - REFRESH_LOOP_MARGIN_MS);
+}
+
 export interface ForecastEntry {
   forecast: NormalizedForecast;
   fetchedAtMs: number;
@@ -169,7 +181,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
         const slug = get().activeSlug;
         if (slug === null) return;
         void get().loadForecast(slug);
-      }, get().config.refresh_minutes * 60_000);
+      }, refreshLoopPeriodMs(get().config.refresh_minutes));
     }
 
     function launchAirQuality(slug: string, location: GeoPoint, provider: ProviderId): void {

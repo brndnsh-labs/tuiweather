@@ -140,6 +140,40 @@ describe("cachedForecast", () => {
     expect(provider.calls()).toBe(1);
   });
 
+  test("TTL boundary is inclusive: a write-then-read round trip hits at exactly TTL and refetches one ms later", async () => {
+    const io = memoryIo();
+    let n = 0;
+    const provider = stubProvider(async () => makeForecast(20 + ++n));
+    const ttlMs = 10 * 60_000;
+
+    await cachedForecast(provider, PORTLAND, { nowUtc: NOW, maxAgeMinutes: 10 }, io);
+    expect(provider.calls()).toBe(1);
+
+    const atBoundary = new Date(Date.parse(NOW) + ttlMs).toISOString();
+    const hit = await cachedForecast(
+      provider,
+      PORTLAND,
+      { nowUtc: atBoundary, maxAgeMinutes: 10 },
+      io,
+    );
+    expect(hit.stale).toBe(false);
+    expect(hit.forecast.current.temperatureC).toBe(21);
+    expect(provider.calls()).toBe(1);
+
+    const pastBoundary = new Date(Date.parse(NOW) + ttlMs + 1).toISOString();
+    const miss = await cachedForecast(
+      provider,
+      PORTLAND,
+      {
+        nowUtc: pastBoundary,
+        maxAgeMinutes: 10,
+      },
+      io,
+    );
+    expect(miss.forecast.current.temperatureC).toBe(22);
+    expect(provider.calls()).toBe(2);
+  });
+
   test("stale envelope refetches and rewrites the file", async () => {
     const staleText = envelopeText("2026-08-24T10:00:00.000Z", makeForecast(9));
     const io = memoryIo(new Map([[KEY, staleText]]));

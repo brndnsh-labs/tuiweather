@@ -6,7 +6,9 @@ import {
   createStoreInstance,
   DELETE_ARM_TTL_MS,
   type ForecastFetcher,
+  MIN_REFRESH_LOOP_PERIOD_MS,
   type RefreshTimerDeps,
+  refreshLoopPeriodMs,
 } from "../../src/app/store";
 import { DEFAULT_CONFIG } from "../../src/lib/config/schema";
 import { ProviderError } from "../../src/lib/providers/types";
@@ -734,16 +736,19 @@ longitude = -0.1276
 interface FakeRefreshTimers extends RefreshTimerDeps {
   advance(ms: number): Promise<void>;
   pending(): number;
+  periods(): number[];
 }
 
 function makeFakeTimers(): FakeRefreshTimers {
   const jobs = new Map<number, { at: number; periodMs: number; handler: () => void }>();
+  const registeredPeriods: number[] = [];
   let nextId = 1;
   let now = 0;
   const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
   return {
     setInterval(handler, ms) {
       const id = nextId++;
+      registeredPeriods.push(ms);
       jobs.set(id, { at: now + ms, periodMs: ms, handler });
       return id;
     },
@@ -751,6 +756,7 @@ function makeFakeTimers(): FakeRefreshTimers {
       if (typeof handle === "number") jobs.delete(handle);
     },
     pending: () => jobs.size,
+    periods: () => [...registeredPeriods],
     async advance(ms) {
       const target = now + ms;
       for (;;) {
@@ -769,7 +775,8 @@ function makeFakeTimers(): FakeRefreshTimers {
 }
 
 describe("store auto-refresh", () => {
-  const PERIOD_MS = 10 * 60_000;
+  const TTL_MS = 10 * 60_000;
+  const PERIOD_MS = refreshLoopPeriodMs(10);
 
   function makeFetcher(): ForecastFetcher & { calls: string[] } {
     const calls: string[] = [];
@@ -813,6 +820,20 @@ describe("store auto-refresh", () => {
     await timers.advance(PERIOD_MS);
     expect(fetcher.calls.length).toBe(4);
     expect(timers.pending()).toBe(1);
+
+    store.getState().dispose();
+  });
+
+  test("loop period sits strictly below the cache TTL so a tick can never alias onto the boundary", async () => {
+    const timers = makeFakeTimers();
+    const store = await timedStore(makeFetcher(), timers);
+
+    await store.getState().init();
+
+    expect(timers.periods()).toEqual([TTL_MS - 30_000]);
+    const [period] = timers.periods();
+    expect(period).toBeDefined();
+    expect(period).toBeLessThan(TTL_MS);
 
     store.getState().dispose();
   });
@@ -989,5 +1010,16 @@ describe("store auto-refresh", () => {
     await c;
     expect(store.getState().forecastBySlug.portland?.forecast.current.temperatureC).toBe(22);
     store.getState().dispose();
+  });
+});
+
+describe("refreshLoopPeriodMs", () => {
+  test("pads 30s below the configured TTL", () => {
+    expect(refreshLoopPeriodMs(10)).toBe(10 * 60_000 - 30_000);
+    expect(refreshLoopPeriodMs(120)).toBe(120 * 60_000 - 30_000);
+  });
+
+  test("clamps to the 60s floor at the minimum sane config", () => {
+    expect(refreshLoopPeriodMs(1)).toBe(MIN_REFRESH_LOOP_PERIOD_MS);
   });
 });

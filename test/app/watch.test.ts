@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { buildOneLine } from "../../src/app/oneline";
+import { refreshLoopPeriodMs } from "../../src/app/store";
 import { runWatch, shouldBell } from "../../src/app/watch";
 import type { DisplayPrefs } from "../../src/lib/config/schema";
 import { deriveNowcast, describeNowcast } from "../../src/lib/weather/derive";
@@ -223,5 +224,34 @@ describe("runWatch", () => {
       label: "",
     });
     expect(emptyWrites[0]).toBe(`${dryLine}\n`);
+  });
+
+  test("poll interval derived with the refresh margin stays under the cache TTL and every poll fetches", async () => {
+    const maxAgeMinutes = 10;
+    const intervalMs = refreshLoopPeriodMs(maxAgeMinutes);
+    expect(intervalMs).toBeLessThan(maxAgeMinutes * MIN_MS);
+
+    let fetches = 0;
+    const dryForecast = makeForecast({ minutely15: [bucket(-15, 0), bucket(0, 0)] });
+    const sleptMs: number[] = [];
+    const polls = await runWatch({
+      fetch: async () => {
+        fetches += 1;
+        return { forecast: dryForecast, stale: false };
+      },
+      prefs: METRIC,
+      intervalMs,
+      write: () => {},
+      maxPolls: 3,
+      nowUtc: () => NOW,
+      sleep: async (ms) => {
+        sleptMs.push(ms);
+      },
+      label: null,
+    });
+
+    expect(polls).toBe(3);
+    expect(fetches).toBe(3);
+    expect(sleptMs).toEqual([intervalMs, intervalMs]);
   });
 });
