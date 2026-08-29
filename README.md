@@ -117,7 +117,7 @@ bell. Desktop notifications are a planned follow-up.
 
 ## Configuration
 
-Config lives at `~/.config/tuiweather/config.toml` (respects `XDG_CONFIG_HOME`). Every field is optional unless marked required; unknown values fail validation with a descriptive error.
+Config lives at `~/.config/tuiweather/config.toml` (respects `XDG_CONFIG_HOME`). Every field is optional unless marked required; unknown fields are ignored.
 
 ```toml
 schema_version = 3
