@@ -2,7 +2,7 @@ import { createCliRenderer } from "@opentui/core";
 import { createRoot } from "@opentui/react";
 import { App } from "./app/App";
 import { buildJsonLine, buildOneLine } from "./app/oneline";
-import { appStore } from "./app/store";
+import { appStore, refreshLoopPeriodMs } from "./app/store";
 import { runWatch } from "./app/watch";
 import type { CliArgs } from "./cli";
 import { HELP_TEXT, parseArgs, USAGE, VERSION } from "./cli";
@@ -111,7 +111,7 @@ async function runWatchCli(args: CliArgs): Promise<number> {
   const provider = selectProvider(config.provider);
   const prefs = resolveDisplayPrefs(config);
   const maxAgeMinutes = args.interval ?? config.refresh_minutes;
-  const intervalMs = maxAgeMinutes * 60_000;
+  const intervalMs = refreshLoopPeriodMs(maxAgeMinutes);
   const fetcher = () => cachedForecast(provider, { latitude, longitude }, { maxAgeMinutes });
   const write = (text: string) => process.stdout.write(text);
   const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
