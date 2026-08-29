@@ -48,7 +48,7 @@ function withOverrides(point: HourlyPoint, overrides: Partial<HourlyPoint>): Hou
 }
 
 describe("sliceUpcoming", () => {
-  test("keeps only points at or after now, capped to max", () => {
+  test("keeps only points after now, capped to max", () => {
     const past = {
       ...hourlyPoints(1, "2026-08-24T15:00:00.000Z")[0],
       timeUtc: "2026-08-24T15:00:00.000Z",
@@ -58,6 +58,15 @@ describe("sliceUpcoming", () => {
     expect(sliced.map((p) => p.timeUtc)).toEqual([
       "2026-08-24T17:00:00.000Z",
       "2026-08-24T18:00:00.000Z",
+    ]);
+  });
+
+  test("drops the just-elapsed end-labeled row when now sits exactly on its boundary", () => {
+    const points = hourlyPoints(4, "2026-08-24T17:00:00.000Z");
+    const sliced = sliceUpcoming(points, "2026-08-24T17:00:00.000Z", 2);
+    expect(sliced.map((p) => p.timeUtc)).toEqual([
+      "2026-08-24T18:00:00.000Z",
+      "2026-08-24T19:00:00.000Z",
     ]);
   });
 });
