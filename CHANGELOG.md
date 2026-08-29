@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here.
 
+## v0.3.2 (2026-08-29)
+
+### Features
+- feat(ui): swap footer delete hint for l locations (#108) (c5b1974)
+- feat(ui): locations overlay for switch + manage from one discoverable surface (#106) (bf8f0a4)
+
 ## v0.3.1 (2026-08-29)
 
 ### Features
