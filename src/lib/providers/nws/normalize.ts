@@ -91,6 +91,12 @@ function quantityValue(q: NwsQuantity | undefined): number | null {
   return typeof q?.value === "number" ? q.value : null;
 }
 
+function maxNullable(values: Array<number | null>): number | null {
+  const present = values.filter((value): value is number => value !== null);
+  if (present.length === 0) return null;
+  return Math.max(...present);
+}
+
 function obsTempC(q: NwsQuantity | undefined): number | null {
   const value = quantityValue(q);
   if (value === null) return null;
@@ -211,9 +217,10 @@ function normalizeDaily(periods: NwsPeriod[], forecastDays: number | undefined):
       tempMaxC: group.day ? periodTempC(group.day) : Math.max(...tempsC),
       tempMinC: group.night ? periodTempC(group.night) : Math.min(...tempsC),
       precipSumMm: 0,
-      precipProbabilityMaxPct: group.day
-        ? quantityValue(group.day.probabilityOfPrecipitation)
-        : null,
+      precipProbabilityMaxPct: maxNullable([
+        quantityValue(group.day?.probabilityOfPrecipitation),
+        quantityValue(group.night?.probabilityOfPrecipitation),
+      ]),
       uvIndexMax: null,
       sunriseUtc: null,
       sunsetUtc: null,
