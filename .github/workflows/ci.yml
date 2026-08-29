@@ -82,3 +82,4 @@ jobs:
           fi
           tuiweather --help > /dev/null
           tuiweather --one-line --lat 44.98 --lon -93.27
+          env -u HOME -u XDG_CONFIG_HOME tuiweather --one-line --lat 44.98 --lon -93.27
