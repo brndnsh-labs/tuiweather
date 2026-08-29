@@ -16,13 +16,13 @@ Keyboard-driven terminal weather app: Dark Sky-style rain nowcasting, hourly and
 
 ## Install
 
-Install globally with npm:
+Requires Node.js >= 26.4.0 to run. Install globally with npm:
 
 ```sh
 npm install --global tuiweather
 ```
 
-or with Bun:
+or with the Bun package manager:
 
 ```sh
 bun install --global tuiweather

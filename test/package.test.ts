@@ -13,7 +13,7 @@ interface PackMetadata {
 
 const ROOT = join(import.meta.dir, "..");
 
-test("the packed artifact contains only the supported product surface and can execute", () => {
+test("the packed artifact contains only the supported product surface and can execute", async () => {
   const work = mkdtempSync(join(tmpdir(), "tuiweather-package-"));
   try {
     execFileSync("bun", ["run", "build"], { cwd: ROOT, stdio: "pipe" });
@@ -50,11 +50,14 @@ test("the packed artifact contains only the supported product surface and can ex
     execFileSync("tar", ["-xzf", join(work, metadata.filename), "-C", unpacked]);
     const packageRoot = join(unpacked, "package");
     expect(
-      execFileSync("bun", [join(packageRoot, "bin", "tuiweather.js"), "--version"], {
+      execFileSync("node", [join(packageRoot, "bin", "tuiweather.js"), "--version"], {
         cwd: packageRoot,
         encoding: "utf8",
       }).trim(),
     ).toBe(`tuiweather ${packageJson.version}`);
+
+    const bin = await Bun.file(join(ROOT, "bin", "tuiweather.js")).text();
+    expect(bin.startsWith("#!/usr/bin/env -S node --experimental-ffi")).toBe(true);
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
