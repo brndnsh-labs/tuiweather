@@ -118,7 +118,7 @@ export function FirstRun({ store, width, height, quit }: FirstRunProps) {
           </text>
           {width >= 48 ? (
             <text fg={palette.fgDim} bg={palette.surface}>
-              {truncateTo("/ search · r refresh · u units · [ ] locations", innerWidth)}
+              {truncateTo("/ search · r refresh · u units · l locations", innerWidth)}
             </text>
           ) : (
             <text fg={palette.fgDim} bg={palette.surface}>

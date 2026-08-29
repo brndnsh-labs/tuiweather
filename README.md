@@ -52,6 +52,7 @@ Use `tuiweather --help` for command-line options and `tuiweather --version` to p
 | --- | --- |
 | `r` | Refresh current location (bypasses cache) |
 | `[` / `]` | Previous / next location |
+| `l` | Open the locations overlay: switch, set default, delete, reorder |
 | `1`–`9` | Jump to location N by sidebar order (1-based; no-op out of range) |
 | `u` | Toggle metric / imperial units |
 | `/` | Search locations |
@@ -66,6 +67,8 @@ Use `tuiweather --help` for command-line options and `tuiweather --version` to p
 | `q` | Quit |
 
 While the search overlay is open it owns the keyboard: type to search, up/down to move the cursor, enter to add the highlighted result, esc to cancel. Number, focus, and reorder keys are ignored while the search input is focused (same as `d`/`r`).
+
+The locations overlay (`l`) also owns the keyboard while open: up/down (or `j`/`k`) to move the cursor, enter or `1`–`9` to switch, `s` to set the cursor row as default, `d` twice to delete it, `J`/`K` to reorder it, `/` to jump into search, esc to close.
 
 ### One-line mode
 

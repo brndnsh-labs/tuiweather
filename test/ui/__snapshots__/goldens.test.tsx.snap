@@ -1,7 +1,7 @@
 // Bun Snapshot v1, https://bun.sh/docs/test/snapshots
 
 exports[`golden frames portland fixture at lg 120x40: lg 120x40 1`] = `
-"┌─locations──────────────┐Portland  45.5°, -122.7°  Mon Aug 24  synced just now                                         
+"┌─locations · l──────────┐Portland  45.5°, -122.7°  Mon Aug 24  synced just now                                         
 │● Portland ☀️ 65°       │                                                                                              
 │                        │┌─main───────────────────────────────────────────────────────────────────────────────────────┐
 │                        ││ ╭━━━╮ ╭━━━╮°                   humidity 79%                      dew pt   58°              │
@@ -40,7 +40,7 @@ exports[`golden frames portland fixture at lg 120x40: lg 120x40 1`] = `
 │                        ││                                                                                            │
 │                        │└────────────────────────────────────────────────────────────────────────────────────────────┘
 │                        │                                                                                              
-└────────────────────────┘/ search · r refresh · d del×2 · u units · [ ] locations · ↑↓ scroll · ? help · q quit        
+└────────────────────────┘/ search · r refresh · d del×2 · u units · [ ]/l locations · ↑↓ scroll · ? help · q quit      
 "
 `;
 

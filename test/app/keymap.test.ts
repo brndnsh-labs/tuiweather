@@ -18,6 +18,8 @@ function makeApi(overrides: Partial<Record<keyof KeymapApi, unknown>> = {}): Key
     toggleHelp: () => inc("toggleHelp"),
     searchOpen: () => false,
     openSearch: () => inc("openSearch"),
+    locationsOpen: () => false,
+    openLocations: () => inc("openLocations"),
     deleteArmed: () => false,
     armDelete: () => inc("armDelete"),
     disarmDelete: () => inc("disarmDelete"),
@@ -100,6 +102,29 @@ describe("keymap help modal", () => {
     handleKey("d", api);
     expect(api.calls.refresh ?? 0).toBe(0);
     expect(api.calls.armDelete ?? 0).toBe(0);
+    handleKey("escape", api);
+    expect(api.calls.quit ?? 0).toBe(0);
+    expect(api.calls.toggleHelp ?? 0).toBe(0);
+  });
+
+  test("l opens the locations overlay when no modal is open", () => {
+    const api = makeApi();
+    handleKey("l", api);
+    expect(api.calls.openLocations).toBe(1);
+  });
+
+  test("locationsOpen blocks keys, numbers, and escape is no-op", () => {
+    const api = makeApi({ locationsOpen: () => true });
+    handleKey("r", api);
+    handleKey("d", api);
+    handleKey("l", api);
+    handleKey("1", api);
+    handleKey("[", api);
+    expect(api.calls.refresh ?? 0).toBe(0);
+    expect(api.calls.armDelete ?? 0).toBe(0);
+    expect(api.calls.openLocations ?? 0).toBe(0);
+    expect(api.calls.switchLocation ?? 0).toBe(0);
+    expect(api.calls.cycleLocation ?? 0).toBe(0);
     handleKey("escape", api);
     expect(api.calls.quit ?? 0).toBe(0);
     expect(api.calls.toggleHelp ?? 0).toBe(0);
