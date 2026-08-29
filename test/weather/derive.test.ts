@@ -108,8 +108,8 @@ describe("deriveNowcast truth table", () => {
   test("case 4: wet now reaching the end of known data is ongoing with null end", () => {
     const singleBucket = forecast(buckets([["14:15", 0.2]]));
     const nA = deriveNowcast(singleBucket, instant("14:12"));
-    expect(nA).toEqual({ kind: "ongoing", endsInMin: null, intensity: "moderate" });
-    expect(describeNowcast(nA)).toBe("Rain for at least 2 hr");
+    expect(nA).toEqual({ kind: "ongoing", endsInMin: null, horizonMin: 3, intensity: "moderate" });
+    expect(describeNowcast(nA)).toBe("Rain for at least 3 min");
 
     const twoTrailingBuckets = forecast(
       buckets([
@@ -120,8 +120,35 @@ describe("deriveNowcast truth table", () => {
     expect(deriveNowcast(twoTrailingBuckets, instant("14:20"))).toEqual({
       kind: "ongoing",
       endsInMin: null,
+      horizonMin: 10,
       intensity: "moderate",
     });
+  });
+
+  test("ongoing horizon reflects remaining series minutes and expires at series end", () => {
+    const f = forecast(
+      buckets([
+        ["14:00", 0],
+        ["14:15", 0],
+        ["14:30", 0.2],
+        ["14:45", 0.3],
+      ]),
+    );
+    const n = deriveNowcast(f, instant("14:20"));
+    expect(n).toEqual({ kind: "ongoing", endsInMin: null, horizonMin: 25, intensity: "moderate" });
+    expect(describeNowcast(n)).toBe("Rain for at least 25 min");
+
+    const f15 = forecast(
+      buckets([
+        ["14:15", 0],
+        ["14:30", 0.5],
+      ]),
+    );
+    const n15 = deriveNowcast(f15, instant("14:15"));
+    expect(n15).toEqual({ kind: "ongoing", endsInMin: null, horizonMin: 15, intensity: "heavy" });
+    expect(describeNowcast(n15)).toBe("Rain for at least 15 min");
+
+    expect(deriveNowcast(f15, instant("14:30"))).toEqual({ kind: "dry" });
   });
 
   test("case 5: no wet buckets anywhere is dry", () => {
@@ -293,12 +320,12 @@ describe("describeNowcast strings", () => {
 
   test("stopping and ongoing variants", () => {
     expect(describeNowcast({ kind: "stopping", endsInMin: 7 })).toBe("Rain stopping in 7 min");
-    expect(describeNowcast({ kind: "ongoing", endsInMin: null, intensity: "heavy" })).toBe(
-      "Rain for at least 2 hr",
-    );
-    expect(describeNowcast({ kind: "ongoing", endsInMin: 5, intensity: "heavy" })).toBe(
-      "Rain stopping in 5 min",
-    );
+    expect(
+      describeNowcast({ kind: "ongoing", endsInMin: null, horizonMin: 42, intensity: "heavy" }),
+    ).toBe("Rain for at least 42 min");
+    expect(
+      describeNowcast({ kind: "ongoing", endsInMin: 5, horizonMin: 10, intensity: "heavy" }),
+    ).toBe("Rain stopping in 5 min");
   });
 });
 

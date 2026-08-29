@@ -259,7 +259,7 @@ describe("panels config toggles", () => {
       ],
     };
     const frame = await frameFor(configToml({}), forecast, 40);
-    expect(frame).toContain("Rain for at least 2 hr");
+    expect(frame).toContain("Rain for at least 30 min");
     expect(frame).not.toContain("█▃");
   });
 
