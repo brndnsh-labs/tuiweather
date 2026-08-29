@@ -42,13 +42,14 @@ interface RecordedCall {
   headers: Record<string, string>;
 }
 
-function mockApi(calls: RecordedCall[]): void {
+function mockApi(calls: RecordedCall[], routeOverrides: Record<string, unknown> = {}): void {
   const routes: Record<string, unknown> = {
     [POINTS_URL]: pointsBody,
     [HOURLY_URL]: hourlyBody,
     [DAILY_URL]: dailyBody,
     [STATIONS_URL]: stationsBody,
     [OBS_URL]: obsBody,
+    ...routeOverrides,
   };
   globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
@@ -157,6 +158,70 @@ describe("nws client — request composition", () => {
     const error = await captureProviderError(fetchForecast(PORTLAND));
     expect(error.providerId).toBe("nws");
     expect(error.message).toContain("stations list is empty");
+  });
+});
+
+describe("nws client — url allowlist (ssrf guard)", () => {
+  const METADATA_URL = "http://169.254.169.254/latest/meta-data/";
+
+  function pointsWithStationsUrl(observationStations: string): unknown {
+    return {
+      ...pointsBody,
+      properties: { ...pointsBody.properties, observationStations },
+    };
+  }
+
+  test("rejects a response-provided metadata endpoint without issuing a fetch for it", async () => {
+    const calls: RecordedCall[] = [];
+    mockApi(calls, { [POINTS_URL]: pointsWithStationsUrl(METADATA_URL) });
+    const error = await captureProviderError(fetchForecast(PORTLAND));
+
+    expect(error.providerId).toBe("nws");
+    expect(error.message).toContain("observation stations");
+    expect(error.message).toContain("host rejected");
+    expect(error.message).not.toContain("169.254");
+    expect(error.message).not.toContain("http");
+    expect(calls.map((call) => call.url)).toEqual([POINTS_URL, HOURLY_URL, DAILY_URL]);
+  });
+
+  test.each([
+    ["scheme downgrade", "http://api.weather.gov/gridpoints/PQR/113,104/stations"],
+    ["host suffix", "https://api.weather.gov.evil.com/stations"],
+    ["userinfo trick", "https://api.weather.gov@evil.com/stations"],
+    ["explicit port", "https://api.weather.gov:8443/stations"],
+  ])("rejects a %s response url", async (_name, url) => {
+    const calls: RecordedCall[] = [];
+    mockApi(calls, { [POINTS_URL]: pointsWithStationsUrl(url) });
+    const error = await captureProviderError(fetchForecast(PORTLAND));
+
+    expect(error.message).toContain("host rejected");
+    expect(calls.map((call) => call.url)).not.toContain(url);
+  });
+
+  test("rejects a relative response url as not absolute", async () => {
+    const calls: RecordedCall[] = [];
+    mockApi(calls, { [POINTS_URL]: pointsWithStationsUrl("/gridpoints/PQR/113,104/stations") });
+    const error = await captureProviderError(fetchForecast(PORTLAND));
+
+    expect(error.message).toContain("not absolute");
+    expect(calls.map((call) => call.url)).not.toContain("/gridpoints/PQR/113,104/stations");
+  });
+
+  test("rejects a hostile station id before fetching its observations", async () => {
+    const calls: RecordedCall[] = [];
+    mockApi(calls, {
+      [STATIONS_URL]: { features: [{ id: "http://evil.example.invalid/stations/KPDX" }] },
+    });
+    const error = await captureProviderError(fetchForecast(PORTLAND));
+
+    expect(error.message).toContain("latest observation");
+    expect(error.message).toContain("host rejected");
+    expect(calls.map((call) => call.url)).toEqual([
+      POINTS_URL,
+      HOURLY_URL,
+      DAILY_URL,
+      STATIONS_URL,
+    ]);
   });
 });
 

@@ -17,6 +17,7 @@ export const NWS_PROVIDER_ID = "nws";
 export const NWS_USER_AGENT = `tuiweather/${packageJson.version} (github.com/brndnsh-labs/tuiweather)`;
 
 const API_ROOT = "https://api.weather.gov";
+const ALLOWED_HOST = new URL(API_ROOT).host;
 const TIMEOUT_MS = 10_000;
 const MAX_DETAIL_CHARS = 200;
 
@@ -37,6 +38,15 @@ function problemDetail(body: unknown): string | undefined {
 }
 
 async function getJson(url: string, label: string): Promise<unknown> {
+  let target: URL;
+  try {
+    target = new URL(url);
+  } catch {
+    throw new ProviderError(`nws ${label} url is not absolute`, NWS_PROVIDER_ID);
+  }
+  if (target.protocol !== "https:" || target.host !== ALLOWED_HOST) {
+    throw new ProviderError(`nws ${label} url host rejected`, NWS_PROVIDER_ID);
+  }
   let res: Response;
   try {
     res = await fetch(url, { headers: NWS_HEADERS, signal: AbortSignal.timeout(TIMEOUT_MS) });
