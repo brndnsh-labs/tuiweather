@@ -25,10 +25,10 @@ CI runs the same gates on every PR; they are required checks on `main`.
 
 ```
 src/
-  index.tsx              entry: arg parsing (--one-line), renderer boot
+  index.tsx              entry: renderer boot; CLI parsing (--one-line, --json, watch) in cli.ts
   app/                   shell, global keymap, store (zustand), refresh scheduler
   components/            presentational primitives (Sparkline, RangeBar, DaylightBar)
-  features/              current/ (incl. DetailsGrid) hourly/ daily/ nowcast/ search/ onboarding/
+  features/              current/ (incl. DetailsGrid) hourly/ daily/ nowcast/ search/ locations/ onboarding/
   lib/weather/types.ts   DOMAIN MODEL — Condition enum, CurrentObs, NormalizedForecast
   lib/providers/
     types.ts             WeatherProvider interface, PROVIDER_IDS
@@ -37,7 +37,8 @@ src/
                          <- only place WMO codes exist
     nws/                 client, zod schemas, normalize, condition table
                          <- only place NWS icon codes exist
-  lib/weather/           derive.ts (nowcast rules), format.ts (units/display), cache.ts (TTL)
+  lib/weather/           derive.ts (nowcast rules), format.ts (units/display), cache.ts (TTL),
+                         condition-display.ts (CONDITION_ICON_CELLS + icon mapping)
   lib/config/            zod schema, load/save (atomic tmp+rename)
   theme/                 palettes: ink (terminal-adaptive) + day/night accents, detection, tokens
   viewport/              breakpoint definitions + debounced hooks
