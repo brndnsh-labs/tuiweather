@@ -131,7 +131,8 @@ export interface WeatherState {
 }
 
 function errorMessage(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
+  const raw = e instanceof Error ? e.message : String(e);
+  return raw.split("\n")[0] ?? raw;
 }
 
 function findLocation(config: TuiConfig, slug: string) {

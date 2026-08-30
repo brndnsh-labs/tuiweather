@@ -183,13 +183,16 @@ describe("tuiConfigSchema", () => {
     ).toBe(true);
   });
 
-  test("rejects dangling default_location and names the slug in the error", () => {
-    const result = tuiConfigSchema.safeParse({ ...base, default_location: "nowhere" });
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      const messages = result.error.issues.map((issue) => issue.message).join("\n");
-      expect(messages).toContain("nowhere");
-    }
+  test("allows dangling default_location — stale value survives and falls back at runtime", () => {
+    const cfg = tuiConfigSchema.parse({
+      ...base,
+      default_location: "nowhere",
+      locations: [location("portland")],
+    });
+    expect(cfg.default_location).toBe("nowhere");
+    expect(tuiConfigSchema.parse({ ...base, default_location: "nowhere" }).default_location).toBe(
+      "nowhere",
+    );
   });
 
   test("accepts default_location matching a location slug", () => {

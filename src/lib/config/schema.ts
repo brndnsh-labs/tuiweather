@@ -51,16 +51,6 @@ export const tuiConfigSchema = z
     default_location: z.string().optional(),
     locations: z.array(locationSchema).prefault([]),
   })
-  .superRefine((config, ctx) => {
-    const target = config.default_location;
-    if (target === undefined) return;
-    if (!config.locations.some((loc) => loc.slug === target)) {
-      ctx.addIssue({
-        code: "custom",
-        message: `default_location "${target}" does not match any [[locations]] slug`,
-      });
-    }
-  })
   .transform((config) => {
     const legacy = config.units;
     const unit_prefs = {

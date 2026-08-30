@@ -16,6 +16,19 @@ function stderr(message: string): void {
   process.stderr.write(`${message}\n`);
 }
 
+function warnStaleDefault(config: TuiConfig): void {
+  if (
+    config.default_location !== undefined &&
+    config.locations.length > 0 &&
+    !config.locations.some((loc) => loc.slug === config.default_location)
+  ) {
+    const fallback = config.locations[0]?.slug ?? "";
+    stderr(
+      `warning: default_location "${config.default_location}" does not match any [[locations]] slug — using "${fallback}"`,
+    );
+  }
+}
+
 function resolveSlugFromConfig(
   config: TuiConfig,
   locationArg: string | null,
@@ -55,6 +68,7 @@ function resolveLocationForCli(
 
 async function runOneLine(args: CliArgs): Promise<number> {
   const config = await loadConfig();
+  warnStaleDefault(config);
   const resolved = resolveLocationForCli(args, config);
   if ("error" in resolved) {
     const hint = config.locations.length === 0 ? "; run tuiweather to set one up" : "";
@@ -82,6 +96,7 @@ async function runOneLine(args: CliArgs): Promise<number> {
 
 async function runTui(locationArg: string | null): Promise<number> {
   const config = await loadConfig();
+  warnStaleDefault(config);
   let initialSlug: string | undefined;
   if (locationArg !== null || config.locations.length > 0) {
     const resolved = resolveSlugFromConfig(config, locationArg);
@@ -101,6 +116,7 @@ async function runTui(locationArg: string | null): Promise<number> {
 
 async function runWatchCli(args: CliArgs): Promise<number> {
   const config = await loadConfig();
+  warnStaleDefault(config);
   const resolved = resolveLocationForCli(args, config);
   if ("error" in resolved) {
     const hint = config.locations.length === 0 ? "; run tuiweather to set one up" : "";

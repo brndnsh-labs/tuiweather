@@ -57,7 +57,12 @@ export async function loadConfig(path?: string): Promise<TuiConfig> {
     if (e.issues.some((i) => i.path.length === 0 || i.path[0] === "schema_version")) {
       issues.push("hint: bare keys must appear before any [table] or [[array]] headers in TOML");
     }
-    throw new ConfigError(`invalid config in ${target}: ${issues.length} issue(s)`, issues);
+    const preview = issues.slice(0, 3).join("\n");
+    const more = issues.length > 3 ? `\n... and ${issues.length - 3} more` : "";
+    throw new ConfigError(
+      `invalid config in ${target}: ${issues.length} issue(s)\n${preview}${more}`,
+      issues,
+    );
   }
   return config;
 }
