@@ -44,7 +44,7 @@ afterAll(async () => {
   await rm(globalHome, { recursive: true, force: true });
 });
 
-describe("changelog-notes.sh", () => {
+describe.skipIf(process.platform === "win32")("changelog-notes.sh", () => {
   test("classifies feat/fix/other commits into sections from a clean environment", () => {
     commit("feat: sparkline panel");
     commit("fix(hourly): off-by-one bucket label");

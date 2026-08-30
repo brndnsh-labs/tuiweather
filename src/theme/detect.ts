@@ -15,17 +15,19 @@ export async function detectTerminalAppearance(
   query: PaletteQuery,
   timeoutMs = 300,
 ): Promise<TerminalAppearance> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const colors = await Promise.race([
       query.getPalette({ timeout: timeoutMs }),
       new Promise<never>((_, reject) => {
-        const timer = setTimeout(() => reject(new Error("palette query timed out")), timeoutMs);
-        if (typeof timer === "object" && "unref" in timer) timer.unref();
+        timer = setTimeout(() => reject(new Error("palette query timed out")), timeoutMs);
       }),
     ]);
     const background = colors?.defaultBackground ?? null;
     return { ink: isDarkBackground(background) ? "dark" : "light", background };
   } catch {
     return FALLBACK_APPEARANCE;
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
   }
 }
