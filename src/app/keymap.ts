@@ -45,7 +45,6 @@ export function handleKey(
       api.toggleHelp();
       return;
     }
-    api.quit();
     return;
   }
   if (api.searchOpen() || api.locationsOpen() || api.helpOpen()) return;
