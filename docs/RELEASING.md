@@ -6,9 +6,10 @@ Publishing is an explicit external release gate. A commit, merge, version bump, 
 
 Pushing a `v*` tag runs `.github/workflows/release.yml`:
 
-1. `prepare` verifies the tag is on `main` and matches `package.json`, runs all gates, packs the npm tarball once, cross-compiles the standalone binaries, smoke-tests the host binary, and uploads short-lived workflow artifacts.
-2. `npm-publish` downloads that exact tarball and publishes it through npm trusted publishing with GitHub OIDC and provenance. No npm token is stored in GitHub.
-3. `github-release` runs only after npm succeeds and attaches the standalone archives and checksums to the GitHub release.
+1. `prepare` verifies the tag is on `main` and matches `package.json`, runs all gates, packs the npm tarball once, cross-compiles the standalone binaries for `linux-x64`, `linux-arm64`, `darwin-x64`, `darwin-arm64`, and `windows-x64`, smoke-tests the Linux host binary, and uploads short-lived workflow artifacts.
+2. `windows-smoke` downloads the Windows artifact on `windows-latest` and asserts `tuiweather.exe --version` matches the tag. A failure here blocks publish.
+3. `npm-publish` runs only after both `prepare` and `windows-smoke` succeed, downloads that exact tarball and publishes it through npm trusted publishing with GitHub OIDC and provenance. No npm token is stored in GitHub.
+4. `github-release` runs only after npm succeeds and attaches the standalone archives (`tuiweather-linux-x64.tar.gz`, `tuiweather-linux-arm64.tar.gz`, `tuiweather-darwin-x64.tar.gz`, `tuiweather-darwin-arm64.tar.gz`, `tuiweather-windows-x64.tar.gz` plus `.sha256`) to the GitHub release.
 
 The workflow pins Bun, npm, and every Action used by the release. Dependabot proposes weekly Action pin updates.
 
@@ -71,6 +72,7 @@ Verify both public surfaces independently after the workflow succeeds:
 npm view tuiweather version dist-tags --json
 bunx tuiweather --version
 gh release view vX.Y.Z
+gh release view vX.Y.Z --json assets --jq '.assets[].name' | grep -E 'tuiweather-(linux-x64|linux-arm64|darwin-x64|darwin-arm64|windows-x64)\.tar\.gz'
 ```
 
 If a job fails, fix the cause and rerun only the failed jobs when safe. Never retry an npm publish after the version is visible in the registry; npm versions are immutable.

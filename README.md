@@ -30,7 +30,20 @@ or with the Bun package manager:
 bun install --global tuiweather
 ```
 
-Standalone binaries for macOS and Linux are attached to each [GitHub release](https://github.com/brndnsh-labs/tuiweather/releases).
+or run without installing:
+
+```sh
+npx tuiweather --version
+bunx tuiweather --version
+```
+
+Standalone binaries for macOS, Linux, and Windows (x64) are attached to each [GitHub release](https://github.com/brndnsh-labs/tuiweather/releases). On Windows (no Node or Bun required), in cmd.exe or any shell with `curl.exe` on PATH:
+
+```sh
+curl.exe -Lo tuiweather-windows-x64.tar.gz https://github.com/brndnsh-labs/tuiweather/releases/latest/download/tuiweather-windows-x64.tar.gz
+tar -xzf tuiweather-windows-x64.tar.gz
+.\tuiweather.exe --version
+```
 
 ### macOS Gatekeeper
 
