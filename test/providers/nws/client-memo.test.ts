@@ -138,6 +138,54 @@ describe("nws client — metadata memoization", () => {
     expect(calls.length).toBe(5);
   });
 
+  test("concurrent calls with different windows do not share a pending promise", async () => {
+    const calls: RecordedCall[] = [];
+    mockApi(calls);
+
+    const [narrow, full] = await Promise.all([
+      fetchForecast(PORTLAND, { forecastHours: 6 }),
+      fetchForecast(PORTLAND),
+    ]);
+    expect(narrow.hourly.length).toBe(6);
+    expect(full.hourly.length).toBe(48);
+    expect(calls.length).toBe(10);
+  });
+
+  test("a rejected pending forecast clears and fans the rejection out; the next call retries", async () => {
+    const calls: RecordedCall[] = [];
+    let stationsShouldFail = true;
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      const url = String(input);
+      calls.push({ url });
+      if (stationsShouldFail && url === STATIONS_URL) {
+        return new Response(JSON.stringify({ title: "Server Error", detail: "boom" }), {
+          status: 500,
+        });
+      }
+      const routes: Record<string, unknown> = {
+        [PORTLAND_POINTS_URL]: pointsBody,
+        [HOURLY_URL]: hourlyBody,
+        [DAILY_URL]: dailyBody,
+        [STATIONS_URL]: stationsBody,
+        [OBS_URL]: obsBody,
+      };
+      const body = routes[url];
+      if (body === undefined) return new Response(JSON.stringify({}), { status: 404 });
+      return new Response(JSON.stringify(body), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const results = await Promise.allSettled([fetchForecast(PORTLAND), fetchForecast(PORTLAND)]);
+    expect(results.every((r) => r.status === "rejected")).toBe(true);
+    expect(calls.length).toBe(4);
+
+    stationsShouldFail = false;
+    calls.length = 0;
+    const retry = await fetchForecast(PORTLAND);
+    expect(retry.providerId).toBe("nws");
+    expect(calls.length).toBe(5);
+    expect(calls[0]?.url).toBe(PORTLAND_POINTS_URL);
+  });
+
   test("memo expiry at TTL triggers a re-fetch of metadata", async () => {
     const calls: RecordedCall[] = [];
     mockApi(calls);

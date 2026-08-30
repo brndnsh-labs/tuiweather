@@ -124,7 +124,8 @@ export async function fetchForecast(
   window?: ForecastWindow,
 ): Promise<NormalizedForecast> {
   const key = metadataKey(location);
-  const pending = pendingForecasts.get(key);
+  const pendingKey = `${key}|${window?.forecastDays ?? "*"}|${window?.forecastHours ?? "*"}`;
+  const pending = pendingForecasts.get(pendingKey);
   if (pending) return pending;
 
   const task = (async (): Promise<NormalizedForecast> => {
@@ -195,11 +196,11 @@ export async function fetchForecast(
     );
   })();
 
-  pendingForecasts.set(key, task);
+  pendingForecasts.set(pendingKey, task);
   try {
     return await task;
   } finally {
-    pendingForecasts.delete(key);
+    pendingForecasts.delete(pendingKey);
   }
 }
 
