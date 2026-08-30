@@ -98,6 +98,8 @@ async function waitUntilFrame(
   throw new Error(`waitUntilFrame timed out; last frame:\n${frame}`);
 }
 
+// The 3s + 4s sequential waitUntilFrame budgets (7s) exceed bun's 5s default
+// per-test timeout, so the advancing-tick test carries an explicit 30s timeout.
 describe("ticker", () => {
   test("without injected clock the header ago string advances after tick", async () => {
     const original = TICK_INTERVAL_MS;
@@ -118,7 +120,7 @@ describe("ticker", () => {
     } finally {
       __setTickIntervalMs(original);
     }
-  });
+  }, 30_000);
 
   test("with injected nowMs the header ago string stays frozen", async () => {
     const original = TICK_INTERVAL_MS;
