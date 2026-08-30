@@ -1,6 +1,6 @@
 import { createCliRenderer } from "@opentui/core";
 import { createRoot } from "@opentui/react";
-import { App } from "./app/App";
+import { AppearanceApp } from "./app/AppearanceApp";
 import { buildJsonLine, buildOneLine } from "./app/oneline";
 import { appStore, refreshLoopPeriodMs } from "./app/store";
 import { runWatch } from "./app/watch";
@@ -98,9 +98,12 @@ async function runTui(locationArg: string | null): Promise<number> {
     return 1;
   }
   const renderer = await createCliRenderer({ exitOnCtrlC: true });
-  const appearance = await detectTerminalAppearance(renderer);
   renderer.on("destroy", () => appStore.getState().dispose());
-  createRoot(renderer).render(<App initialSlug={initialSlug} appearance={appearance} />);
+  const appearancePromise = detectTerminalAppearance(renderer);
+  createRoot(renderer).render(
+    <AppearanceApp initialSlug={initialSlug} appearancePromise={appearancePromise} />,
+  );
+  void appearancePromise.catch(() => undefined);
   return 0;
 }
 
