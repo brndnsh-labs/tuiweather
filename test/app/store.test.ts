@@ -11,6 +11,7 @@ import {
   MIN_REFRESH_LOOP_PERIOD_MS,
   type RefreshTimerDeps,
   refreshLoopPeriodMs,
+  withRepairedDefault,
 } from "../../src/app/store";
 import { loadConfig } from "../../src/lib/config/load";
 import { DEFAULT_CONFIG } from "../../src/lib/config/schema";
@@ -1244,5 +1245,239 @@ describe("refreshLoopPeriodMs", () => {
 
   test("clamps to the 60s floor at the minimum sane config", () => {
     expect(refreshLoopPeriodMs(1)).toBe(MIN_REFRESH_LOOP_PERIOD_MS);
+  });
+});
+
+describe("withRepairedDefault", () => {
+  test("replaces stale default with first location slug", async () => {
+    const { SCHEMA_VERSION, tuiConfigSchema } = await import("../../src/lib/config/schema");
+    const cfg = tuiConfigSchema.parse({
+      schema_version: SCHEMA_VERSION,
+      default_location: "ghost",
+      locations: [
+        { slug: "portland", label: "Portland", latitude: 45.52, longitude: -122.67 },
+        { slug: "london", label: "London", latitude: 51.5, longitude: -0.12 },
+      ],
+    });
+    const repaired = withRepairedDefault(cfg);
+    expect(repaired.default_location).toBe("portland");
+    expect(cfg.default_location).toBe("ghost");
+  });
+
+  test("deletes stale default when there are no locations", async () => {
+    const { SCHEMA_VERSION, tuiConfigSchema } = await import("../../src/lib/config/schema");
+    const cfg = tuiConfigSchema.parse({
+      schema_version: SCHEMA_VERSION,
+      default_location: "ghost",
+      locations: [],
+    });
+    const repaired = withRepairedDefault(cfg);
+    expect(repaired.default_location).toBeUndefined();
+    expect("default_location" in repaired).toBe(false);
+    const dir = await mkdtemp(join(tmpdir(), "tuiweather-repair-test-"));
+    tmpDirs.push(dir);
+    const path = join(dir, "config.toml");
+    const { saveConfig } = await import("../../src/lib/config/save");
+    await saveConfig(repaired, path);
+    const loaded = await loadConfig(path);
+    expect(loaded.default_location).toBeUndefined();
+    const text = await readFile(path, "utf8");
+    expect(text).not.toContain("ghost");
+    expect(text).not.toContain("default_location");
+  });
+
+  test("leaves valid default untouched", async () => {
+    const { SCHEMA_VERSION, tuiConfigSchema } = await import("../../src/lib/config/schema");
+    const cfg = tuiConfigSchema.parse({
+      schema_version: SCHEMA_VERSION,
+      default_location: "london",
+      locations: [
+        { slug: "portland", label: "Portland", latitude: 45.52, longitude: -122.67 },
+        { slug: "london", label: "London", latitude: 51.5, longitude: -0.12 },
+      ],
+    });
+    const repaired = withRepairedDefault(cfg);
+    expect(repaired).toBe(cfg);
+    expect(repaired.default_location).toBe("london");
+  });
+
+  test("leaves config with no default untouched", async () => {
+    const { SCHEMA_VERSION, tuiConfigSchema } = await import("../../src/lib/config/schema");
+    const cfg = tuiConfigSchema.parse({
+      schema_version: SCHEMA_VERSION,
+      locations: [{ slug: "portland", label: "Portland", latitude: 45.52, longitude: -122.67 }],
+    });
+    const repaired = withRepairedDefault(cfg);
+    expect(repaired).toBe(cfg);
+    expect(repaired.default_location).toBeUndefined();
+  });
+});
+
+describe("stale default repair on save", () => {
+  test("toggleUnits repairs stale default_location to first slug", async () => {
+    const staleToml = `schema_version = 1
+units = "metric"
+refresh_minutes = 10
+theme = "night"
+default_location = "ghost"
+
+[[locations]]
+slug = "portland"
+label = "Portland"
+latitude = 45.5202
+longitude = -122.6765
+
+[[locations]]
+slug = "london"
+label = "London"
+latitude = 51.5072
+longitude = -0.1276
+`;
+    const dir = await makeConfigDir(staleToml);
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: stubFetcher(),
+      fetchAirQuality: stubNullAirQualityFetcher,
+    });
+    await store.getState().init();
+    expect(store.getState().config.default_location).toBe("ghost");
+    await store.getState().toggleUnits();
+    const loaded = await loadConfig(join(dir, "config.toml"));
+    expect(loaded.default_location).toBe("portland");
+    expect(store.getState().config.default_location).toBe("portland");
+    store.getState().dispose();
+  });
+
+  test("addLocation repairs stale default_location to first slug", async () => {
+    const staleToml = `schema_version = 1
+units = "metric"
+refresh_minutes = 10
+theme = "night"
+default_location = "ghost"
+
+[[locations]]
+slug = "portland"
+label = "Portland"
+latitude = 45.5202
+longitude = -122.6765
+`;
+    const dir = await makeConfigDir(staleToml);
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: stubFetcher(),
+      fetchAirQuality: stubNullAirQualityFetcher,
+    });
+    await store.getState().init();
+    expect(store.getState().config.default_location).toBe("ghost");
+    const ok = await store.getState().addLocation({
+      slug: "oslo",
+      label: "Oslo",
+      latitude: 59.91,
+      longitude: 10.75,
+    });
+    expect(ok).toBe(true);
+    const loaded = await loadConfig(join(dir, "config.toml"));
+    expect(loaded.default_location).toBe("portland");
+    expect(store.getState().config.default_location).toBe("portland");
+    store.getState().dispose();
+  });
+
+  test("completeOnboarding repairs stale default when starting from empty locations", async () => {
+    const staleEmptyToml = `schema_version = 1
+units = "metric"
+refresh_minutes = 10
+theme = "night"
+default_location = "ghost"
+`;
+    const dir = await makeConfigDir(staleEmptyToml);
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: stubFetcher(),
+      fetchAirQuality: stubNullAirQualityFetcher,
+    });
+    await store.getState().init();
+    expect(store.getState().config.default_location).toBe("ghost");
+    expect(store.getState().config.locations).toEqual([]);
+    const ok = await store
+      .getState()
+      .completeOnboarding(
+        { slug: "tokyo-jp", label: "Tokyo", latitude: 35.68, longitude: 139.69 },
+        "metric",
+      );
+    expect(ok).toBe(true);
+    const loaded = await loadConfig(join(dir, "config.toml"));
+    expect(loaded.default_location).toBe("tokyo-jp");
+    expect(loaded.default_location).not.toBe("ghost");
+    store.getState().dispose();
+  });
+
+  test("moveLocation repairs stale default on save", async () => {
+    const staleToml = `schema_version = 1
+units = "metric"
+refresh_minutes = 10
+theme = "night"
+default_location = "ghost"
+
+[[locations]]
+slug = "portland"
+label = "Portland"
+latitude = 45.5202
+longitude = -122.6765
+
+[[locations]]
+slug = "london"
+label = "London"
+latitude = 51.5072
+longitude = -0.1276
+`;
+    const dir = await makeConfigDir(staleToml);
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: stubFetcher(),
+      fetchAirQuality: stubNullAirQualityFetcher,
+    });
+    await store.getState().init();
+    await store.getState().moveLocation("london", -1);
+    const loaded = await loadConfig(join(dir, "config.toml"));
+    expect(loaded.default_location).toBe("london");
+    store.getState().dispose();
+  });
+
+  test("deleteLocation repairs stale default when deleting non-default slug", async () => {
+    const staleToml = `schema_version = 1
+units = "metric"
+refresh_minutes = 10
+theme = "night"
+default_location = "ghost"
+
+[[locations]]
+slug = "portland"
+label = "Portland"
+latitude = 45.5202
+longitude = -122.6765
+
+[[locations]]
+slug = "london"
+label = "London"
+latitude = 51.5072
+longitude = -0.1276
+
+[[locations]]
+slug = "oslo"
+label = "Oslo"
+latitude = 59.91
+longitude = 10.75
+`;
+    const dir = await makeConfigDir(staleToml);
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: stubFetcher(),
+      fetchAirQuality: stubNullAirQualityFetcher,
+    });
+    await store.getState().init();
+    await store.getState().deleteLocation("oslo");
+    const loaded = await loadConfig(join(dir, "config.toml"));
+    expect(loaded.default_location).toBe("portland");
+    store.getState().dispose();
   });
 });

@@ -166,6 +166,19 @@ export function resolveDefaultSlug(config: TuiConfig, explicitSlug?: string): st
   return config.locations[0]?.slug ?? null;
 }
 
+export function withRepairedDefault(config: TuiConfig): TuiConfig {
+  if (config.default_location === undefined) return config;
+  if (config.locations.some((loc) => loc.slug === config.default_location)) return config;
+  if (config.locations.length === 0) {
+    const next = { ...config };
+    delete next.default_location;
+    return next;
+  }
+  const first = config.locations[0];
+  if (!first) return config;
+  return { ...config, default_location: first.slug };
+}
+
 export function createStoreInstance(deps: StoreDeps = prodDeps()) {
   const fetcher = deps.fetchForecast;
   const aqFetcher = deps.fetchAirQuality;
@@ -386,13 +399,14 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
         const prefs = resolveDisplayPrefs(config);
         const mixed = new Set([prefs.temp, prefs.wind, prefs.precip, prefs.pressure]).size > 1;
         const units: TuiConfig["units"] = config.units === "metric" ? "imperial" : "metric";
-        const next: TuiConfig = mixed
+        const rawNext: TuiConfig = mixed
           ? { ...config, units, unit_prefs: { ...config.unit_prefs, temp: units } }
           : {
               ...config,
               units,
               unit_prefs: { temp: units, wind: units, precip: units, pressure: units },
             };
+        const next = withRepairedDefault(rawNext);
         clearActionErrorState();
         set({ config: next });
         await saveConfig(next, deps.configPath).catch((e: unknown) => {
@@ -450,13 +464,14 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
         );
         const finalEntry: LocationEntry = slug === entry.slug ? entry : { ...entry, slug };
         const isFirstLocation = config.locations.length === 0;
-        const next: TuiConfig = {
+        const rawNext: TuiConfig = {
           ...config,
           locations: [...config.locations, finalEntry],
         };
         if (isFirstLocation && config.default_location === undefined) {
-          next.default_location = slug;
+          rawNext.default_location = slug;
         }
+        const next = withRepairedDefault(rawNext);
         try {
           await saveConfig(next, deps.configPath);
         } catch (e) {
@@ -481,7 +496,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
           config.locations.map((loc) => loc.slug),
         );
         const finalEntry: LocationEntry = slug === entry.slug ? entry : { ...entry, slug };
-        const next: TuiConfig = {
+        const rawNext: TuiConfig = {
           ...config,
           units,
           unit_prefs: { temp: units, wind: units, precip: units, pressure: units },
@@ -491,6 +506,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
               ? [...config.locations, finalEntry]
               : [finalEntry],
         };
+        const next = withRepairedDefault(rawNext);
         clearActionErrorState();
         try {
           await saveConfig(next, deps.configPath);
@@ -528,15 +544,16 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
         const idx = locations.findIndex((loc) => loc.slug === slug);
         if (idx === -1) return;
         const remaining = locations.filter((_, i) => i !== idx);
-        const next: TuiConfig = { ...config, locations: remaining };
+        const rawNext: TuiConfig = { ...config, locations: remaining };
         if (config.default_location === slug) {
           const fallback = remaining[0];
           if (fallback) {
-            next.default_location = fallback.slug;
+            rawNext.default_location = fallback.slug;
           } else {
-            delete next.default_location;
+            delete rawNext.default_location;
           }
         }
+        const next = withRepairedDefault(rawNext);
         const nextActive = remaining[Math.min(idx, remaining.length - 1)];
         set((s) => ({
           config: next,
@@ -585,7 +602,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
         const [moved] = nextLocations.splice(idx, 1);
         if (!moved) return;
         nextLocations.splice(nextIdx, 0, moved);
-        const next: TuiConfig = { ...config, locations: nextLocations };
+        const next: TuiConfig = withRepairedDefault({ ...config, locations: nextLocations });
         try {
           await saveConfig(next, deps.configPath);
         } catch (e) {
