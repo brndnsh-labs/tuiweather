@@ -55,7 +55,7 @@ export function __resetNwsMetadataMemoForTests(): void {
   pendingForecasts.clear();
 }
 
-const NWS_HEADERS = {
+export const NWS_HEADERS = {
   "User-Agent": NWS_USER_AGENT,
   Accept: "application/geo+json",
 } as const;
