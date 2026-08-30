@@ -33,7 +33,7 @@ export async function saveConfig(config: TuiConfig, path?: string): Promise<void
   tuiConfigSchema.parse(config);
   const target = path ?? defaultConfigPath();
   const dir = dirname(target);
-  await mkdir(dir, { recursive: true });
+  await mkdir(dir, { recursive: true, mode: 0o700 });
   const tmp = join(dir, `${basename(target)}.tmp-${process.pid}-${randomBytes(8).toString("hex")}`);
   let created = false;
   try {
