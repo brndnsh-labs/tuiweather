@@ -121,7 +121,8 @@ describe("first-run onboarding", () => {
       await setup.flush();
       const frame = await waitUntilFrame(setup, (value) => value.includes("welcome to tuiweather"));
       expect(frame).toContain("Live weather, rain timing");
-      expect(frame).toContain("esc skip tour");
+      expect(frame).toContain("s skip");
+      expect(frame).toContain("enter/esc continue");
       expect(frame).not.toContain("main ·");
       expect(store.getState().initStatus).toBe("ready");
     } finally {
@@ -129,7 +130,7 @@ describe("first-run onboarding", () => {
     }
   });
 
-  test("escape skips the tour to units and q quits from setup", async () => {
+  test("escape advances to units and q quits from setup", async () => {
     const { store } = await makeStore();
     let quits = 0;
     const setup = await testRender(<App store={store} quit={() => quits++} />, {

@@ -25,6 +25,28 @@ export function errorReason(
   return sanitizeText(reason, maxChars);
 }
 
+export function causeSuffix(cause: unknown): string {
+  let raw = "";
+  if (cause instanceof Error) {
+    const inner = (cause as Error & { cause?: unknown }).cause;
+    if (inner instanceof Error) raw = inner.message;
+    else if (typeof inner === "string") raw = inner;
+    else if (cause.message !== "fetch failed") raw = cause.message;
+  } else if (typeof cause === "string") {
+    raw = cause;
+  } else if (
+    cause !== null &&
+    typeof cause === "object" &&
+    "message" in cause &&
+    typeof (cause as { message: unknown }).message === "string"
+  ) {
+    raw = (cause as { message: string }).message;
+  }
+  const sanitized = sanitizeText(raw, 200).trim();
+  if (!sanitized) return "";
+  return `: ${sanitized}`;
+}
+
 export function httpError(
   status: number,
   body: unknown,

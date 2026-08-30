@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import { errorReason, httpError, sanitizeText } from "../http";
+import { causeSuffix, errorReason, httpError, sanitizeText } from "../http";
 import type { GeocodingResult } from "../types";
 import { ProviderError } from "../types";
 import { apiErrorBodySchema, geocodingResponseSchema, type geocodingResultSchema } from "./schemas";
@@ -57,7 +57,7 @@ export async function searchLocations(query: string, count = 8): Promise<Geocodi
     });
   } catch (cause) {
     throw new ProviderError(
-      "openmeteo geocoding request failed before an HTTP response",
+      `openmeteo geocoding request failed before an HTTP response${causeSuffix(cause)}`,
       "openmeteo",
       cause,
     );
