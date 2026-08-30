@@ -120,6 +120,41 @@ describe("fetchForecast error mapping", () => {
     expect(error.message).toContain("before an HTTP response");
     expect(error.cause).toBeInstanceOf(TypeError);
   });
+
+  test("appends the sanitized network cause when fetch rejects with an inner cause", async () => {
+    globalThis.fetch = (() =>
+      Promise.reject(
+        new TypeError("fetch failed", {
+          cause: new Error("getaddrinfo ENOTFOUND api.open-meteo.com"),
+        }),
+      )) as unknown as typeof fetch;
+    const error = await captureProviderError(fetchForecast(PORTLAND));
+    expect(error.message).toBe(
+      "openmeteo forecast request failed before an HTTP response: getaddrinfo ENOTFOUND api.open-meteo.com",
+    );
+    expect(error.cause).toBeInstanceOf(TypeError);
+  });
+
+  test("omits the suffix when the network cause is empty", async () => {
+    globalThis.fetch = (() =>
+      Promise.reject(new TypeError("fetch failed"))) as unknown as typeof fetch;
+    const error = await captureProviderError(fetchForecast(PORTLAND));
+    expect(error.message).toBe("openmeteo forecast request failed before an HTTP response");
+  });
+
+  test("sanitizes control chars and caps a hostile network cause", async () => {
+    const hostile = `${"\u001b]0;pwned\u0007\n".repeat(10)}${"x".repeat(500)}`;
+    globalThis.fetch = (() =>
+      Promise.reject(
+        new TypeError("fetch failed", { cause: new Error(hostile) }),
+      )) as unknown as typeof fetch;
+    const error = await captureProviderError(fetchForecast(PORTLAND));
+    expect(error.message.includes("\u001b")).toBe(false);
+    expect(error.message.includes("\u0007")).toBe(false);
+    expect(error.message.includes("\n")).toBe(false);
+    expect(error.message.length).toBeLessThan(300);
+    expect(error.message).toContain("before an HTTP response:");
+  });
 });
 
 describe("fetchForecast success path", () => {

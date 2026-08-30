@@ -1,7 +1,7 @@
 import type { z } from "zod";
 import packageJson from "../../../../package.json";
 import type { GeoPoint, NormalizedForecast } from "../../weather/types";
-import { sanitizeText } from "../http";
+import { causeSuffix, sanitizeText } from "../http";
 import { type ForecastWindow, ProviderError, type WeatherProvider } from "../types";
 import { normalizeNwsForecast } from "./normalize";
 import {
@@ -88,7 +88,7 @@ async function getJson(url: string, label: string): Promise<unknown> {
       throw new ProviderError(`nws ${label} redirected off-host`, NWS_PROVIDER_ID, cause);
     }
     throw new ProviderError(
-      `nws ${label} request failed before an HTTP response`,
+      `nws ${label} request failed before an HTTP response${causeSuffix(cause)}`,
       NWS_PROVIDER_ID,
       cause,
     );
