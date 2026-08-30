@@ -74,4 +74,17 @@ describe("buildPalette ink/sky split", () => {
     expect(contrastRatio(p.fg, muddy)).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(p.fgDim, muddy)).toBeGreaterThanOrEqual(4.5);
   });
+
+  test("warn and danger meet the 4.5:1 floor after ensureContrast", () => {
+    for (const ink of ["dark", "light"] as const) {
+      const base = ink === "dark" ? DARK_INK : LIGHT_INK;
+      const p = buildPalette("auto", true, ink, null);
+      expect(contrastRatio(p.warn, base.surface)).toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(p.danger, base.surface)).toBeGreaterThanOrEqual(4.5);
+    }
+    const muddy = "#5c6370";
+    const p = buildPalette("auto", true, "dark", muddy);
+    expect(contrastRatio(p.warn, muddy)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(p.danger, muddy)).toBeGreaterThanOrEqual(4.5);
+  });
 });
