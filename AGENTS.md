@@ -44,7 +44,9 @@ src/
   theme/                 palettes: ink (terminal-adaptive) + day/night accents, detection, tokens
   viewport/              breakpoint definitions + debounced hooks
 test/                    unit tests, fixtures, snapshot goldens
-scripts/                 dev smoke + release tooling (see docs/RELEASING.md)
+scripts/                 dev smoke + fixture recorder (`bun scripts/record-fixtures.ts`,
+                         the only sanctioned network tool — see its --compare drift mode)
+                         + release tooling (see docs/RELEASING.md)
 ```
 
 Dependency direction is one-way: `lib/` must never import from `app/`, `features/`, or `components/`.
