@@ -17,8 +17,9 @@ Data sources: Open-Meteo (default; free, no key, non-commercial) and NWS `api.we
 | `bun run lint` | Biome check (lint + format) |
 | `bun run fmt` | Biome autofix |
 | `bun run test` | bun test |
+| `bun run verify` | All four gates in one shot (same command CI runs) |
 
-**Verify before done:** after any change, run `typecheck`, `lint`, and `test`. All three must pass.
+**Verify before done:** after any change, run `typecheck`, `lint`, and `test`. `bun run verify` runs all four gates including `build`. All must pass.
 CI runs the same gates on every PR; they are required checks on `main`.
 
 ## Architecture
