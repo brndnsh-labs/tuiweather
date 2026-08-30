@@ -239,15 +239,20 @@ describe("nws client — error wrapping", () => {
     mockResponse(JSON.stringify({ title: "Bad Request", detail: "Point must be rounded" }), 400);
     const error = await captureProviderError(fetchForecast(PORTLAND));
     expect(error.providerId).toBe("nws");
-    expect(error.message).toContain("400");
-    expect(error.message).toContain("Point must be rounded");
+    expect(error.message).toBe("nws points failed (HTTP 400): Point must be rounded");
     expect(error.message).not.toContain("https://");
   });
 
   test("falls back to the problem title when detail is missing", async () => {
     mockResponse(JSON.stringify({ title: "Not Found" }), 404);
     const error = await captureProviderError(fetchForecast(PORTLAND));
-    expect(error.message).toContain("Not Found");
+    expect(error.message).toBe("nws points failed (HTTP 404): Not Found");
+  });
+
+  test("unified nws shape omits reason when problem body has no detail or title", async () => {
+    mockResponse(JSON.stringify({ status: 400 }), 400);
+    const error = await captureProviderError(fetchForecast(PORTLAND));
+    expect(error.message).toBe("nws points failed (HTTP 400)");
   });
 
   test("strips control characters and clamps a hostile problem detail", async () => {

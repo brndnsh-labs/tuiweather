@@ -148,6 +148,10 @@ async function makeStore(
   return { store, path };
 }
 
+// Why: waitUntilFrame's 5s default plus the ACTION_ERROR_TTL_MS (4s) auto-clear
+// sleep (TTL+200 = 4.2s) exceeds bun's 5s default per-test timeout; the auto-clear
+// test's combined wall budget (~9.2s) would be killed before its wait can succeed on
+// a loaded CI runner, so it carries an explicit 30s test timeout.
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function waitUntilFrame(
@@ -333,5 +337,5 @@ describe("action error rendering", () => {
     } finally {
       await setup.renderer.destroy();
     }
-  });
+  }, 30_000);
 });

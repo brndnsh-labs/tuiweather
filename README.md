@@ -30,7 +30,20 @@ or with the Bun package manager:
 bun install --global tuiweather
 ```
 
-Standalone binaries for macOS and Linux are attached to each [GitHub release](https://github.com/brndnsh-labs/tuiweather/releases).
+or run without installing:
+
+```sh
+npx tuiweather --version
+bunx tuiweather --version
+```
+
+Standalone binaries for macOS, Linux, and Windows (x64) are attached to each [GitHub release](https://github.com/brndnsh-labs/tuiweather/releases). On Windows (no Node or Bun required), in cmd.exe or any shell with `curl.exe` on PATH:
+
+```sh
+curl.exe -Lo tuiweather-windows-x64.tar.gz https://github.com/brndnsh-labs/tuiweather/releases/latest/download/tuiweather-windows-x64.tar.gz
+tar -xzf tuiweather-windows-x64.tar.gz
+.\tuiweather.exe --version
+```
 
 ### macOS Gatekeeper
 
@@ -67,7 +80,7 @@ Use `tuiweather --help` for command-line options and `tuiweather --version` to p
 | `↑` / `↓` | Scroll the main panel when content overflows |
 | `?` | Toggle help overlay |
 | `o` | Re-run setup (from help overlay) |
-| `esc` | Clear sidebar focus if set; otherwise close help overlay or quit |
+| `esc` | Clear sidebar focus if set; otherwise close the help overlay |
 | `q` | Quit |
 
 While the search overlay is open it owns the keyboard: type to search, up/down to move the cursor, enter to add the highlighted result, esc to cancel. Number, focus, and reorder keys are ignored while the search input is focused (same as `d`/`r`).
@@ -163,22 +176,23 @@ longitude = -122.6765
 | `schema_version` | integer | `4` | Required; currently always `4`. Version 1, 2, and 3 files are migrated in place on load |
 | `time_format` | `12h` / `24h` / `auto` | `"auto"` | `auto` picks 12h when temperature units are imperial, else 24h |
 | `refresh_minutes` | integer | `10` | Minimum `1` |
+| `reduced_motion` | boolean | `false` | Replace the animated loading spinner with a static indicator |
 | `theme` | `day` / `night` / `auto` | `"auto"` | Accent palette; `auto` follows the location's sunrise/sunset. Text ink adapts via `ink` |
 | `ink` | `auto` / `light` / `dark` | `"auto"` | Terminal ink override; `auto` detects the background via an OSC query (300ms timeout, fallback dark), `light`/`dark` skips detection and uses that ink directly |
 | `provider` | `openmeteo` / `nws` | `"openmeteo"` | Weather data source. Open-Meteo is the default full-feature experience; NWS is the official US source fallback — works: conditions, temperatures, precipitation probabilities; goes quiet: minute-level nowcast (panel hides, watch bell inactive), hourly/daily precip amounts (blank bars/chips), air quality |
 | `daily_days` | integer | `7` | `1`–`16` forecast days |
 | `hourly_hours` | integer | `24` | `12`–`48` forecast hours |
 | `default_location` | string | none | Must match a `[[locations]]` slug |
-| `units.temp` | `metric` / `imperial` | legacy `units` | Display unit for temperatures |
-| `units.wind` | `metric` / `imperial` | legacy `units` | Display unit for wind speed and visibility |
-| `units.precip` | `metric` / `imperial` | legacy `units` | Display unit for precipitation amounts |
-| `units.pressure` | `metric` / `imperial` | legacy `units` | Display unit for pressure; `metric` → hPa (rounded), `imperial` → inHg to 2 decimals; defaults via legacy `units` |
+| `units.temp` | `metric` / `imperial` | legacy `units`, else `imperial` | Display unit for temperatures |
+| `units.wind` | `metric` / `imperial` | legacy `units`, else `imperial` | Display unit for wind speed and visibility |
+| `units.precip` | `metric` / `imperial` | legacy `units`, else `imperial` | Display unit for precipitation amounts |
+| `units.pressure` | `metric` / `imperial` | legacy `units`, else `imperial` | Display unit for pressure; `metric` → hPa (rounded), `imperial` → inHg to 2 decimals; falls back to `imperial` when unset |
 | `panels.nowcast` | boolean | `true` | Show/hide the nowcast banner |
 | `panels.details` | boolean | `true` | Show/hide the details grid |
 | `panels.hourly` | boolean | `true` | Show/hide the hourly strip |
 | `panels.daily` | boolean | `true` | Show/hide the daily list |
 
-Each `[units]` field can be set independently, so mixed display such as °C temperatures with mph wind works everywhere including one-line mode. The legacy top-level `units = "metric" | "imperial"` scalar is still accepted and acts as the fallback for any `[units]` field you omit; because TOML forbids a key and table with the same name, saved configs contain either the scalar (uniform prefs) or the full `[units]` table (mixed prefs), never both.
+Each `[units]` field can be set independently, so mixed display such as °C temperatures with mph wind works everywhere including one-line mode. The legacy top-level `units = "metric" | "imperial"` scalar is still accepted and acts as the fallback for any `[units]` field you omit; when neither the field nor the legacy scalar is set, the unit falls back to `imperial`. Because TOML forbids a key and table with the same name, saved configs contain either the scalar (uniform prefs) or the full `[units]` table (mixed prefs), never both.
 
 Each `[[locations]]` entry:
 

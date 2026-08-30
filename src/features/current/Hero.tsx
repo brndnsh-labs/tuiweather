@@ -25,11 +25,12 @@ function StatLine({ parts, dim }: { parts: (string | null)[]; dim: string }) {
 
 export const Hero = memo(function Hero({ obs, prefs, compact = false, mini = false }: HeroProps) {
   const palette = usePalette();
+  const tempFg = lerpHex(palette.tempCold, palette.tempWarm, tempWarmthT(obs.temperatureC));
 
   if (mini) {
     return (
       <box flexDirection="row" gap={1}>
-        <text fg={palette.tempWarm}>{formatTemp(obs.temperatureC, prefs.temp)}</text>
+        <text fg={tempFg}>{formatTemp(obs.temperatureC, prefs.temp)}</text>
         <text fg={palette.fg}>
           {`${conditionLabel(obs.condition)} · fl ${formatTemp(obs.apparentC, prefs.temp)}`}
         </text>
@@ -41,7 +42,7 @@ export const Hero = memo(function Hero({ obs, prefs, compact = false, mini = fal
     return (
       <box flexDirection="column">
         <box flexDirection="row" gap={1}>
-          <text fg={palette.tempWarm}>{`${formatTemp(obs.temperatureC, prefs.temp)}`}</text>
+          <text fg={tempFg}>{`${formatTemp(obs.temperatureC, prefs.temp)}`}</text>
           <text fg={palette.fg}>
             {`${conditionLabel(obs.condition)} · feels like ${formatTemp(obs.apparentC, prefs.temp)}`}
           </text>
@@ -56,8 +57,6 @@ export const Hero = memo(function Hero({ obs, prefs, compact = false, mini = fal
       </box>
     );
   }
-
-  const tempFg = lerpHex(palette.tempCold, palette.tempWarm, tempWarmthT(obs.temperatureC));
 
   return (
     <box flexDirection="column" flexShrink={0}>

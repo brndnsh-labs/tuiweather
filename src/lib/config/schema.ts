@@ -43,6 +43,7 @@ export const tuiConfigSchema = z
     time_format: z.enum(["12h", "24h", "auto"]).default("auto"),
     unit_prefs: z.object(unitPrefsShape).prefault({}),
     refresh_minutes: z.number().int().min(1).default(10),
+    reduced_motion: z.boolean().default(false),
     theme: z.enum(["day", "night", "auto"]).default("auto"),
     ink: z.enum(["auto", "light", "dark"]).default("auto"),
     provider: z.enum(PROVIDER_IDS).default("openmeteo"),

@@ -13,6 +13,10 @@ export interface PaletteQuery {
 
 export const FALLBACK_APPEARANCE: TerminalAppearance = { ink: "dark", background: null };
 
+export function appearancesEqual(a: TerminalAppearance, b: TerminalAppearance): boolean {
+  return a.ink === b.ink && a.background === b.background;
+}
+
 export async function detectTerminalAppearance(
   query: PaletteQuery,
   timeoutMs = 300,

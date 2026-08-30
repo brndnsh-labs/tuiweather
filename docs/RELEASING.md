@@ -6,17 +6,18 @@ Publishing is an explicit external release gate. A commit, merge, version bump, 
 
 Pushing a `v*` tag runs `.github/workflows/release.yml`:
 
-1. `prepare` verifies the tag is on `main` and matches `package.json`, runs all gates, packs the npm tarball once, cross-compiles the standalone binaries, smoke-tests the host binary, and uploads short-lived workflow artifacts.
-2. `npm-publish` downloads that exact tarball and publishes it through npm trusted publishing with GitHub OIDC and provenance. No npm token is stored in GitHub.
-3. `github-release` runs only after npm succeeds and attaches the standalone archives and checksums to the GitHub release.
+1. `prepare` verifies the tag is on `main` and matches `package.json`, runs all gates, packs the npm tarball once, cross-compiles the standalone binaries for `linux-x64`, `linux-arm64`, `darwin-x64`, `darwin-arm64`, and `windows-x64`, smoke-tests the Linux host binary, and uploads short-lived workflow artifacts.
+2. `windows-smoke` downloads the Windows artifact on `windows-latest` and asserts `tuiweather.exe --version` matches the tag. A failure here blocks publish.
+3. `npm-publish` runs only after both `prepare` and `windows-smoke` succeed, downloads that exact tarball and publishes it through npm trusted publishing with GitHub OIDC and provenance. No npm token is stored in GitHub.
+4. `github-release` runs only after npm succeeds and attaches the standalone archives (`tuiweather-linux-x64.tar.gz`, `tuiweather-linux-arm64.tar.gz`, `tuiweather-darwin-x64.tar.gz`, `tuiweather-darwin-arm64.tar.gz`, `tuiweather-windows-x64.tar.gz` plus `.sha256`) to the GitHub release.
 
 The workflow pins Bun, npm, and every Action used by the release. Dependabot proposes weekly Action pin updates.
 
-## One-time trusted-publisher setup
+## One-time trusted-publisher setup (completed)
 
-The bootstrap package `tuiweather@0.0.0` has already been published. npm assigned both `next` and `latest` to that first version.
+This setup was completed before the first supported release and is recorded here for provenance — a maintainer arriving after `v0.3.x` does not need to repeat it. The bootstrap package `tuiweather@0.0.0` was the first publish; `v0.1.0` was the first supported release. `latest` tracks the current version.
 
-The repository needs an `npm` deployment environment, and npm must trust that environment in this repository's `release.yml` workflow:
+The setup consisted of an `npm` deployment environment on this repository, with npm trusting that environment for the `release.yml` workflow:
 
 ```sh
 gh api --method PUT repos/brndnsh-labs/tuiweather/environments/npm
@@ -56,7 +57,7 @@ After explicit approval for the exact version and both public release surfaces:
 ./scripts/release.sh <major|minor|patch>
 ```
 
-The script bumps `package.json`, updates `CHANGELOG.md`, creates `vX.Y.Z`, and atomically pushes the release commit and that exact tag. For the first supported release from `0.0.0`, use `minor` to create `v0.1.0`.
+The script bumps `package.json`, updates `CHANGELOG.md`, creates `vX.Y.Z`, and atomically pushes the release commit and that exact tag. Pick the bump type from the shipped changes: `fix:` subjects → `patch`, `feat:` subjects → `minor`, breaking changes → `major`.
 
 Watch the workflow:
 
@@ -71,6 +72,7 @@ Verify both public surfaces independently after the workflow succeeds:
 npm view tuiweather version dist-tags --json
 bunx tuiweather --version
 gh release view vX.Y.Z
+gh release view vX.Y.Z --json assets --jq '.assets[].name' | grep -E 'tuiweather-(linux-x64|linux-arm64|darwin-x64|darwin-arm64|windows-x64)\.tar\.gz'
 ```
 
 If a job fails, fix the cause and rerun only the failed jobs when safe. Never retry an npm publish after the version is visible in the registry; npm versions are immutable.
