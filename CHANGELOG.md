@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here.
 
+## v0.3.6 (2026-08-29)
+
+### Fixes
+- fix: make Windows verification reliable (#121) (ffc36eb)
+
 ## v0.3.5 (2026-08-29)
 
 ### Fixes
