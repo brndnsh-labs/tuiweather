@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { chmod, mkdir, open, readFile, rename, rm, unlink } from "node:fs/promises";
+import { chmod, mkdir, open, readdir, readFile, rename, rm, stat, unlink } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
@@ -11,6 +11,7 @@ export const CACHE_SCHEMA_VERSION = 2;
 const DEFAULT_MAX_AGE_MINUTES = 10;
 const AQ_TTL_MINUTES = 60;
 const MIN_MS = 60_000;
+export const ORPHAN_TTL_MS = 7 * 24 * 60 * MIN_MS;
 
 const conditionSchema = z.enum([
   "clear",
@@ -262,6 +263,33 @@ class FsCacheIo implements CacheIo {
   }
 }
 
+export async function sweepStaleCacheFiles(io: CacheIo, nowMs: number): Promise<void> {
+  let dir: string;
+  try {
+    dir = await io.baseDir();
+  } catch {
+    return;
+  }
+  let entries: string[];
+  try {
+    entries = await readdir(dir);
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    if (!entry.endsWith(".json")) continue;
+    let mtimeMs: number;
+    try {
+      mtimeMs = (await stat(join(dir, entry))).mtimeMs;
+    } catch {
+      continue;
+    }
+    if (nowMs - mtimeMs > ORPHAN_TTL_MS) {
+      await io.remove(entry).catch(() => undefined);
+    }
+  }
+}
+
 export async function cachedForecast(
   provider: WeatherProvider,
   location: GeoPoint,
@@ -292,6 +320,7 @@ export async function cachedForecast(
         forecast,
       } satisfies Envelope),
     );
+    await sweepStaleCacheFiles(io, nowMs).catch(() => undefined);
     return { forecast, stale: false };
   } catch (error) {
     if (envelope && error instanceof ProviderError) {
@@ -334,6 +363,7 @@ export async function cachedAirQuality(
         airQuality,
       } satisfies AqEnvelope),
     );
+    await sweepStaleCacheFiles(io, nowMs).catch(() => undefined);
     return { airQuality, stale: false };
   } catch (error) {
     if (envelope && error instanceof ProviderError) {

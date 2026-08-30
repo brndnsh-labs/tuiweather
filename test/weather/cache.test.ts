@@ -1,5 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, readdir, rm, stat as statFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  stat as statFile,
+  utimes,
+  writeFile,
+} from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { ProviderError, type WeatherProvider } from "../../src/lib/providers/types";
@@ -9,6 +18,8 @@ import {
   cachedForecast,
   cacheKey,
   cacheRoot,
+  ORPHAN_TTL_MS,
+  sweepStaleCacheFiles,
 } from "../../src/lib/weather/cache";
 import type { GeoPoint, NormalizedForecast } from "../../src/lib/weather/types";
 
@@ -389,5 +400,120 @@ describe("cachedForecast", () => {
     expect(result.forecast).toEqual(fresh);
     expect(io.removed).toEqual([KEY]);
     expect(JSON.parse(io.store.get(KEY) ?? "{}").version).toBe(CACHE_SCHEMA_VERSION);
+  });
+});
+
+describe("sweepStaleCacheFiles", () => {
+  async function makeSweepIo(dir: string): Promise<CacheIo> {
+    await mkdir(dir, { recursive: true });
+    return {
+      async baseDir() {
+        return dir;
+      },
+      async read(key) {
+        try {
+          return await readFile(join(dir, key), "utf8");
+        } catch {
+          return null;
+        }
+      },
+      async write(key, text) {
+        await writeFile(join(dir, key), text, "utf8");
+      },
+      async remove(key) {
+        await rm(join(dir, key), { force: true });
+      },
+    };
+  }
+
+  test("removes orphaned json older than TTL and keeps fresh entries", async () => {
+    const root = await mkdtemp(join(tmpdir(), "tuiweather-sweep-test-"));
+    const dir = join(root, "tuiweather");
+    const io = await makeSweepIo(dir);
+    const nowMs = Date.parse(NOW);
+    try {
+      await io.write("old.json", JSON.stringify({ stale: true }));
+      await io.write("fresh.json", JSON.stringify({ fresh: true }));
+      await utimes(
+        join(dir, "old.json"),
+        new Date(nowMs - ORPHAN_TTL_MS - 1000),
+        new Date(nowMs - ORPHAN_TTL_MS - 1000),
+      );
+      await utimes(join(dir, "fresh.json"), new Date(nowMs), new Date(nowMs));
+
+      await sweepStaleCacheFiles(io, nowMs);
+
+      expect(await io.read("old.json")).toBeNull();
+      expect(await io.read("fresh.json")).not.toBeNull();
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test("ignores non-json files and does not throw when dir is missing", async () => {
+    const root = await mkdtemp(join(tmpdir(), "tuiweather-sweep-test-"));
+    const dir = join(root, "tuiweather");
+    const io = await makeSweepIo(dir);
+    const nowMs = Date.parse(NOW);
+    try {
+      await io.write("keep.json", JSON.stringify({ ok: true }));
+      await utimes(join(dir, "keep.json"), new Date(nowMs), new Date(nowMs));
+      await writeFile(join(dir, "notes.txt"), "do not delete", "utf8");
+      await utimes(
+        join(dir, "notes.txt"),
+        new Date(nowMs - ORPHAN_TTL_MS - 5000),
+        new Date(nowMs - ORPHAN_TTL_MS - 5000),
+      );
+
+      await sweepStaleCacheFiles(io, nowMs);
+
+      expect(await io.read("keep.json")).not.toBeNull();
+      expect(await readFile(join(dir, "notes.txt"), "utf8")).toBe("do not delete");
+
+      const missingIo: CacheIo = {
+        async baseDir() {
+          return join(root, "does-not-exist");
+        },
+        async read() {
+          return null;
+        },
+        async write() {},
+        async remove() {},
+      };
+      await expect(sweepStaleCacheFiles(missingIo, nowMs)).resolves.toBeUndefined();
+
+      const throwingBaseIo: CacheIo = {
+        async baseDir() {
+          throw new Error("boom");
+        },
+        async read() {
+          return null;
+        },
+        async write() {},
+        async remove() {},
+      };
+      await expect(sweepStaleCacheFiles(throwingBaseIo, nowMs)).resolves.toBeUndefined();
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test("boundary is strict: file exactly at TTL is kept", async () => {
+    const root = await mkdtemp(join(tmpdir(), "tuiweather-sweep-test-"));
+    const dir = join(root, "tuiweather");
+    const io = await makeSweepIo(dir);
+    const nowMs = Date.parse(NOW);
+    try {
+      await io.write("edge.json", "{}");
+      await utimes(
+        join(dir, "edge.json"),
+        new Date(nowMs - ORPHAN_TTL_MS),
+        new Date(nowMs - ORPHAN_TTL_MS),
+      );
+      await sweepStaleCacheFiles(io, nowMs);
+      expect(await io.read("edge.json")).not.toBeNull();
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });
