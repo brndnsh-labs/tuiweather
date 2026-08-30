@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import { causeSuffix, errorReason, httpError, sanitizeText } from "../http";
+import { causeSuffix, errorReason, httpError, readJsonCapped, sanitizeText } from "../http";
 import type { GeocodingResult } from "../types";
 import { ProviderError } from "../types";
 import { apiErrorBodySchema, geocodingResponseSchema, type geocodingResultSchema } from "./schemas";
@@ -65,8 +65,9 @@ export async function searchLocations(query: string, count = 8): Promise<Geocodi
 
   let body: unknown;
   try {
-    body = await res.json();
+    body = await readJsonCapped(res, { providerId: "openmeteo", label: "geocoding" });
   } catch (cause) {
+    if (cause instanceof ProviderError) throw cause;
     throw new ProviderError(
       `openmeteo geocoding returned a non-JSON body (HTTP ${res.status})`,
       "openmeteo",

@@ -1,7 +1,7 @@
 import type { z } from "zod";
 import packageJson from "../../../../package.json";
 import type { GeoPoint, NormalizedForecast } from "../../weather/types";
-import { causeSuffix, sanitizeText } from "../http";
+import { causeSuffix, readJsonCapped, sanitizeText } from "../http";
 import { type ForecastWindow, ProviderError, type WeatherProvider } from "../types";
 import { normalizeNwsForecast } from "./normalize";
 import {
@@ -108,8 +108,9 @@ async function getJson(url: string, label: string): Promise<unknown> {
 
   let body: unknown;
   try {
-    body = await res.json();
+    body = await readJsonCapped(res, { providerId: NWS_PROVIDER_ID, label });
   } catch (cause) {
+    if (cause instanceof ProviderError) throw cause;
     throw new ProviderError(
       `nws ${label} returned a non-JSON body (HTTP ${res.status})`,
       NWS_PROVIDER_ID,
