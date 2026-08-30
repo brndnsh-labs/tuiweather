@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here.
 
+## v0.3.7 (2026-08-29)
+
+### Other
+- test: poll config file in locations delete/default tests to fix flake (#123) (26a8c0a)
+
 ## v0.3.6 (2026-08-29)
 
 ### Fixes
