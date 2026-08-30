@@ -1,5 +1,5 @@
 import type { GeoPoint, NormalizedForecast } from "../../weather/types";
-import { errorReason, httpError } from "../http";
+import { causeSuffix, errorReason, httpError } from "../http";
 import { ProviderError } from "../types";
 import { normalizeForecast } from "./normalize";
 import { apiErrorBodySchema, forecastResponseSchema } from "./schemas";
@@ -102,7 +102,7 @@ export async function fetchForecast(
     });
   } catch (cause) {
     throw new ProviderError(
-      "openmeteo forecast request failed before an HTTP response",
+      `openmeteo forecast request failed before an HTTP response${causeSuffix(cause)}`,
       OPENMETEO_PROVIDER_ID,
       cause,
     );

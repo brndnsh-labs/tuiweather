@@ -150,6 +150,41 @@ describe("searchLocations error mapping", () => {
   });
 });
 
+describe("searchLocations network cause suffix", () => {
+  test("appends the sanitized network cause when fetch rejects with an inner cause", async () => {
+    globalThis.fetch = (() =>
+      Promise.reject(
+        new TypeError("fetch failed", {
+          cause: new Error("getaddrinfo ENOTFOUND geocoding-api.open-meteo.com"),
+        }),
+      )) as unknown as typeof fetch;
+    const error = await captureProviderError(searchLocations("berlin"));
+    expect(error.message).toBe(
+      "openmeteo geocoding request failed before an HTTP response: getaddrinfo ENOTFOUND geocoding-api.open-meteo.com",
+    );
+  });
+
+  test("omits the suffix when the network cause is empty", async () => {
+    globalThis.fetch = (() =>
+      Promise.reject(new TypeError("fetch failed"))) as unknown as typeof fetch;
+    const error = await captureProviderError(searchLocations("berlin"));
+    expect(error.message).toBe("openmeteo geocoding request failed before an HTTP response");
+  });
+
+  test("sanitizes control chars and caps a hostile network cause", async () => {
+    const hostile = `${"\u001b]0;pwned\u0007\n".repeat(10)}${"x".repeat(500)}`;
+    globalThis.fetch = (() =>
+      Promise.reject(
+        new TypeError("fetch failed", { cause: new Error(hostile) }),
+      )) as unknown as typeof fetch;
+    const error = await captureProviderError(searchLocations("berlin"));
+    expect(error.message.includes("\u001b")).toBe(false);
+    expect(error.message.includes("\u0007")).toBe(false);
+    expect(error.message.includes("\n")).toBe(false);
+    expect(error.message.length).toBeLessThan(300);
+  });
+});
+
 describe("searchLocations name sanitization", () => {
   test("strips terminal control characters from geocoder-supplied names on the success path", async () => {
     mockResponds(JSON.stringify(HOSTILE_BODY), 200);
