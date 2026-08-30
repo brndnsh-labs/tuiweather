@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { join } from "node:path";
 import packageJson from "../../../package.json";
 import {
+  __resetNwsMetadataMemoForTests,
   buildPointsUrl,
   fetchForecast,
   NWS_USER_AGENT,
@@ -35,6 +36,7 @@ const originalFetch = globalThis.fetch;
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
+  __resetNwsMetadataMemoForTests();
 });
 
 interface RecordedCall {
