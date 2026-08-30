@@ -3,9 +3,11 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  ACTION_ERROR_TTL_MS,
   createStoreInstance,
   DELETE_ARM_TTL_MS,
   type ForecastFetcher,
+  isActionErrorActive,
   MIN_REFRESH_LOOP_PERIOD_MS,
   type RefreshTimerDeps,
   refreshLoopPeriodMs,
@@ -988,15 +990,17 @@ describe("store auto-refresh", () => {
     });
     await store.getState().init();
 
-    await store.getState().addLocation({
+    const ok = await store.getState().addLocation({
       slug: "oslo",
       label: "Oslo",
       latitude: 59.9139,
       longitude: 10.7522,
     });
 
+    expect(ok).toBe(true);
     const state = store.getState();
     expect(state.lastActionError).toBeUndefined();
+    expect(state.lastActionErrorAtMs).toBeNull();
     expect(state.config.locations.map((loc) => loc.slug)).toEqual(["portland", "london", "oslo"]);
     expect(state.activeSlug).toBe("oslo");
     const saved = await readFile(join(dir, "config.toml"), "utf8");
@@ -1014,15 +1018,18 @@ describe("store auto-refresh", () => {
     });
     await store.getState().init();
 
-    await store.getState().addLocation({
+    const ok = await store.getState().addLocation({
       slug: "bogus",
       label: "Bogus",
       latitude: 999,
       longitude: 999,
     });
 
+    expect(ok).toBe(false);
     const state = store.getState();
     expect(state.lastActionError).toBeDefined();
+    expect(state.lastActionErrorAtMs).not.toBeNull();
+    expect(isActionErrorActive(state.lastActionErrorAtMs, Date.now())).toBe(true);
     expect(state.config.locations.map((loc) => loc.slug)).toEqual(["portland", "london"]);
     expect(state.activeSlug).toBe("london");
     const saved = await readFile(join(dir, "config.toml"), "utf8");
@@ -1074,6 +1081,157 @@ describe("store auto-refresh", () => {
     pending.shift()?.({ forecast: makeForecast(22), stale: false });
     await c;
     expect(store.getState().forecastBySlug.portland?.forecast.current.temperatureC).toBe(22);
+    store.getState().dispose();
+  });
+});
+
+describe("action error transient", () => {
+  test("addLocation failure sets timestamp and isActionErrorActive respects TTL", async () => {
+    const dir = await makeConfigDir(CONFIG_TOML);
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: stubFetcher(),
+      fetchAirQuality: stubNullAirQualityFetcher,
+    });
+    await store.getState().init();
+    const ok = await store.getState().addLocation({
+      slug: "bogus",
+      label: "Bogus",
+      latitude: 999,
+      longitude: 999,
+    });
+    expect(ok).toBe(false);
+    const at = store.getState().lastActionErrorAtMs;
+    if (at === null) throw new Error("expected timestamp");
+    expect(isActionErrorActive(at, at)).toBe(true);
+    expect(isActionErrorActive(at, at + ACTION_ERROR_TTL_MS - 1)).toBe(true);
+    expect(isActionErrorActive(at, at + ACTION_ERROR_TTL_MS)).toBe(false);
+    expect(isActionErrorActive(at, at + ACTION_ERROR_TTL_MS + 1000)).toBe(false);
+    store.getState().dispose();
+  });
+
+  test("successful addLocation clears a prior action error", async () => {
+    const dir = await makeConfigDir(CONFIG_TOML);
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: stubFetcher(),
+      fetchAirQuality: stubNullAirQualityFetcher,
+    });
+    await store.getState().init();
+    await store
+      .getState()
+      .addLocation({ slug: "bogus", label: "Bogus", latitude: 999, longitude: 999 });
+    expect(store.getState().lastActionError).toBeDefined();
+    const ok = await store.getState().addLocation({
+      slug: "oslo",
+      label: "Oslo",
+      latitude: 59.9,
+      longitude: 10.7,
+    });
+    expect(ok).toBe(true);
+    expect(store.getState().lastActionError).toBeUndefined();
+    expect(store.getState().lastActionErrorAtMs).toBeNull();
+    store.getState().dispose();
+  });
+
+  test("next action (switchLocation) clears the transient error", async () => {
+    const dir = await makeConfigDir(CONFIG_TOML);
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: stubFetcher(),
+      fetchAirQuality: stubNullAirQualityFetcher,
+    });
+    await store.getState().init();
+    await store
+      .getState()
+      .addLocation({ slug: "bogus", label: "Bogus", latitude: 999, longitude: 999 });
+    expect(store.getState().lastActionError).toBeDefined();
+    store.getState().switchLocation("portland");
+    expect(store.getState().lastActionError).toBeUndefined();
+    expect(store.getState().lastActionErrorAtMs).toBeNull();
+    store.getState().dispose();
+  });
+
+  test("auto-clears after ACTION_ERROR_TTL_MS via timer", async () => {
+    const dir = await makeConfigDir(CONFIG_TOML);
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: stubFetcher(),
+      fetchAirQuality: stubNullAirQualityFetcher,
+    });
+    await store.getState().init();
+    await store
+      .getState()
+      .addLocation({ slug: "bogus", label: "Bogus", latitude: 999, longitude: 999 });
+    expect(store.getState().lastActionError).toBeDefined();
+    await new Promise((resolve) => setTimeout(resolve, ACTION_ERROR_TTL_MS + 100));
+    expect(store.getState().lastActionError).toBeUndefined();
+    expect(store.getState().lastActionErrorAtMs).toBeNull();
+    store.getState().dispose();
+  });
+
+  test("deleteLocation guard sets transient that is visible via isActionErrorActive", async () => {
+    const singleTOML = CONFIG_TOML.replace(
+      `
+[[locations]]
+slug = "london"
+label = "London"
+latitude = 51.5072
+longitude = -0.1276
+`,
+      "\n",
+    ).replace('default_location = "london"', 'default_location = "portland"');
+    const dir = await makeConfigDir(singleTOML);
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: stubFetcher(),
+      fetchAirQuality: stubNullAirQualityFetcher,
+    });
+    await store.getState().init();
+    await store.getState().deleteLocation("portland");
+    expect(store.getState().lastActionError).toBe("cannot delete the only location");
+    const at = store.getState().lastActionErrorAtMs;
+    expect(at).not.toBeNull();
+    if (at !== null) expect(isActionErrorActive(at, Date.now())).toBe(true);
+    store.getState().dispose();
+  });
+
+  test("failed save while deleting the ACTIVE location still surfaces the error", async () => {
+    const dir = await makeConfigDir(CONFIG_TOML);
+    const path = join(dir, "config.toml");
+    const store = createStoreInstance({
+      configPath: path,
+      fetchForecast: stubFetcher(),
+      fetchAirQuality: stubNullAirQualityFetcher,
+    });
+    await store.getState().init();
+    expect(store.getState().activeSlug).toBe("london");
+
+    await rm(path);
+    await mkdir(path);
+    await store.getState().deleteLocation("london");
+
+    expect(store.getState().lastActionError).toBeDefined();
+    expect(store.getState().lastActionErrorAtMs).not.toBeNull();
+    store.getState().dispose();
+  });
+
+  test("init failure error persists past the action-error TTL", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "tuiweather-store-test-"));
+    tmpDirs.push(dir);
+    const store = createStoreInstance({
+      configPath: dir,
+      fetchForecast: stubFetcher(),
+      fetchAirQuality: stubNullAirQualityFetcher,
+    });
+
+    await store.getState().init();
+    expect(store.getState().initStatus).toBe("error");
+    const message = store.getState().lastActionError;
+    expect(message).toBeDefined();
+
+    await new Promise((resolve) => setTimeout(resolve, ACTION_ERROR_TTL_MS + 150));
+    expect(store.getState().lastActionError).toBe(message);
     store.getState().dispose();
   });
 });
