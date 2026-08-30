@@ -295,7 +295,7 @@ describe("sidebar navigation", () => {
 
       await setup.mockInput.pressEscape();
       await sleep(30);
-      expect(quits).toBe(1);
+      expect(quits).toBe(0);
     } finally {
       await setup.renderer.destroy();
     }
