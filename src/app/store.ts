@@ -114,6 +114,8 @@ export interface WeatherState {
   overlayOpen: boolean;
   locationsOpen: boolean;
   deleteArmedAtMs: number | null;
+  onboardingSkipped: boolean;
+  onboardingForced: boolean;
 
   init(explicitSlug?: string): Promise<void>;
   loadForecast(slug: string, opts?: { bypassCache?: boolean }): Promise<void>;
@@ -135,6 +137,8 @@ export interface WeatherState {
   deleteLocation(slug: string): Promise<void>;
   setDefaultLocation(slug: string): Promise<void>;
   moveLocation(slug: string, delta: 1 | -1): Promise<void>;
+  skipOnboarding(): void;
+  requestOnboarding(): void;
   dispose(): void;
 }
 
@@ -269,6 +273,8 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
       overlayOpen: false,
       locationsOpen: false,
       deleteArmedAtMs: null,
+      onboardingSkipped: false,
+      onboardingForced: false,
 
       init: async (explicitSlug?: string) => {
         clearActionErrorTimer();
@@ -464,7 +470,8 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
 
       completeOnboarding: async (entry: LocationEntry, units: TuiConfig["units"]) => {
         const config = get().config;
-        if (config.locations.length > 0) {
+        const forced = get().onboardingForced;
+        if (config.locations.length > 0 && !forced) {
           setActionErrorState("onboarding is already complete");
           return false;
         }
@@ -478,7 +485,10 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
           units,
           unit_prefs: { temp: units, wind: units, precip: units, pressure: units },
           default_location: slug,
-          locations: [finalEntry],
+          locations:
+            forced && config.locations.length > 0
+              ? [...config.locations, finalEntry]
+              : [finalEntry],
         };
         clearActionErrorState();
         try {
@@ -488,7 +498,12 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
           return false;
         }
         clearActionErrorState();
-        set({ config: next, activeSlug: slug });
+        set({
+          config: next,
+          activeSlug: slug,
+          onboardingForced: false,
+          onboardingSkipped: false,
+        });
         await get().loadForecast(slug);
         scheduleRefreshLoop();
         return true;
@@ -579,6 +594,17 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
         set({ config: next });
         clearActionErrorState();
       },
+
+      skipOnboarding: () => set({ onboardingSkipped: true, onboardingForced: false }),
+
+      requestOnboarding: () =>
+        set({
+          onboardingSkipped: false,
+          onboardingForced: true,
+          helpOpen: false,
+          overlayOpen: false,
+          locationsOpen: false,
+        }),
 
       dispose: () => {
         disposed = true;

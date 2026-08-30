@@ -359,6 +359,8 @@ export function App(props: AppProps = {}) {
   const lastActionError = store((s) => s.lastActionError);
   const lastActionErrorAtMs = store((s) => s.lastActionErrorAtMs);
   const deleteArmedAtMs = store((s) => s.deleteArmedAtMs);
+  const onboardingSkipped = store((s) => s.onboardingSkipped);
+  const onboardingForced = store((s) => s.onboardingForced);
 
   const viewport = useViewport();
   const renderer = useRenderer();
@@ -389,7 +391,9 @@ export function App(props: AppProps = {}) {
   const nowUtc = props.nowUtc ?? new Date(nowMs).toISOString();
   const tier = viewport.tier;
   const forecast = entry?.forecast;
-  const onboardingOpen = initStatus === "ready" && config.locations.length === 0;
+  const onboardingOpen =
+    initStatus === "ready" &&
+    ((config.locations.length === 0 && !onboardingSkipped) || onboardingForced);
   const deleteArmed = isDeleteArmed(deleteArmedAtMs, nowMs);
   const actionError = isActionErrorActive(lastActionErrorAtMs, Date.now())
     ? lastActionError
@@ -414,9 +418,11 @@ export function App(props: AppProps = {}) {
       toggleHelp: () => store.getState().toggleHelp(),
       searchOpen: () => {
         const state = store.getState();
-        return (
-          state.overlayOpen || (state.initStatus === "ready" && state.config.locations.length === 0)
-        );
+        const onboardingActive =
+          state.initStatus === "ready" &&
+          ((state.config.locations.length === 0 && !state.onboardingSkipped) ||
+            state.onboardingForced);
+        return state.overlayOpen || onboardingActive;
       },
       openSearch: () => store.getState().setOverlayOpen(true),
       locationsOpen: () => store.getState().locationsOpen,
@@ -596,6 +602,7 @@ export function App(props: AppProps = {}) {
             {body}
             {helpOpen ? (
               <HelpOverlay
+                store={store}
                 width={viewport.width}
                 height={viewport.height}
                 providerLabel={config.provider === "nws" ? "api.weather.gov" : "open-meteo.com"}
