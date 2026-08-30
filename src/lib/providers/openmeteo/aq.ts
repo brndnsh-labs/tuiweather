@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { AirQuality, GeoPoint } from "../../weather/types";
-import { errorReason, httpError } from "../http";
+import { errorReason, httpError, readJsonCapped } from "../http";
 import { ProviderError } from "../types";
 import { apiErrorBodySchema, LOCAL_NAIVE_TIME } from "./schemas";
 
@@ -74,8 +74,9 @@ export async function fetchAirQuality(location: GeoPoint): Promise<AirQuality> {
 
   let body: unknown;
   try {
-    body = await res.json();
+    body = await readJsonCapped(res, { providerId: "openmeteo", label: "air-quality" });
   } catch (cause) {
+    if (cause instanceof ProviderError) throw cause;
     throw new ProviderError(
       `openmeteo air-quality returned a non-JSON body (HTTP ${res.status})`,
       "openmeteo",
