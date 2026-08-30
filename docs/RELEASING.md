@@ -13,11 +13,11 @@ Pushing a `v*` tag runs `.github/workflows/release.yml`:
 
 The workflow pins Bun, npm, and every Action used by the release. Dependabot proposes weekly Action pin updates.
 
-## One-time trusted-publisher setup
+## One-time trusted-publisher setup (completed)
 
-The bootstrap package `tuiweather@0.0.0` has already been published. npm assigned both `next` and `latest` to that first version.
+This setup was completed before the first supported release and is recorded here for provenance — a maintainer arriving after `v0.3.x` does not need to repeat it. The bootstrap package `tuiweather@0.0.0` was the first publish; `v0.1.0` was the first supported release. `latest` tracks the current version.
 
-The repository needs an `npm` deployment environment, and npm must trust that environment in this repository's `release.yml` workflow:
+The setup consisted of an `npm` deployment environment on this repository, with npm trusting that environment for the `release.yml` workflow:
 
 ```sh
 gh api --method PUT repos/brndnsh-labs/tuiweather/environments/npm
@@ -57,7 +57,7 @@ After explicit approval for the exact version and both public release surfaces:
 ./scripts/release.sh <major|minor|patch>
 ```
 
-The script bumps `package.json`, updates `CHANGELOG.md`, creates `vX.Y.Z`, and atomically pushes the release commit and that exact tag. For the first supported release from `0.0.0`, use `minor` to create `v0.1.0`.
+The script bumps `package.json`, updates `CHANGELOG.md`, creates `vX.Y.Z`, and atomically pushes the release commit and that exact tag. Pick the bump type from the shipped changes: `fix:` subjects → `patch`, `feat:` subjects → `minor`, breaking changes → `major`.
 
 Watch the workflow:
 
