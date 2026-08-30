@@ -1,14 +1,11 @@
-import type { z } from "zod";
 import { causeSuffix, errorReason, httpError, readJsonCapped, sanitizeText } from "../http";
 import type { GeocodingResult } from "../types";
 import { ProviderError } from "../types";
-import { apiErrorBodySchema, geocodingResponseSchema, type geocodingResultSchema } from "./schemas";
+import { apiErrorBodySchema, geocodingResponseSchema, MAX_REASON_CHARS } from "./schemas";
 
 const GEOCODING_ENDPOINT = "https://geocoding-api.open-meteo.com/v1/search";
 const TIMEOUT_MS = 10_000;
 const NAME_MAX_CELLS = 120;
-
-export type OpenMeteoGeocodingResult = z.infer<typeof geocodingResultSchema>;
 
 export function buildGeocodingUrl(query: string, count = 8): string {
   const params = new URLSearchParams({
@@ -20,13 +17,15 @@ export function buildGeocodingUrl(query: string, count = 8): string {
   return `${GEOCODING_ENDPOINT}?${params.toString()}`;
 }
 
-export function parseGeocodingResponse(body: unknown): GeocodingResult[] {
+export function parseGeocodingResponse(body: unknown, status = 200): GeocodingResult[] {
   const errorParsed = apiErrorBodySchema.safeParse(body);
   if (errorParsed.success) {
-    throw new ProviderError(
-      `openmeteo geocoding failed: ${sanitizeText(errorParsed.data.reason ?? "unknown error", 200)}`,
-      "openmeteo",
-    );
+    throw httpError(status, body, {
+      label: "geocoding",
+      providerId: "openmeteo",
+      schema: apiErrorBodySchema,
+      maxChars: MAX_REASON_CHARS,
+    });
   }
   const parsed = geocodingResponseSchema.safeParse(body);
   if (!parsed.success) {
@@ -80,6 +79,7 @@ export async function searchLocations(query: string, count = 8): Promise<Geocodi
       label: "geocoding",
       providerId: "openmeteo",
       schema: apiErrorBodySchema,
+      maxChars: MAX_REASON_CHARS,
     });
   }
   return parseGeocodingResponse(body);

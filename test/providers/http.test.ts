@@ -1,5 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { PROVIDER_RESPONSE_MAX_BYTES, readJsonCapped } from "../../src/lib/providers/http";
+import {
+  errorReason,
+  httpError,
+  PROVIDER_RESPONSE_MAX_BYTES,
+  readJsonCapped,
+  sanitizeText,
+} from "../../src/lib/providers/http";
+import { nwsProblemReason } from "../../src/lib/providers/nws/client";
+import { nwsProblemSchema } from "../../src/lib/providers/nws/schemas";
+import { apiErrorBodySchema, MAX_REASON_CHARS } from "../../src/lib/providers/openmeteo/schemas";
 import { ProviderError } from "../../src/lib/providers/types";
 
 function jsonResponse(
@@ -225,5 +234,153 @@ describe("readJsonCapped", () => {
   test("PROVIDER_RESPONSE_MAX_BYTES is a few MB", () => {
     expect(PROVIDER_RESPONSE_MAX_BYTES).toBeGreaterThanOrEqual(1024 * 1024);
     expect(PROVIDER_RESPONSE_MAX_BYTES).toBeLessThanOrEqual(10 * 1024 * 1024);
+  });
+});
+
+describe("errorReason and httpError unified path", () => {
+  test("extracts openmeteo reason and sanitizes", () => {
+    const reason = errorReason({ error: true, reason: "bad\x00name" }, apiErrorBodySchema);
+    expect(reason).toBe("badname");
+  });
+
+  test("openmeteo httpError uses MAX_REASON_CHARS shape", () => {
+    const err = httpError(
+      400,
+      { error: true, reason: "Latitude must be numeric" },
+      {
+        label: "forecast",
+        providerId: "openmeteo",
+        schema: apiErrorBodySchema,
+        maxChars: MAX_REASON_CHARS,
+      },
+    );
+    expect(err.message).toBe("openmeteo forecast failed (HTTP 400): Latitude must be numeric");
+  });
+
+  test("openmeteo httpError omits reason when absent", () => {
+    const err = httpError(
+      400,
+      { error: true },
+      {
+        label: "forecast",
+        providerId: "openmeteo",
+        schema: apiErrorBodySchema,
+      },
+    );
+    expect(err.message).toBe("openmeteo forecast failed (HTTP 400)");
+  });
+
+  test("clamps a hostile openmeteo reason to MAX_REASON_CHARS", () => {
+    const long = "x".repeat(500);
+    const err = httpError(
+      400,
+      { error: true, reason: long },
+      {
+        label: "forecast",
+        providerId: "openmeteo",
+        schema: apiErrorBodySchema,
+        maxChars: MAX_REASON_CHARS,
+      },
+    );
+    const afterColon = err.message.split(": ")[1] ?? "";
+    expect(afterColon.length).toBe(MAX_REASON_CHARS);
+  });
+
+  test("extracts nws detail via extractor and falls back to title", () => {
+    const withDetail = errorReason(
+      { detail: "Point must be rounded", title: "Bad Request" },
+      nwsProblemSchema,
+      200,
+      nwsProblemReason,
+    );
+    expect(withDetail).toBe("Point must be rounded");
+
+    const withTitle = errorReason({ title: "Not Found" }, nwsProblemSchema, 200, nwsProblemReason);
+    expect(withTitle).toBe("Not Found");
+
+    const none = errorReason({ status: 400 }, nwsProblemSchema, 200, nwsProblemReason);
+    expect(none).toBeUndefined();
+  });
+
+  test("nws httpError uses detail ?? title via extractor", () => {
+    const err = httpError(
+      400,
+      { detail: "Point must be rounded" },
+      {
+        label: "points",
+        providerId: "nws",
+        schema: nwsProblemSchema,
+        extractor: nwsProblemReason,
+      },
+    );
+    expect(err.message).toBe("nws points failed (HTTP 400): Point must be rounded");
+
+    const err2 = httpError(
+      404,
+      { title: "Not Found" },
+      {
+        label: "points",
+        providerId: "nws",
+        schema: nwsProblemSchema,
+        extractor: nwsProblemReason,
+      },
+    );
+    expect(err2.message).toBe("nws points failed (HTTP 404): Not Found");
+  });
+
+  test("nws httpError omits reason when neither detail nor title present", () => {
+    const err = httpError(
+      400,
+      { status: 400 },
+      {
+        label: "points",
+        providerId: "nws",
+        schema: nwsProblemSchema,
+        extractor: nwsProblemReason,
+      },
+    );
+    expect(err.message).toBe("nws points failed (HTTP 400)");
+  });
+
+  test("sanitizes control chars in nws detail via unified path", () => {
+    const hostile = "\u001b]0;pwned\u0007 bad";
+    const err = httpError(
+      400,
+      { detail: hostile },
+      {
+        label: "points",
+        providerId: "nws",
+        schema: nwsProblemSchema,
+        extractor: nwsProblemReason,
+      },
+    );
+    expect(err.message.includes("\u001b")).toBe(false);
+    expect(err.message.includes("\u0007")).toBe(false);
+    expect(err.message).toContain("bad");
+  });
+
+  test("httpError sanitizes and clamps to maxChars", () => {
+    const long = "a".repeat(500);
+    const err = httpError(
+      500,
+      { error: true, reason: long },
+      {
+        label: "forecast",
+        providerId: "openmeteo",
+        schema: apiErrorBodySchema,
+        maxChars: 200,
+      },
+    );
+    expect(err.message.length).toBeLessThan(300);
+  });
+
+  test("errorReason returns undefined when body does not match schema", () => {
+    expect(errorReason({ not: "error" }, apiErrorBodySchema)).toBeUndefined();
+    expect(errorReason({ error: true, reason: 123 }, apiErrorBodySchema)).toBeUndefined();
+  });
+
+  test("sanitizeText helper strips controls and caps", () => {
+    expect(sanitizeText("\u001bhello\u0007", 10)).toBe("hello");
+    expect(sanitizeText("x".repeat(500), 200).length).toBe(200);
   });
 });

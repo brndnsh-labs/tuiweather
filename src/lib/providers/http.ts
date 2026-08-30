@@ -17,12 +17,13 @@ export function errorReason(
   body: unknown,
   schema: z.ZodTypeAny,
   maxChars = 200,
+  extractor?: (data: unknown) => string | undefined,
 ): string | undefined {
   const parsed = schema.safeParse(body);
   if (!parsed.success) return undefined;
-  const reason = (parsed.data as { reason?: unknown }).reason;
-  if (typeof reason !== "string") return undefined;
-  return sanitizeText(reason, maxChars);
+  const raw = extractor ? extractor(parsed.data) : (parsed.data as { reason?: unknown }).reason;
+  if (typeof raw !== "string") return undefined;
+  return sanitizeText(raw, maxChars);
 }
 
 export function causeSuffix(cause: unknown): string {
@@ -50,9 +51,15 @@ export function causeSuffix(cause: unknown): string {
 export function httpError(
   status: number,
   body: unknown,
-  opts: { label: string; providerId: string; schema: z.ZodTypeAny; maxChars?: number },
+  opts: {
+    label: string;
+    providerId: string;
+    schema: z.ZodTypeAny;
+    maxChars?: number;
+    extractor?: (data: unknown) => string | undefined;
+  },
 ): ProviderError {
-  const reason = errorReason(body, opts.schema, opts.maxChars ?? 200);
+  const reason = errorReason(body, opts.schema, opts.maxChars ?? 200, opts.extractor);
   return new ProviderError(
     `${opts.providerId} ${opts.label} failed (HTTP ${status})${reason ? `: ${reason}` : ""}`,
     opts.providerId,

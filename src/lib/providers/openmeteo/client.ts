@@ -2,7 +2,7 @@ import type { GeoPoint, NormalizedForecast } from "../../weather/types";
 import { causeSuffix, errorReason, httpError, readJsonCapped } from "../http";
 import { ProviderError } from "../types";
 import { normalizeForecast } from "./normalize";
-import { apiErrorBodySchema, forecastResponseSchema } from "./schemas";
+import { apiErrorBodySchema, forecastResponseSchema, MAX_REASON_CHARS } from "./schemas";
 
 export const OPENMETEO_PROVIDER_ID = "openmeteo";
 
@@ -88,6 +88,7 @@ function httpErrorFor(status: number, body: unknown): ProviderError {
     label: "forecast",
     providerId: OPENMETEO_PROVIDER_ID,
     schema: apiErrorBodySchema,
+    maxChars: MAX_REASON_CHARS,
   });
 }
 
