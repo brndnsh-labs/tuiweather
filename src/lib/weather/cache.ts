@@ -6,6 +6,8 @@ import { z } from "zod";
 import { type ForecastWindow, ProviderError, type WeatherProvider } from "../providers/types";
 import type { AirQuality, Condition, GeoPoint, NormalizedForecast } from "./types";
 
+export const CACHE_SCHEMA_VERSION = 2;
+
 const DEFAULT_MAX_AGE_MINUTES = 10;
 const AQ_TTL_MINUTES = 60;
 const MIN_MS = 60_000;
@@ -43,11 +45,9 @@ const currentObsSchema = z.object({
   windDirectionDeg: numberField,
   windGustKmh: nullableNumber,
   pressureHpa: nullableNumber,
-  cloudCoverPct: nullableNumber,
   dewPointC: nullableNumber,
   visibilityM: nullableNumber,
   uvIndex: nullableNumber,
-  precipLast1hMm: nullableNumber,
   isDay: z.boolean(),
 });
 
@@ -81,11 +81,9 @@ const dailyPointSchema = z.object({
   tempMaxC: numberField,
   precipSumMm: numberField,
   precipProbabilityMaxPct: nullableNumber,
-  uvIndexMax: nullableNumber,
   sunriseUtc: z.string().nullable(),
   sunsetUtc: z.string().nullable(),
   windSpeedMaxKmh: nullableNumber,
-  windGustMaxKmh: nullableNumber,
 });
 
 const normalizedForecastSchema = z.object({
@@ -102,6 +100,7 @@ const normalizedForecastSchema = z.object({
 });
 
 const envelopeSchema = z.object({
+  version: z.literal(CACHE_SCHEMA_VERSION),
   fetchedAtUtc: z.string().refine((s) => !Number.isNaN(Date.parse(s)), {
     message: "fetchedAtUtc is not a parseable instant",
   }),
@@ -110,14 +109,13 @@ const envelopeSchema = z.object({
 
 const airQualitySchema = z.object({
   usAqi: z.number().nullable(),
-  pm25UgM3: z.number().nullable(),
-  ozoneUgM3: z.number().nullable(),
   observedAtUtc: z.string().refine((s) => !Number.isNaN(Date.parse(s)), {
     message: "observedAtUtc is not a parseable instant",
   }),
 });
 
 const aqEnvelopeSchema = z.object({
+  version: z.literal(CACHE_SCHEMA_VERSION),
   fetchedAtUtc: z.string().refine((s) => !Number.isNaN(Date.parse(s)), {
     message: "fetchedAtUtc is not a parseable instant",
   }),
@@ -150,7 +148,9 @@ export function cacheKey(
   const windowTag =
     window === undefined ? "" : `|${window.forecastDays ?? "*"}|${window.forecastHours ?? "*"}`;
   const digest = createHash("sha256")
-    .update(`${providerId}|${latitude.toFixed(3)}|${longitude.toFixed(3)}${windowTag}`)
+    .update(
+      `${CACHE_SCHEMA_VERSION}|${providerId}|${latitude.toFixed(3)}|${longitude.toFixed(3)}${windowTag}`,
+    )
     .digest("hex");
   return `${digest}.json`;
 }
@@ -161,17 +161,21 @@ export function airQualityCacheKey(
   longitude: number,
 ): string {
   const digest = createHash("sha256")
-    .update(`${providerId}|aq|${latitude.toFixed(3)}|${longitude.toFixed(3)}`)
+    .update(
+      `${CACHE_SCHEMA_VERSION}|${providerId}|aq|${latitude.toFixed(3)}|${longitude.toFixed(3)}`,
+    )
     .digest("hex");
   return `${digest}.json`;
 }
 
 interface Envelope {
+  version: typeof CACHE_SCHEMA_VERSION;
   fetchedAtUtc: string;
   forecast: NormalizedForecast;
 }
 
 interface AqEnvelope {
+  version: typeof CACHE_SCHEMA_VERSION;
   fetchedAtUtc: string;
   airQuality: AirQuality;
 }
@@ -280,7 +284,14 @@ export async function cachedForecast(
 
   try {
     const forecast = await provider.getForecast(location, opts?.window);
-    await io.write(key, JSON.stringify({ fetchedAtUtc: nowUtc, forecast } satisfies Envelope));
+    await io.write(
+      key,
+      JSON.stringify({
+        version: CACHE_SCHEMA_VERSION,
+        fetchedAtUtc: nowUtc,
+        forecast,
+      } satisfies Envelope),
+    );
     return { forecast, stale: false };
   } catch (error) {
     if (envelope && error instanceof ProviderError) {
@@ -315,7 +326,14 @@ export async function cachedAirQuality(
 
   try {
     const airQuality = await provider.getAirQuality(location);
-    await io.write(key, JSON.stringify({ fetchedAtUtc: nowUtc, airQuality } satisfies AqEnvelope));
+    await io.write(
+      key,
+      JSON.stringify({
+        version: CACHE_SCHEMA_VERSION,
+        fetchedAtUtc: nowUtc,
+        airQuality,
+      } satisfies AqEnvelope),
+    );
     return { airQuality, stale: false };
   } catch (error) {
     if (envelope && error instanceof ProviderError) {

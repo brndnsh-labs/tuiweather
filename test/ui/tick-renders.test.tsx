@@ -55,11 +55,9 @@ function makeForecast(tempC = 20): NormalizedForecast {
     windDirectionDeg: 200,
     windGustKmh: null,
     pressureHpa: null,
-    cloudCoverPct: null,
     dewPointC: null,
     visibilityM: null,
     uvIndex: null,
-    precipLast1hMm: null,
     isDay: true,
   };
   return {
@@ -80,11 +78,9 @@ function makeForecast(tempC = 20): NormalizedForecast {
         tempMaxC: 25,
         precipSumMm: 0,
         precipProbabilityMaxPct: null,
-        uvIndexMax: null,
         sunriseUtc: null,
         sunsetUtc: null,
         windSpeedMaxKmh: null,
-        windGustMaxKmh: null,
       },
     ],
   };

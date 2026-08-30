@@ -141,11 +141,9 @@ function normalizeCurrent(obs: NwsObservationProperties): CurrentObs {
     windDirectionDeg: quantityValue(obs.windDirection) ?? 0,
     windGustKmh: obsWindKmh(obs.windGust),
     pressureHpa: obsPressureHpa(obs.seaLevelPressure) ?? obsPressureHpa(obs.barometricPressure),
-    cloudCoverPct: null,
     dewPointC: obsTempC(obs.dewpoint),
     visibilityM: obsVisibilityM(obs.visibility),
     uvIndex: null,
-    precipLast1hMm: null,
     isDay: !icon.includes("/night/"),
   };
 }
@@ -218,11 +216,9 @@ function normalizeDaily(periods: NwsPeriod[], forecastDays: number | undefined):
         quantityValue(group.day?.probabilityOfPrecipitation),
         quantityValue(group.night?.probabilityOfPrecipitation),
       ]),
-      uvIndexMax: null,
       sunriseUtc: null,
       sunsetUtc: null,
       windSpeedMaxKmh: speeds.length > 0 ? Math.max(...speeds) : null,
-      windGustMaxKmh: null,
     });
   }
   return daily;

@@ -57,11 +57,9 @@ function currentObs(overrides: Partial<CurrentObs> = {}): CurrentObs {
     windDirectionDeg: 315,
     windGustKmh: null,
     pressureHpa: null,
-    cloudCoverPct: null,
     dewPointC: null,
     visibilityM: null,
     uvIndex: null,
-    precipLast1hMm: null,
     isDay: true,
     ...overrides,
   };
@@ -75,11 +73,9 @@ function dailyPoint(overrides: Partial<DailyPoint> = {}): DailyPoint {
     tempMaxC: 23.8889,
     precipSumMm: 0,
     precipProbabilityMaxPct: null,
-    uvIndexMax: null,
     sunriseUtc: null,
     sunsetUtc: null,
     windSpeedMaxKmh: null,
-    windGustMaxKmh: null,
     ...overrides,
   };
 }

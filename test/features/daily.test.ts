@@ -20,11 +20,9 @@ function day(
     tempMaxC: 20,
     precipSumMm: 1,
     precipProbabilityMaxPct,
-    uvIndexMax: null,
     sunriseUtc: null,
     sunsetUtc: null,
     windSpeedMaxKmh: null,
-    windGustMaxKmh: null,
     ...overrides,
   };
 }

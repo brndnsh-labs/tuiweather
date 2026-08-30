@@ -14,9 +14,7 @@ const CURRENT_VARIABLES = [
   "relative_humidity_2m",
   "apparent_temperature",
   "is_day",
-  "precipitation",
   "weather_code",
-  "cloud_cover",
   "pressure_msl",
   "wind_speed_10m",
   "wind_direction_10m",
@@ -47,17 +45,14 @@ const DAILY_VARIABLES = [
   "temperature_2m_min",
   "precipitation_sum",
   "precipitation_probability_max",
-  "uv_index_max",
   "sunrise",
   "sunset",
   "wind_speed_10m_max",
-  "wind_gusts_10m_max",
 ] as const;
 
 export interface ForecastOptions {
   forecastDays?: number;
   forecastHours?: number;
-  pastHours?: number;
   pastMinutely15?: number;
   forecastMinutely15?: number;
 }
@@ -73,7 +68,6 @@ export function buildForecastUrl(location: GeoPoint, opts: ForecastOptions = {})
     timezone: "auto",
     timeformat: "iso8601",
     forecast_days: String(opts.forecastDays ?? 3),
-    past_hours: String(opts.pastHours ?? 1),
     past_minutely_15: String(opts.pastMinutely15 ?? 8),
     forecast_minutely_15: String(opts.forecastMinutely15 ?? 12),
   });

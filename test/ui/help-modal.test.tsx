@@ -62,11 +62,9 @@ function makeForecast(): NormalizedForecast {
     windDirectionDeg: 315,
     windGustKmh: null,
     pressureHpa: null,
-    cloudCoverPct: null,
     dewPointC: null,
     visibilityM: null,
     uvIndex: null,
-    precipLast1hMm: null,
     isDay: true,
   };
   return {

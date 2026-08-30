@@ -56,7 +56,6 @@ describe("buildForecastUrl", () => {
 
     expect(params.get("minutely_15")).toBe("precipitation,precipitation_probability");
     expect(params.get("forecast_days")).toBe("3");
-    expect(params.get("past_hours")).toBe("1");
     expect(params.get("past_minutely_15")).toBe("8");
     expect(params.get("forecast_minutely_15")).toBe("12");
     // hourly_hours is opt-in via config; the default request must not pin it
@@ -195,9 +194,7 @@ function syntheticBody() {
       relative_humidity_2m: 55,
       apparent_temperature: 22.5,
       is_day: 1,
-      precipitation: 0.2,
       weather_code: 61,
-      cloud_cover: null,
       pressure_msl: null,
       wind_speed_10m: 9.1,
       wind_direction_10m: 180,

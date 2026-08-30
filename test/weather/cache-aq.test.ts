@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { ProviderError, type WeatherProvider } from "../../src/lib/providers/types";
 import {
   airQualityCacheKey,
+  CACHE_SCHEMA_VERSION,
   type CacheIo,
   cachedAirQuality,
   cacheKey,
@@ -15,7 +16,7 @@ const NOW = "2026-08-24T12:00:00.000Z";
 const PORTLAND: GeoPoint = { latitude: 45.5202, longitude: -122.6765 };
 
 function makeAq(usAqi = 29): AirQuality {
-  return { usAqi, pm25UgM3: 3.8, ozoneUgM3: 66, observedAtUtc: NOW };
+  return { usAqi, observedAtUtc: NOW };
 }
 
 interface MemoryIo extends CacheIo {
@@ -85,7 +86,7 @@ describe("airQualityCacheKey", () => {
 describe("cachedAirQuality", () => {
   const KEY = airQualityCacheKey("stub", PORTLAND.latitude, PORTLAND.longitude);
   function envelopeText(fetchedAtUtc: string, airQuality: AirQuality): string {
-    return JSON.stringify({ fetchedAtUtc, airQuality });
+    return JSON.stringify({ version: CACHE_SCHEMA_VERSION, fetchedAtUtc, airQuality });
   }
 
   test("fresh envelope serves cache with zero provider calls", async () => {
