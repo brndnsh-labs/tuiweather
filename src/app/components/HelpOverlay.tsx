@@ -1,7 +1,10 @@
+import { useKeyboard } from "@opentui/react";
 import { truncateCells } from "../../lib/weather/format";
 import { usePalette } from "../../theme/tokens";
+import type { WeatherStore } from "../store";
 
 interface HelpOverlayProps {
+  store: WeatherStore;
   width: number;
   height: number;
   providerLabel: string;
@@ -16,11 +19,17 @@ const HELP_LINES: { text: string; dim?: boolean }[] = [
   { text: "l locations  j/k focus  enter open (lg)" },
   { text: "s default  J/K reorder (lg)  ↑↓ scroll" },
   { text: "/ search     d delete (press twice)", dim: true },
+  { text: "o re-run setup", dim: true },
   { text: "esc close / clear focus" },
 ];
 
-export function HelpOverlay({ width, height, providerLabel }: HelpOverlayProps) {
+export function HelpOverlay({ store, width, height, providerLabel }: HelpOverlayProps) {
   const palette = usePalette();
+  useKeyboard((key) => {
+    if (key.name === "o") {
+      store.getState().requestOnboarding();
+    }
+  });
   const boxWidth = Math.max(1, Math.min(HELP_BOX_WIDTH, width >= 32 ? width - 2 : width));
   const left = Math.max(0, Math.floor((width - boxWidth) / 2));
   const top = Math.max(0, Math.floor((height - HELP_BOX_HEIGHT) / 2));

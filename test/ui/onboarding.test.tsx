@@ -121,7 +121,8 @@ describe("first-run onboarding", () => {
       await setup.flush();
       const frame = await waitUntilFrame(setup, (value) => value.includes("welcome to tuiweather"));
       expect(frame).toContain("Live weather, rain timing");
-      expect(frame).toContain("esc skip tour");
+      expect(frame).toContain("s skip");
+      expect(frame).toContain("enter/esc continue");
       expect(frame).not.toContain("main ·");
       expect(store.getState().initStatus).toBe("ready");
     } finally {

@@ -39,6 +39,10 @@ export function FirstRun({ store, width, height, quit }: FirstRunProps) {
       return;
     }
     if (step === "welcome") {
+      if (key.name === "s") {
+        store.getState().skipOnboarding();
+        return;
+      }
       if (key.name === "return" || key.name === "enter" || key.name === "escape") {
         setStep("units");
       }
@@ -129,7 +133,7 @@ export function FirstRun({ store, width, height, quit }: FirstRunProps) {
             {truncateTo("? help · q quit", innerWidth)}
           </text>
           <text fg={palette.accent} bg={palette.surface}>
-            {truncateTo("enter continue · esc skip tour · q quit", innerWidth)}
+            {truncateTo("enter/esc continue · s skip · q quit", innerWidth)}
           </text>
         </box>
       </box>
