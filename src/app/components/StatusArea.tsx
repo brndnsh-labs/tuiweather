@@ -5,15 +5,18 @@ import { usePalette } from "../../theme/tokens";
 const SPINNER_FRAMES = ["|", "/", "-", "\\"] as const;
 const SPINNER_INTERVAL_MS = 120;
 
-function Spinner() {
+function Spinner({ reducedMotion }: { reducedMotion?: boolean }) {
   const [frame, setFrame] = useState(0);
 
   useEffect(() => {
+    if (reducedMotion) return;
     const timer = setInterval(() => {
       setFrame((f) => (f + 1) % SPINNER_FRAMES.length);
     }, SPINNER_INTERVAL_MS);
     return () => clearInterval(timer);
-  }, []);
+  }, [reducedMotion]);
+
+  if (reducedMotion) return <text>|</text>;
 
   return <text>{SPINNER_FRAMES[frame] ?? "|"}</text>;
 }
@@ -25,6 +28,7 @@ interface StatusAreaProps {
   deleteArm?: { label: string } | undefined;
   actionError?: string | undefined;
   width?: number | undefined;
+  reducedMotion?: boolean;
 }
 
 export function deleteArmLine(label: string, width: number | undefined): string {
@@ -45,6 +49,7 @@ export function StatusArea({
   deleteArm,
   actionError,
   width,
+  reducedMotion,
 }: StatusAreaProps) {
   const palette = usePalette();
 
@@ -67,7 +72,7 @@ export function StatusArea({
   if (loading) {
     return (
       <box flexDirection="row" gap={1}>
-        <Spinner />
+        <Spinner reducedMotion={reducedMotion} />
         <text fg={palette.accent}>syncing…</text>
       </box>
     );
