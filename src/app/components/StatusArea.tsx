@@ -23,6 +23,7 @@ interface StatusAreaProps {
   error: string | undefined;
   stale: boolean;
   deleteArm?: { label: string } | undefined;
+  actionError?: string | undefined;
   width?: number | undefined;
 }
 
@@ -32,13 +33,33 @@ export function deleteArmLine(label: string, width: number | undefined): string 
   return truncateCells(line, budget);
 }
 
-export function StatusArea({ loading, error, stale, deleteArm, width }: StatusAreaProps) {
+export function actionErrorLine(error: string, width: number | undefined): string {
+  const budget = width === undefined ? displayWidth(error) : Math.max(0, width - 1);
+  return truncateCells(error, budget);
+}
+
+export function StatusArea({
+  loading,
+  error,
+  stale,
+  deleteArm,
+  actionError,
+  width,
+}: StatusAreaProps) {
   const palette = usePalette();
 
   if (deleteArm !== undefined) {
     return (
       <box flexDirection="row">
         <text fg={palette.warn}>{deleteArmLine(deleteArm.label, width)}</text>
+      </box>
+    );
+  }
+
+  if (actionError !== undefined) {
+    return (
+      <box flexDirection="row">
+        <text fg={palette.danger}>{actionErrorLine(actionError, width)}</text>
       </box>
     );
   }

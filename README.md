@@ -45,8 +45,9 @@ xattr -d com.apple.quarantine /path/to/tuiweather
 Run `tuiweather` with no arguments for the full TUI.
 
 On the first run, tuiweather opens a short keyboard tour, asks for metric or imperial units, and
-lets you search for your first location. The completed setup is written atomically to the normal
-config path before weather data loads.
+lets you search for your first location. Press `s` on the welcome step to skip for now and see the
+empty main view, or `o` from the help overlay to re-run setup later. The completed setup is written
+atomically to the normal config path before weather data loads.
 
 Use `tuiweather --help` for command-line options and `tuiweather --version` to print the installed version.
 
@@ -65,6 +66,7 @@ Use `tuiweather --help` for command-line options and `tuiweather --version` to p
 | `J` / `K` | Move focused location down/up in sidebar order (lg tier) |
 | `↑` / `↓` | Scroll the main panel when content overflows |
 | `?` | Toggle help overlay |
+| `o` | Re-run setup (from help overlay) |
 | `esc` | Clear sidebar focus if set; otherwise close help overlay or quit |
 | `q` | Quit |
 
