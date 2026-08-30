@@ -3,11 +3,12 @@ import {
   DEFAULT_CONFIG,
   migrateConfig,
   resolveDisplayPrefs,
+  SCHEMA_VERSION,
   type TuiConfig,
   tuiConfigSchema,
 } from "../../src/lib/config/schema";
 
-const base = { schema_version: 3 };
+const base = { schema_version: SCHEMA_VERSION } as const;
 
 function location(slug: string) {
   return { slug, label: "L", latitude: 0, longitude: 0 };
@@ -30,26 +31,29 @@ describe("tuiConfigSchema", () => {
     });
     expect(cfg.refresh_minutes).toBe(10);
     expect(cfg.theme).toBe("auto");
+    expect(cfg.ink).toBe("auto");
     expect(cfg.daily_days).toBe(7);
     expect(cfg.hourly_hours).toBe(24);
     expect(cfg.panels).toEqual({ nowcast: true, details: true, hourly: true, daily: true });
     expect(cfg.locations).toEqual([]);
   });
 
-  test("DEFAULT_CONFIG matches parsed defaults at version 3", () => {
+  test("DEFAULT_CONFIG matches parsed defaults at current version", () => {
     expect(DEFAULT_CONFIG).toEqual(tuiConfigSchema.parse(base));
-    expect(DEFAULT_CONFIG.schema_version).toBe(3);
+    expect(DEFAULT_CONFIG.schema_version).toBe(SCHEMA_VERSION);
     expect(DEFAULT_CONFIG.provider).toBe("openmeteo");
+    expect(DEFAULT_CONFIG.ink).toBe("auto");
     expect(DEFAULT_CONFIG.locations).toEqual([]);
   });
 
   test("full valid document parses verbatim", () => {
     const cfg = tuiConfigSchema.parse({
-      schema_version: 3,
+      schema_version: SCHEMA_VERSION,
       time_format: "24h",
       unit_prefs: { temp: "metric", wind: "imperial", precip: "metric", pressure: "metric" },
       refresh_minutes: 5,
       theme: "day",
+      ink: "light",
       daily_days: 10,
       hourly_hours: 36,
       panels: { nowcast: false, details: true, hourly: false, daily: true },
@@ -64,6 +68,7 @@ describe("tuiConfigSchema", () => {
     expect(cfg.unit_prefs.wind).toBe("imperial");
     expect(cfg.refresh_minutes).toBe(5);
     expect(cfg.theme).toBe("day");
+    expect(cfg.ink).toBe("light");
     expect(cfg.daily_days).toBe(10);
     expect(cfg.hourly_hours).toBe(36);
     expect(cfg.panels.nowcast).toBe(false);
@@ -102,6 +107,20 @@ describe("tuiConfigSchema", () => {
     rejects({ ...base, theme: "system" });
   });
 
+  test("ink defaults to auto and accepts light/dark", () => {
+    expect(tuiConfigSchema.parse(base).ink).toBe("auto");
+    expect(tuiConfigSchema.parse({ ...base, ink: "light" }).ink).toBe("light");
+    expect(tuiConfigSchema.parse({ ...base, ink: "dark" }).ink).toBe("dark");
+    expect(tuiConfigSchema.parse({ ...base, ink: "auto" }).ink).toBe("auto");
+  });
+
+  test("rejects invalid ink values", () => {
+    rejects({ ...base, ink: "system" });
+    rejects({ ...base, ink: "" });
+    rejects({ ...base, ink: 1 });
+    rejects({ ...base, ink: "LIGHT" });
+  });
+
   test("provider defaults to openmeteo and accepts the known ids", () => {
     expect(tuiConfigSchema.parse(base).provider).toBe("openmeteo");
     expect(tuiConfigSchema.parse({ ...base, provider: "nws" }).provider).toBe("nws");
@@ -110,10 +129,11 @@ describe("tuiConfigSchema", () => {
     rejects({ ...base, provider: 1 });
   });
 
-  test("rejects schema_version other than 3", () => {
-    rejects({ schema_version: 2 });
-    rejects({ schema_version: "3" });
+  test("rejects schema_version other than current", () => {
+    rejects({ schema_version: SCHEMA_VERSION - 1 });
+    rejects({ schema_version: "4" });
     rejects({});
+    rejects({ schema_version: SCHEMA_VERSION + 1 });
   });
 
   test("rejects out-of-range daily_days", () => {
@@ -249,10 +269,11 @@ describe("resolveDisplayPrefs", () => {
 });
 
 describe("migrateConfig", () => {
-  test("promotes a v1 document to v3 with derived defaults and openmeteo provider", () => {
+  test("promotes a v1 document to current with derived defaults and openmeteo provider", () => {
     const cfg = migrateConfig({ schema_version: 1, units: "metric" });
-    expect(cfg.schema_version).toBe(3);
+    expect(cfg.schema_version).toBe(SCHEMA_VERSION);
     expect(cfg.provider).toBe("openmeteo");
+    expect(cfg.ink).toBe("auto");
     expect(cfg.units).toBe("metric");
     expect(cfg.unit_prefs).toEqual({
       temp: "metric",
@@ -263,17 +284,28 @@ describe("migrateConfig", () => {
     expect(cfg.time_format).toBe("auto");
   });
 
-  test("promotes a v2 document to v3, defaulting the provider", () => {
+  test("promotes a v2 document to current, defaulting the provider", () => {
     const cfg = migrateConfig({
       schema_version: 2,
       theme: "night",
       default_location: "oslo",
       locations: [location("oslo")],
     });
-    expect(cfg.schema_version).toBe(3);
+    expect(cfg.schema_version).toBe(SCHEMA_VERSION);
     expect(cfg.provider).toBe("openmeteo");
+    expect(cfg.ink).toBe("auto");
     expect(cfg.theme).toBe("night");
     expect(cfg.locations.map((loc) => loc.slug)).toEqual(["oslo"]);
+  });
+
+  test("promotes a v3 document to current, defaulting ink to auto", () => {
+    const cfg = migrateConfig({
+      schema_version: 3,
+      theme: "day",
+    });
+    expect(cfg.schema_version).toBe(SCHEMA_VERSION);
+    expect(cfg.ink).toBe("auto");
+    expect(cfg.theme).toBe("day");
   });
 
   test("explicit partial overrides win over derived legacy values", () => {
@@ -292,11 +324,13 @@ describe("migrateConfig", () => {
     expect(() => migrateConfig({ schema_version: 1, units: "kelvin" })).toThrow();
     expect(() => migrateConfig({ schema_version: 1, daily_days: 99 })).toThrow();
     expect(() => migrateConfig({ schema_version: 2, provider: "nope" })).toThrow();
+    expect(() => migrateConfig({ schema_version: 3, ink: "nope" })).toThrow();
   });
 
-  test("passes v3 documents through unchanged", () => {
-    const cfg = migrateConfig({ ...base, time_format: "12h" });
+  test("passes current-version documents through unchanged", () => {
+    const cfg = migrateConfig({ ...base, time_format: "12h", ink: "light" });
     expect(cfg.time_format).toBe("12h");
+    expect(cfg.ink).toBe("light");
   });
 
   test("parsed output re-parses idempotently", () => {

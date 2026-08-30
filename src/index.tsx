@@ -11,7 +11,7 @@ import { resolveDisplayPrefs, type TuiConfig } from "./lib/config/schema";
 import { selectProvider } from "./lib/providers/select";
 import { formatFfiUnavailableMessage, probeFfiAvailable } from "./lib/runtime/ffi";
 import { cachedForecast } from "./lib/weather/cache";
-import { detectTerminalAppearance } from "./theme/detect";
+import { resolveTerminalAppearance } from "./theme/detect";
 
 function stderr(message: string): void {
   process.stderr.write(`${message}\n`);
@@ -99,7 +99,7 @@ async function runTui(locationArg: string | null): Promise<number> {
   }
   const renderer = await createCliRenderer({ exitOnCtrlC: true });
   renderer.on("destroy", () => appStore.getState().dispose());
-  const appearancePromise = detectTerminalAppearance(renderer);
+  const appearancePromise = resolveTerminalAppearance(config.ink, renderer);
   createRoot(renderer).render(
     <AppearanceApp initialSlug={initialSlug} appearancePromise={appearancePromise} />,
   );

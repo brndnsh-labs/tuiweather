@@ -12,6 +12,7 @@ function serialize(config: TuiConfig): string {
     refresh_minutes: config.refresh_minutes,
     reduced_motion: config.reduced_motion,
     theme: config.theme,
+    ink: config.ink,
     provider: config.provider,
     daily_days: config.daily_days,
     hourly_hours: config.hourly_hours,

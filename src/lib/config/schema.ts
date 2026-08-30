@@ -4,7 +4,7 @@ import type { Units } from "../weather/format";
 
 export const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export interface DisplayPrefs {
   temp: Units;
@@ -45,6 +45,7 @@ export const tuiConfigSchema = z
     refresh_minutes: z.number().int().min(1).default(10),
     reduced_motion: z.boolean().default(false),
     theme: z.enum(["day", "night", "auto"]).default("auto"),
+    ink: z.enum(["auto", "light", "dark"]).default("auto"),
     provider: z.enum(PROVIDER_IDS).default("openmeteo"),
     daily_days: z.number().int().min(1).max(16).default(7),
     hourly_hours: z.number().int().min(12).max(48).default(24),
@@ -99,9 +100,10 @@ export function migrateConfig(raw: unknown): TuiConfig {
   }
   const doc: Record<string, unknown> = { ...raw };
   const version = (raw as { schema_version?: unknown }).schema_version;
-  // v1 predates the [units] table; v2 predates the `provider` key. Both are
-  // upgraded in place, relying on schema defaults for the added fields.
-  if (version === 1 || version === 2) {
+  // v1 predates the [units] table; v2 predates the `provider` key; v3 predates
+  // the `ink` key. All are upgraded in place, relying on schema defaults for
+  // the added fields.
+  if (version === 1 || version === 2 || version === 3) {
     doc.schema_version = SCHEMA_VERSION;
   }
   // A [units] table parses under the `units` key; fold it into unit_prefs so

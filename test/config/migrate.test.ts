@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { ConfigError } from "../../src/lib/config/errors";
 import { loadConfig } from "../../src/lib/config/load";
 import { saveConfig } from "../../src/lib/config/save";
-import { resolveDisplayPrefs } from "../../src/lib/config/schema";
+import { resolveDisplayPrefs, SCHEMA_VERSION } from "../../src/lib/config/schema";
 
 const tempDirs: string[] = [];
 
@@ -33,12 +33,13 @@ async function expectConfigError(promise: Promise<unknown>): Promise<ConfigError
   throw new Error("expected promise to reject with ConfigError");
 }
 
-describe("v1/v2 → v3 migration via loadConfig", () => {
-  test("v1 metric document loads as v3 with derived defaults and openmeteo provider", async () => {
+describe("v1/v2/v3 → v4 migration via loadConfig", () => {
+  test("v1 metric document loads as v4 with derived defaults and openmeteo provider", async () => {
     const file = await configFromFile('schema_version = 1\nunits = "metric"\n');
     const cfg = await loadConfig(file);
-    expect(cfg.schema_version).toBe(3);
+    expect(cfg.schema_version).toBe(SCHEMA_VERSION);
     expect(cfg.provider).toBe("openmeteo");
+    expect(cfg.ink).toBe("auto");
     expect(cfg.units).toBe("metric");
     expect(cfg.time_format).toBe("auto");
     expect(cfg.unit_prefs).toEqual({
@@ -59,8 +60,9 @@ describe("v1/v2 → v3 migration via loadConfig", () => {
   test("v1 document without a units scalar derives imperial everywhere", async () => {
     const file = await configFromFile("schema_version = 1\n");
     const cfg = await loadConfig(file);
-    expect(cfg.schema_version).toBe(3);
+    expect(cfg.schema_version).toBe(SCHEMA_VERSION);
     expect(cfg.units).toBe("imperial");
+    expect(cfg.ink).toBe("auto");
     expect(resolveDisplayPrefs(cfg).timeFormat).toBe("12h");
   });
 
@@ -77,11 +79,40 @@ temp = "metric"
     expect(cfg.unit_prefs.pressure).toBe("imperial");
   });
 
-  test("a v3 document selects the nws provider", async () => {
-    const file = await configFromFile('schema_version = 3\nprovider = "nws"\n');
+  test("v3 document without ink migrates to v4 with ink auto", async () => {
+    const file = await configFromFile('schema_version = 3\ntheme = "day"\n');
     const cfg = await loadConfig(file);
-    expect(cfg.schema_version).toBe(3);
+    expect(cfg.schema_version).toBe(SCHEMA_VERSION);
+    expect(cfg.ink).toBe("auto");
+    expect(cfg.theme).toBe("day");
+  });
+
+  test("v3 document with explicit ink preserves it after migration", async () => {
+    const file = await configFromFile('schema_version = 3\nink = "light"\n');
+    const cfg = await loadConfig(file);
+    expect(cfg.schema_version).toBe(SCHEMA_VERSION);
+    expect(cfg.ink).toBe("light");
+  });
+
+  test("v3 document selects the nws provider", async () => {
+    const file = await configFromFile(`schema_version = 3\nprovider = "nws"\n`);
+    const cfg = await loadConfig(file);
+    expect(cfg.schema_version).toBe(SCHEMA_VERSION);
     expect(cfg.provider).toBe("nws");
+  });
+
+  test("v4 document with explicit ink loads verbatim", async () => {
+    const file = await configFromFile(`schema_version = 4\nink = "dark"\n`);
+    const cfg = await loadConfig(file);
+    expect(cfg.schema_version).toBe(4);
+    expect(cfg.ink).toBe("dark");
+  });
+
+  test("invalid ink is rejected descriptively", async () => {
+    const badInk = await expectConfigError(
+      loadConfig(await configFromFile('schema_version = 4\nink = "system"\n')),
+    );
+    expect(badInk.issues.some((issue) => issue.includes("ink"))).toBe(true);
   });
 
   test("invalid values are rejected descriptively", async () => {
@@ -106,7 +137,7 @@ temp = "metric"
     expect(badPref.issues.some((issue) => issue.startsWith("unit_prefs.wind"))).toBe(true);
 
     const future = await expectConfigError(
-      loadConfig(await configFromFile("schema_version = 4\n")),
+      loadConfig(await configFromFile("schema_version = 99\n")),
     );
     expect(future.issues.some((issue) => issue.includes("schema_version"))).toBe(true);
   });
@@ -119,8 +150,25 @@ temp = "metric"
     const saved = join(dir, "roundtrip.toml");
     await saveConfig(migrated, saved);
     const text = await readFile(saved, "utf8");
-    expect(text.match(/^schema_version = 3$/m)).not.toBeNull();
+    expect(text.match(/^schema_version = 4$/m)).not.toBeNull();
     await expect(loadConfig(saved)).resolves.toEqual(migrated);
+  });
+
+  test("v3 without ink re-saves as v4 with bumped version", async () => {
+    const file = await configFromFile('schema_version = 3\ntheme = "night"\n');
+    const migrated = await loadConfig(file);
+    expect(migrated.schema_version).toBe(4);
+    expect(migrated.ink).toBe("auto");
+    const dir = await mkdtemp(join(tmpdir(), "tuiweather-migrate-ink-"));
+    tempDirs.push(dir);
+    const saved = join(dir, "ink-roundtrip.toml");
+    await saveConfig(migrated, saved);
+    const text = await readFile(saved, "utf8");
+    expect(text.match(/^schema_version = 4$/m)).not.toBeNull();
+    expect(text).toContain('ink = "auto"');
+    const reloaded = await loadConfig(saved);
+    expect(reloaded.schema_version).toBe(4);
+    expect(reloaded.ink).toBe("auto");
   });
 
   test("mixed display prefs survive save → load exactly", async () => {

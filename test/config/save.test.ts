@@ -6,7 +6,12 @@ import { join } from "node:path";
 import { ConfigError } from "../../src/lib/config/errors";
 import { loadConfig } from "../../src/lib/config/load";
 import { saveConfig } from "../../src/lib/config/save";
-import { DEFAULT_CONFIG, type TuiConfig, tuiConfigSchema } from "../../src/lib/config/schema";
+import {
+  DEFAULT_CONFIG,
+  SCHEMA_VERSION,
+  type TuiConfig,
+  tuiConfigSchema,
+} from "../../src/lib/config/schema";
 
 const tempDirs: string[] = [];
 
@@ -24,7 +29,7 @@ afterAll(async () => {
 
 function sampleConfig(): TuiConfig {
   return tuiConfigSchema.parse({
-    schema_version: 3,
+    schema_version: SCHEMA_VERSION,
     time_format: "24h",
     unit_prefs: { temp: "metric", wind: "imperial", precip: "metric", pressure: "imperial" },
     panels: { nowcast: true, details: false, hourly: true, daily: false },
@@ -99,14 +104,14 @@ describe("saveConfig", () => {
 
   test("round-trips a default-only config", async () => {
     const file = join(await tempDir(), "config.toml");
-    const original = tuiConfigSchema.parse({ schema_version: 3 });
+    const original = tuiConfigSchema.parse({ schema_version: SCHEMA_VERSION });
     await saveConfig(original, file);
     await expect(loadConfig(file)).resolves.toEqual(original);
   });
 
   test("round-trips the selected provider", async () => {
     const file = join(await tempDir(), "config.toml");
-    const original = tuiConfigSchema.parse({ schema_version: 3, provider: "nws" });
+    const original = tuiConfigSchema.parse({ schema_version: SCHEMA_VERSION, provider: "nws" });
     await saveConfig(original, file);
     const text = await readFile(file, "utf8");
     expect(text).toContain('provider = "nws"');
@@ -115,7 +120,7 @@ describe("saveConfig", () => {
 
   test("writes the units scalar when prefs are uniform and the full matrix otherwise", async () => {
     const uniformFile = join(await tempDir(), "uniform.toml");
-    await saveConfig(tuiConfigSchema.parse({ schema_version: 3 }), uniformFile);
+    await saveConfig(tuiConfigSchema.parse({ schema_version: SCHEMA_VERSION }), uniformFile);
     const uniformText = await readFile(uniformFile, "utf8");
     expect(uniformText).toContain('units = "imperial"');
     expect(uniformText).not.toContain("[units]");
@@ -141,14 +146,14 @@ describe("saveConfig", () => {
     const file = join(await tempDir(), "config.toml");
     await saveConfig(
       tuiConfigSchema.parse({
-        schema_version: 3,
+        schema_version: SCHEMA_VERSION,
         default_location: "portland",
         locations: [{ slug: "portland", label: "Portland", latitude: 0, longitude: 0 }],
       }),
       file,
     );
     const text = await readFile(file, "utf8");
-    expect(text.match(/^schema_version = 3$/m)).not.toBeNull();
+    expect(text.match(/^schema_version = 4$/m)).not.toBeNull();
     const schemaAt = text.indexOf("schema_version");
     const unitsAt = text.indexOf("units =");
     const timeAt = text.indexOf("time_format");
