@@ -162,6 +162,7 @@ longitude = -122.6765
 | `schema_version` | integer | `3` | Required; currently always `3`. Version 1 and 2 files are migrated in place on load |
 | `time_format` | `12h` / `24h` / `auto` | `"auto"` | `auto` picks 12h when temperature units are imperial, else 24h |
 | `refresh_minutes` | integer | `10` | Minimum `1` |
+| `reduced_motion` | boolean | `false` | Replace the animated loading spinner with a static indicator |
 | `theme` | `day` / `night` / `auto` | `"auto"` | Accent palette; `auto` follows the location's sunrise/sunset. Text ink always adapts to your terminal's background |
 | `provider` | `openmeteo` / `nws` | `"openmeteo"` | Weather data source. Open-Meteo is the default full-feature experience; NWS is the official US source fallback — works: conditions, temperatures, precipitation probabilities; goes quiet: minute-level nowcast (panel hides, watch bell inactive), hourly/daily precip amounts (blank bars/chips), air quality |
 | `daily_days` | integer | `7` | `1`–`16` forecast days |
