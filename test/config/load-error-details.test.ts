@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { resolveDefaultSlug } from "../../src/app/store";
 import { ConfigError } from "../../src/lib/config/errors";
 import { loadConfig } from "../../src/lib/config/load";
-import { tuiConfigSchema } from "../../src/lib/config/schema";
+import { SCHEMA_VERSION, tuiConfigSchema } from "../../src/lib/config/schema";
 
 const tempDirs: string[] = [];
 
@@ -87,7 +87,7 @@ describe("loadConfig error details", () => {
 describe("stale default_location fallback", () => {
   test("resolveDefaultSlug falls back to first location when default is stale", () => {
     const cfg = tuiConfigSchema.parse({
-      schema_version: 3,
+      schema_version: SCHEMA_VERSION,
       default_location: "ghost",
       locations: [
         { slug: "portland", label: "Portland", latitude: 0, longitude: 0 },
@@ -99,7 +99,7 @@ describe("stale default_location fallback", () => {
 
   test("resolveDefaultSlug honors explicit slug over stale default", () => {
     const cfg = tuiConfigSchema.parse({
-      schema_version: 3,
+      schema_version: SCHEMA_VERSION,
       default_location: "ghost",
       locations: [
         { slug: "portland", label: "Portland", latitude: 0, longitude: 0 },
@@ -110,7 +110,10 @@ describe("stale default_location fallback", () => {
   });
 
   test("resolveDefaultSlug returns null when no locations", () => {
-    const cfg = tuiConfigSchema.parse({ schema_version: 3, default_location: "ghost" });
+    const cfg = tuiConfigSchema.parse({
+      schema_version: SCHEMA_VERSION,
+      default_location: "ghost",
+    });
     expect(resolveDefaultSlug(cfg)).toBeNull();
   });
 
