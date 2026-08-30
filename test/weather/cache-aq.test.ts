@@ -165,7 +165,7 @@ describe("cachedAirQuality", () => {
     expect(providerStale.calls()).toBe(1);
   });
 
-  test("on-disk writes are 0o600 atomic", async () => {
+  test("on-disk writes are atomic and use restrictive Unix permissions", async () => {
     const dir = await mkdtemp(join(tmpdir(), "tuiweather-cache-aq-"));
     const prev = process.env.XDG_CACHE_HOME;
     process.env.XDG_CACHE_HOME = dir;
@@ -177,7 +177,7 @@ describe("cachedAirQuality", () => {
       const files = await readdir(join(dir, "tuiweather"));
       expect(files).toEqual([KEY]);
       const stat = await statFile(join(dir, "tuiweather", KEY));
-      expect(stat.mode & 0o777).toBe(0o600);
+      if (process.platform !== "win32") expect(stat.mode & 0o777).toBe(0o600);
     } finally {
       if (prev === undefined) delete process.env.XDG_CACHE_HOME;
       else process.env.XDG_CACHE_HOME = prev;

@@ -53,7 +53,7 @@ describe("saveConfig", () => {
     expect(statSync(file).isFile()).toBe(true);
   });
 
-  test("final file mode is 0600", async () => {
+  test.skipIf(process.platform === "win32")("final file mode is 0600", async () => {
     const file = join(await tempDir(), "config.toml");
     await saveConfig(sampleConfig(), file);
     expect(statSync(file).mode & 0o777).toBe(0o600);
