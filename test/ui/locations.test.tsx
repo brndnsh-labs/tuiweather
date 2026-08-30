@@ -119,6 +119,17 @@ async function waitUntilFrame(
   throw new Error(`waitUntilFrame timed out; last frame:\n${frame}`);
 }
 
+async function waitUntilFile(path: string, predicate: (text: string) => boolean, timeoutMs = 3000) {
+  const deadline = Date.now() + timeoutMs;
+  let text = "";
+  while (Date.now() < deadline) {
+    text = await readFile(path, "utf8");
+    if (predicate(text)) return text;
+    await sleep(15);
+  }
+  throw new Error(`waitUntilFile timed out; last content:\n${text}`);
+}
+
 async function openLocations(setup: Awaited<ReturnType<typeof testRender>>): Promise<string> {
   await setup.mockInput.pressKeys(["l"]);
   return waitUntilFrame(setup, (f) => f.includes("enter switch · 1-9 jump"));
@@ -210,9 +221,7 @@ describe("locations overlay", () => {
       await openLocations(setup);
 
       await setup.mockInput.pressKeys(["s"]);
-      await sleep(60);
-
-      const text = await readFile(path, "utf8");
+      const text = await waitUntilFile(path, (t) => t.includes('default_location = "portland"'));
       expect(text).toContain('default_location = "portland"');
       expect(store.getState().lastActionError).toBeUndefined();
     } finally {
@@ -241,7 +250,7 @@ describe("locations overlay", () => {
       expect(store.getState().activeSlug).toBe("london");
       expect(store.getState().locationsOpen).toBe(true);
       expect(store.getState().config.locations.map((loc) => loc.slug)).toEqual(["london"]);
-      const text = await readFile(path, "utf8");
+      const text = await waitUntilFile(path, (t) => !t.includes('slug = "portland"'));
       expect(text).not.toContain('slug = "portland"');
     } finally {
       await setup.renderer.destroy();
