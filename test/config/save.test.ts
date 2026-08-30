@@ -59,6 +59,17 @@ describe("saveConfig", () => {
     expect(statSync(file).mode & 0o777).toBe(0o600);
   });
 
+  test.skipIf(process.platform === "win32")(
+    "created config dir has no group/other bits (0700)",
+    async () => {
+      const base = await tempDir();
+      const file = join(base, "new-subdir", "config.toml");
+      await saveConfig(sampleConfig(), file);
+      const mode = statSync(join(base, "new-subdir")).mode & 0o777;
+      expect(mode & 0o077).toBe(0);
+    },
+  );
+
   test("leaves no *.tmp-* files behind on success", async () => {
     const dir = await tempDir();
     const file = join(dir, "config.toml");

@@ -100,7 +100,33 @@ describe("parseGeocodingResponse", () => {
     expect(caught).toBeInstanceOf(ProviderError);
     if (caught instanceof ProviderError) {
       expect(caught.providerId).toBe("openmeteo");
-      expect(caught.message).toContain("name is too short");
+      expect(caught.message).toBe("openmeteo geocoding failed (HTTP 200): name is too short");
+    }
+  });
+
+  test("unified shape omits reason when absent", () => {
+    let caught: unknown;
+    try {
+      parseGeocodingResponse({ error: true });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ProviderError);
+    if (caught instanceof ProviderError) {
+      expect(caught.message).toBe("openmeteo geocoding failed (HTTP 200)");
+    }
+  });
+
+  test("uses custom status when provided", () => {
+    let caught: unknown;
+    try {
+      parseGeocodingResponse({ error: true, reason: "bad" }, 400);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ProviderError);
+    if (caught instanceof ProviderError) {
+      expect(caught.message).toBe("openmeteo geocoding failed (HTTP 400): bad");
     }
   });
 
@@ -119,6 +145,7 @@ describe("parseGeocodingResponse", () => {
       expect(caught.message.includes("\u001b")).toBe(false);
       expect(caught.message.includes("\u0007")).toBe(false);
       expect(caught.message).toContain("bad name");
+      expect(caught.message).toBe("openmeteo geocoding failed (HTTP 200): ]0;pwned bad name");
     }
   });
 
