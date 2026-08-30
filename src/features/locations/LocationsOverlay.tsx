@@ -1,6 +1,6 @@
 import { useKeyboard } from "@opentui/react";
 import { useMemo, useState } from "react";
-import { isDeleteArmed, type WeatherStore } from "../../app/store";
+import { isActionErrorActive, isDeleteArmed, type WeatherStore } from "../../app/store";
 import { type DisplayPrefs, resolveDisplayPrefs } from "../../lib/config/schema";
 import { conditionIcon } from "../../lib/weather/condition-display";
 import { displayWidth, formatTemp, truncateCells } from "../../lib/weather/format";
@@ -35,6 +35,8 @@ export function LocationsOverlay({ store, width, height }: LocationsOverlayProps
   const config = store((s) => s.config);
   const activeSlug = store((s) => s.activeSlug);
   const forecastBySlug = store((s) => s.forecastBySlug);
+  const lastActionError = store((s) => s.lastActionError);
+  const lastActionErrorAtMs = store((s) => s.lastActionErrorAtMs);
   const [cursor, setCursor] = useState(0);
   const [offset, setOffset] = useState(0);
   const [armedSlug, setArmedSlug] = useState<string | null>(null);
@@ -176,6 +178,9 @@ export function LocationsOverlay({ store, width, height }: LocationsOverlayProps
     armed && armedSlug !== null
       ? (locations.find((loc) => loc.slug === armedSlug)?.label ?? null)
       : null;
+  const overlayActionError = isActionErrorActive(lastActionErrorAtMs, Date.now())
+    ? lastActionError
+    : undefined;
 
   return (
     <box
@@ -196,7 +201,11 @@ export function LocationsOverlay({ store, width, height }: LocationsOverlayProps
       <text fg={palette.border} bg={palette.surface}>
         {"─".repeat(innerWidth)}
       </text>
-      {armedLabel !== null ? (
+      {overlayActionError !== undefined ? (
+        <text fg={palette.danger} bg={palette.surface}>
+          {truncateCells(overlayActionError, innerWidth)}
+        </text>
+      ) : armedLabel !== null ? (
         <text fg={palette.danger} bg={palette.surface}>
           {truncateCells(`d again deletes ${armedLabel}`, innerWidth)}
         </text>

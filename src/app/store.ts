@@ -92,6 +92,12 @@ export function isDeleteArmed(armedAtMs: number | null, nowMs: number): boolean 
   return armedAtMs !== null && nowMs >= armedAtMs && nowMs - armedAtMs < DELETE_ARM_TTL_MS;
 }
 
+export const ACTION_ERROR_TTL_MS = DELETE_ARM_TTL_MS;
+
+export function isActionErrorActive(atMs: number | null, nowMs: number): boolean {
+  return atMs !== null && nowMs >= atMs && nowMs - atMs < ACTION_ERROR_TTL_MS;
+}
+
 export interface WeatherState {
   initStatus: "idle" | "loading" | "ready" | "error";
   config: TuiConfig;
@@ -103,6 +109,7 @@ export interface WeatherState {
   airQuality: AirQuality | null;
   airQualityBySlug: Record<string, AirQuality>;
   lastActionError: string | undefined;
+  lastActionErrorAtMs: number | null;
   helpOpen: boolean;
   overlayOpen: boolean;
   locationsOpen: boolean;
@@ -121,7 +128,7 @@ export interface WeatherState {
   disarmDelete(): void;
   deleteArmed(nowMs: number): boolean;
   searchLocations(query: string): Promise<GeocodingResult[]>;
-  addLocation(entry: LocationEntry): Promise<void>;
+  addLocation(entry: LocationEntry): Promise<boolean>;
   completeOnboarding(entry: LocationEntry, units: TuiConfig["units"]): Promise<boolean>;
   deleteActiveLocation(): Promise<void>;
   deleteLocation(slug: string): Promise<void>;
@@ -163,6 +170,37 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
     let refreshHandle: unknown;
     let disposed = false;
     const inFlight = new Map<string, Promise<void>>();
+    let actionErrorTimer: ReturnType<typeof setTimeout> | undefined;
+
+    function clearActionErrorTimer(): void {
+      if (actionErrorTimer !== undefined) {
+        clearTimeout(actionErrorTimer);
+        actionErrorTimer = undefined;
+      }
+    }
+
+    function clearActionErrorState(): void {
+      clearActionErrorTimer();
+      const s = get();
+      if (s.lastActionError !== undefined || s.lastActionErrorAtMs !== null) {
+        set({ lastActionError: undefined, lastActionErrorAtMs: null });
+      }
+    }
+
+    function setActionErrorState(message: string): void {
+      clearActionErrorTimer();
+      const now = Date.now();
+      set({ lastActionError: message, lastActionErrorAtMs: now });
+      actionErrorTimer = setTimeout(() => {
+        if (disposed) return;
+        const cur = get();
+        if (cur.lastActionErrorAtMs === now) {
+          set({ lastActionError: undefined, lastActionErrorAtMs: null });
+        }
+        actionErrorTimer = undefined;
+      }, ACTION_ERROR_TTL_MS);
+      (actionErrorTimer as unknown as { unref?: () => void }).unref?.();
+    }
 
     function clearRefreshTimer(): void {
       if (refreshHandle === undefined) return;
@@ -224,13 +262,15 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
       airQuality: null,
       airQualityBySlug: {},
       lastActionError: undefined,
+      lastActionErrorAtMs: null,
       helpOpen: false,
       overlayOpen: false,
       locationsOpen: false,
       deleteArmedAtMs: null,
 
       init: async (explicitSlug?: string) => {
-        set({ initStatus: "loading", lastActionError: undefined });
+        clearActionErrorTimer();
+        set({ initStatus: "loading", lastActionError: undefined, lastActionErrorAtMs: null });
         try {
           const config = await loadConfig(deps.configPath);
           const slug = resolveDefaultSlug(config, explicitSlug);
@@ -247,7 +287,8 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
           }
           scheduleRefreshLoop();
         } catch (e) {
-          set({ initStatus: "error", lastActionError: errorMessage(e) });
+          setActionErrorState(errorMessage(e));
+          set({ initStatus: "error" });
         }
       },
 
@@ -310,6 +351,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
 
       switchLocation: (slug: string) => {
         if (!findLocation(get().config, slug)) return;
+        clearActionErrorState();
         const aq = get().airQualityBySlug[slug] ?? null;
         set({ activeSlug: slug, airQuality: aq });
         scheduleRefreshLoop();
@@ -317,6 +359,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
       },
 
       cycleLocation: (delta: 1 | -1) => {
+        clearActionErrorState();
         set({ deleteArmedAtMs: null });
         const locations = get().config.locations;
         if (locations.length === 0) return;
@@ -341,37 +384,52 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
               units,
               unit_prefs: { temp: units, wind: units, precip: units, pressure: units },
             };
+        clearActionErrorState();
         set({ config: next });
         await saveConfig(next, deps.configPath).catch((e: unknown) => {
-          set({ lastActionError: errorMessage(e) });
+          setActionErrorState(errorMessage(e));
         });
       },
 
-      toggleHelp: () => set((s) => ({ helpOpen: !s.helpOpen })),
+      toggleHelp: () => {
+        clearActionErrorState();
+        set((s) => ({ helpOpen: !s.helpOpen }));
+      },
 
-      setOverlayOpen: (open: boolean) =>
+      setOverlayOpen: (open: boolean) => {
+        clearActionErrorState();
         set(
           open
             ? { overlayOpen: true, locationsOpen: false, deleteArmedAtMs: null }
             : { overlayOpen: false },
-        ),
+        );
+      },
 
-      setLocationsOpen: (open: boolean) =>
+      setLocationsOpen: (open: boolean) => {
+        clearActionErrorState();
         set(
           open
             ? { locationsOpen: true, overlayOpen: false, deleteArmedAtMs: null }
             : { locationsOpen: false },
-        ),
+        );
+      },
 
-      armDelete: () => set({ deleteArmedAtMs: Date.now() }),
+      armDelete: () => {
+        clearActionErrorState();
+        set({ deleteArmedAtMs: Date.now() });
+      },
 
-      disarmDelete: () => set({ deleteArmedAtMs: null }),
+      disarmDelete: () => {
+        clearActionErrorState();
+        set({ deleteArmedAtMs: null });
+      },
 
       deleteArmed: (nowMs: number) => isDeleteArmed(get().deleteArmedAtMs, nowMs),
 
       searchLocations: (query: string) => geocoder(query),
 
       addLocation: async (entry: LocationEntry) => {
+        clearActionErrorState();
         const config = get().config;
         const slug = uniqueSlug(
           entry.slug,
@@ -389,17 +447,19 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
         try {
           await saveConfig(next, deps.configPath);
         } catch (e) {
-          set({ lastActionError: errorMessage(e) });
-          return;
+          setActionErrorState(errorMessage(e));
+          return false;
         }
         set({ config: next });
         get().switchLocation(slug);
+        clearActionErrorState();
+        return true;
       },
 
       completeOnboarding: async (entry: LocationEntry, units: TuiConfig["units"]) => {
         const config = get().config;
         if (config.locations.length > 0) {
-          set({ lastActionError: "onboarding is already complete" });
+          setActionErrorState("onboarding is already complete");
           return false;
         }
         const slug = uniqueSlug(
@@ -414,14 +474,15 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
           default_location: slug,
           locations: [finalEntry],
         };
-        set({ lastActionError: undefined });
+        clearActionErrorState();
         try {
           await saveConfig(next, deps.configPath);
         } catch (e) {
-          set({ lastActionError: errorMessage(e) });
+          setActionErrorState(errorMessage(e));
           return false;
         }
-        set({ config: next, activeSlug: slug, lastActionError: undefined });
+        clearActionErrorState();
+        set({ config: next, activeSlug: slug });
         await get().loadForecast(slug);
         scheduleRefreshLoop();
         return true;
@@ -438,9 +499,10 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
         set({ deleteArmedAtMs: null });
         const locations = config.locations;
         if (locations.length <= 1) {
-          set({ lastActionError: "cannot delete the only location" });
+          setActionErrorState("cannot delete the only location");
           return;
         }
+        clearActionErrorState();
         const idx = locations.findIndex((loc) => loc.slug === slug);
         if (idx === -1) return;
         const remaining = locations.filter((_, i) => i !== idx);
@@ -461,7 +523,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
         try {
           await saveConfig(next, deps.configPath);
         } catch (e) {
-          set({ lastActionError: errorMessage(e) });
+          setActionErrorState(errorMessage(e));
         }
         if (slug === get().activeSlug) {
           if (nextActive) {
@@ -471,19 +533,22 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
             set({ activeSlug: null, airQuality: null });
           }
         }
+        if (get().lastActionError === undefined) clearActionErrorState();
       },
 
       setDefaultLocation: async (slug: string) => {
         const config = get().config;
         if (!findLocation(config, slug)) return;
+        clearActionErrorState();
         const next: TuiConfig = { ...config, default_location: slug };
         try {
           await saveConfig(next, deps.configPath);
         } catch (e) {
-          set({ lastActionError: errorMessage(e) });
+          setActionErrorState(errorMessage(e));
           return;
         }
         set({ config: next });
+        clearActionErrorState();
       },
 
       moveLocation: async (slug: string, delta: 1 | -1) => {
@@ -492,6 +557,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
         if (idx === -1) return;
         const nextIdx = idx + delta;
         if (nextIdx < 0 || nextIdx >= config.locations.length) return;
+        clearActionErrorState();
         const nextLocations = [...config.locations];
         const [moved] = nextLocations.splice(idx, 1);
         if (!moved) return;
@@ -500,15 +566,17 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
         try {
           await saveConfig(next, deps.configPath);
         } catch (e) {
-          set({ lastActionError: errorMessage(e) });
+          setActionErrorState(errorMessage(e));
           return;
         }
         set({ config: next });
+        clearActionErrorState();
       },
 
       dispose: () => {
         disposed = true;
         clearRefreshTimer();
+        clearActionErrorTimer();
         set({ airQuality: null, airQualityBySlug: {} });
         inFlight.clear();
       },
