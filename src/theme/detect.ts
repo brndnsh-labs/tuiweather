@@ -1,5 +1,7 @@
 import { type InkName, isDarkBackground } from "./palette";
 
+export type InkPreference = "auto" | InkName;
+
 export interface TerminalAppearance {
   ink: InkName;
   background: string | null;
@@ -10,6 +12,10 @@ export interface PaletteQuery {
 }
 
 export const FALLBACK_APPEARANCE: TerminalAppearance = { ink: "dark", background: null };
+
+export function appearancesEqual(a: TerminalAppearance, b: TerminalAppearance): boolean {
+  return a.ink === b.ink && a.background === b.background;
+}
 
 export async function detectTerminalAppearance(
   query: PaletteQuery,
@@ -30,4 +36,15 @@ export async function detectTerminalAppearance(
   } finally {
     if (timer !== undefined) clearTimeout(timer);
   }
+}
+
+export async function resolveTerminalAppearance(
+  preference: InkPreference,
+  query: PaletteQuery,
+  timeoutMs = 300,
+): Promise<TerminalAppearance> {
+  if (preference === "light" || preference === "dark") {
+    return { ink: preference, background: null };
+  }
+  return detectTerminalAppearance(query, timeoutMs);
 }

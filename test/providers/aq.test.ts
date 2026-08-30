@@ -129,9 +129,14 @@ describe("fetchAirQuality", () => {
   test("wraps HTTP error with reason", async () => {
     mockResponds(JSON.stringify({ error: true, reason: "quota" }), 400);
     const error = await captureProviderError(fetchAirQuality(PORTLAND));
-    expect(error.message).toContain("400");
-    expect(error.message).toContain("quota");
+    expect(error.message).toBe("openmeteo air-quality failed (HTTP 400): quota");
     expect(error.message).not.toContain("https://");
+  });
+
+  test("unified air-quality shape omits reason when absent", async () => {
+    mockResponds(JSON.stringify({ error: true }), 400);
+    const error = await captureProviderError(fetchAirQuality(PORTLAND));
+    expect(error.message).toBe("openmeteo air-quality failed (HTTP 400)");
   });
 
   test("wraps non-JSON body", async () => {

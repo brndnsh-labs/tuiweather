@@ -10,7 +10,9 @@ function serialize(config: TuiConfig): string {
     schema_version: config.schema_version,
     time_format: config.time_format,
     refresh_minutes: config.refresh_minutes,
+    reduced_motion: config.reduced_motion,
     theme: config.theme,
+    ink: config.ink,
     provider: config.provider,
     daily_days: config.daily_days,
     hourly_hours: config.hourly_hours,
@@ -32,7 +34,7 @@ export async function saveConfig(config: TuiConfig, path?: string): Promise<void
   tuiConfigSchema.parse(config);
   const target = path ?? defaultConfigPath();
   const dir = dirname(target);
-  await mkdir(dir, { recursive: true });
+  await mkdir(dir, { recursive: true, mode: 0o700 });
   const tmp = join(dir, `${basename(target)}.tmp-${process.pid}-${randomBytes(8).toString("hex")}`);
   let created = false;
   try {

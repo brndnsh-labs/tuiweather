@@ -1,6 +1,6 @@
 import { createCliRenderer } from "@opentui/core";
 import { createRoot } from "@opentui/react";
-import { App } from "./app/App";
+import { AppearanceApp } from "./app/AppearanceApp";
 import { buildJsonLine, buildOneLine } from "./app/oneline";
 import { appStore, refreshLoopPeriodMs } from "./app/store";
 import { runWatch } from "./app/watch";
@@ -9,8 +9,9 @@ import { HELP_TEXT, parseArgs, USAGE, VERSION, warnStaleDefault } from "./cli";
 import { loadConfig } from "./lib/config/load";
 import { resolveDisplayPrefs, type TuiConfig } from "./lib/config/schema";
 import { selectProvider } from "./lib/providers/select";
+import { formatFfiUnavailableMessage, probeFfiAvailable } from "./lib/runtime/ffi";
 import { cachedForecast } from "./lib/weather/cache";
-import { detectTerminalAppearance } from "./theme/detect";
+import { resolveTerminalAppearance } from "./theme/detect";
 
 function stderr(message: string): void {
   process.stderr.write(`${message}\n`);
@@ -94,10 +95,17 @@ async function runTui(locationArg: string | null): Promise<number> {
     }
     initialSlug = resolved.slug;
   }
+  if (!(await probeFfiAvailable())) {
+    stderr(formatFfiUnavailableMessage(process.versions.node));
+    return 1;
+  }
   const renderer = await createCliRenderer({ exitOnCtrlC: true });
-  const appearance = await detectTerminalAppearance(renderer);
   renderer.on("destroy", () => appStore.getState().dispose());
-  createRoot(renderer).render(<App initialSlug={initialSlug} appearance={appearance} />);
+  const appearancePromise = resolveTerminalAppearance(config.ink, renderer);
+  createRoot(renderer).render(
+    <AppearanceApp initialSlug={initialSlug} appearancePromise={appearancePromise} />,
+  );
+  void appearancePromise.catch(() => undefined);
   return 0;
 }
 

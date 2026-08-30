@@ -138,6 +138,8 @@ export function buildPalette(
     ...base,
     fg: ensureContrast(base.fg, bg, FOREGROUND_CONTRAST_FLOOR),
     fgDim: ensureContrast(base.fgDim, bg, FOREGROUND_CONTRAST_FLOOR),
+    warn: ensureContrast(base.warn, bg, FOREGROUND_CONTRAST_FLOOR),
+    danger: ensureContrast(base.danger, bg, FOREGROUND_CONTRAST_FLOOR),
   };
 }
 

@@ -17,12 +17,13 @@ export function errorReason(
   body: unknown,
   schema: z.ZodTypeAny,
   maxChars = 200,
+  extractor?: (data: unknown) => string | undefined,
 ): string | undefined {
   const parsed = schema.safeParse(body);
   if (!parsed.success) return undefined;
-  const reason = (parsed.data as { reason?: unknown }).reason;
-  if (typeof reason !== "string") return undefined;
-  return sanitizeText(reason, maxChars);
+  const raw = extractor ? extractor(parsed.data) : (parsed.data as { reason?: unknown }).reason;
+  if (typeof raw !== "string") return undefined;
+  return sanitizeText(raw, maxChars);
 }
 
 export function causeSuffix(cause: unknown): string {
@@ -50,11 +51,91 @@ export function causeSuffix(cause: unknown): string {
 export function httpError(
   status: number,
   body: unknown,
-  opts: { label: string; providerId: string; schema: z.ZodTypeAny; maxChars?: number },
+  opts: {
+    label: string;
+    providerId: string;
+    schema: z.ZodTypeAny;
+    maxChars?: number;
+    extractor?: (data: unknown) => string | undefined;
+  },
 ): ProviderError {
-  const reason = errorReason(body, opts.schema, opts.maxChars ?? 200);
+  const reason = errorReason(body, opts.schema, opts.maxChars ?? 200, opts.extractor);
   return new ProviderError(
     `${opts.providerId} ${opts.label} failed (HTTP ${status})${reason ? `: ${reason}` : ""}`,
     opts.providerId,
   );
+}
+
+export const PROVIDER_RESPONSE_MAX_BYTES = 2 * 1024 * 1024;
+
+function sizeCapError(providerId: string, label: string, cap: number): ProviderError {
+  return new ProviderError(
+    `${providerId} ${label} response exceeded size limit (${cap} bytes)`,
+    providerId,
+  );
+}
+
+export async function readJsonCapped(
+  res: Response,
+  opts: { providerId: string; label: string; maxBytes?: number },
+): Promise<unknown> {
+  const cap = opts.maxBytes ?? PROVIDER_RESPONSE_MAX_BYTES;
+  const contentLength = res.headers.get("content-length");
+  if (contentLength !== null) {
+    const trimmed = contentLength.trim();
+    if (/^\d+$/.test(trimmed)) {
+      const parsed = Number(trimmed);
+      if (Number.isSafeInteger(parsed) && parsed > cap) {
+        try {
+          await res.body?.cancel();
+        } catch {}
+        throw sizeCapError(opts.providerId, opts.label, cap);
+      }
+    }
+  }
+
+  let bytes: Uint8Array;
+  if (res.body) {
+    const reader = res.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        total += value.byteLength;
+        if (total > cap) {
+          try {
+            await reader.cancel();
+          } catch {}
+          throw sizeCapError(opts.providerId, opts.label, cap);
+        }
+        chunks.push(value);
+      }
+    }
+    bytes = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+  } else {
+    const text = await res.text();
+    const encoded = new TextEncoder().encode(text);
+    if (encoded.byteLength > cap) {
+      throw sizeCapError(opts.providerId, opts.label, cap);
+    }
+    bytes = encoded;
+  }
+
+  const text = new TextDecoder().decode(bytes);
+  try {
+    return JSON.parse(text) as unknown;
+  } catch (cause) {
+    throw new ProviderError(
+      `${opts.providerId} ${opts.label} returned a non-JSON body (HTTP ${res.status})`,
+      opts.providerId,
+      cause,
+    );
+  }
 }
