@@ -289,3 +289,96 @@ describe("nws client — error wrapping", () => {
     expect(() => observationResponseSchema.parse(obsBody)).not.toThrow();
   });
 });
+
+describe("nws client — redirect hardening", () => {
+  test("surfaces a 302 to a foreign host as redirected off-host", async () => {
+    let observedInit: RequestInit | undefined;
+    globalThis.fetch = (async (_input: string | URL | Request, init?: RequestInit) => {
+      observedInit = init;
+      throw new TypeError(
+        "redirect mode is set to error: got 302 to https://evil.example.invalid/",
+      );
+    }) as unknown as typeof fetch;
+    const error = await captureProviderError(fetchForecast(PORTLAND));
+    expect(error.providerId).toBe("nws");
+    expect(error.message).toContain("redirected off-host");
+    expect(error.cause).toBeInstanceOf(TypeError);
+    expect(observedInit?.redirect).toBe("error");
+  });
+
+  test("does not follow a 302 to the same allowed host when redirect is error", async () => {
+    let observedInit: RequestInit | undefined;
+    globalThis.fetch = (async (_input: string | URL | Request, init?: RequestInit) => {
+      observedInit = init;
+      throw new TypeError("fetch failed because redirect mode is set to error");
+    }) as unknown as typeof fetch;
+    const error = await captureProviderError(fetchForecast(PORTLAND));
+    expect(error.message).toContain("redirected off-host");
+    expect(observedInit?.redirect).toBe("error");
+  });
+
+  test("a direct 200 from the allowed host still parses and sends redirect:error", async () => {
+    const calls: Array<RecordedCall & { redirect?: string }> = [];
+    const routes: Record<string, unknown> = {
+      [POINTS_URL]: pointsBody,
+      [HOURLY_URL]: hourlyBody,
+      [DAILY_URL]: dailyBody,
+      [STATIONS_URL]: stationsBody,
+      [OBS_URL]: obsBody,
+    };
+    globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      calls.push({
+        url,
+        headers: Object.fromEntries(
+          Object.entries((init?.headers ?? {}) as Record<string, string>),
+        ),
+        redirect: init?.redirect as string | undefined,
+      });
+      const body = routes[url];
+      if (body === undefined) {
+        return new Response(JSON.stringify({ detail: "no such route" }), { status: 404 });
+      }
+      const res = new Response(JSON.stringify(body), { status: 200 });
+      Object.defineProperty(res, "url", { value: url });
+      return res;
+    }) as unknown as typeof fetch;
+    const forecast = await fetchForecast(PORTLAND);
+    expect(forecast.providerId).toBe("nws");
+    expect(forecast.hourly.length).toBe(48);
+    for (const call of calls) {
+      expect(call.redirect).toBe("error");
+    }
+  });
+
+  test("rejects a 200 whose res.url is off-host (post-fetch belt-and-suspenders)", async () => {
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url === POINTS_URL) {
+        const res = new Response(JSON.stringify(pointsBody), { status: 200 });
+        Object.defineProperty(res, "url", { value: "https://evil.example.invalid/points" });
+        return res;
+      }
+      return new Response(JSON.stringify({}), { status: 200 });
+    }) as unknown as typeof fetch;
+    const error = await captureProviderError(fetchForecast(PORTLAND));
+    expect(error.providerId).toBe("nws");
+    expect(error.message).toContain("redirected off-host");
+  });
+
+  test("rejects a 200 whose res.url downgrades to http", async () => {
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url === POINTS_URL) {
+        const res = new Response(JSON.stringify(pointsBody), { status: 200 });
+        Object.defineProperty(res, "url", {
+          value: "http://api.weather.gov/points/45.5152,-122.6784",
+        });
+        return res;
+      }
+      return new Response(JSON.stringify({}), { status: 200 });
+    }) as unknown as typeof fetch;
+    const error = await captureProviderError(fetchForecast(PORTLAND));
+    expect(error.message).toContain("redirected off-host");
+  });
+});
