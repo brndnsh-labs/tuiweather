@@ -23,9 +23,7 @@ export const currentBlockSchema = z.object({
   relative_humidity_2m: z.number(),
   apparent_temperature: z.number(),
   is_day: isDayStep,
-  precipitation: z.number().nullable(),
   weather_code: z.number(),
-  cloud_cover: z.number().nullable(),
   pressure_msl: z.number().nullable(),
   wind_speed_10m: z.number(),
   wind_direction_10m: z.number(),
@@ -87,11 +85,9 @@ export const dailyBlockSchema = z
     temperature_2m_min: numArray,
     precipitation_sum: numArray,
     precipitation_probability_max: numArray.optional(),
-    uv_index_max: numArray.optional(),
     sunrise: strOrNullArray.optional(),
     sunset: strOrNullArray.optional(),
     wind_speed_10m_max: numArray.optional(),
-    wind_gusts_10m_max: numArray.optional(),
   })
   .superRefine((block, ctx) => {
     const n = block.time.length;

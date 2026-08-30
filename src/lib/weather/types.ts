@@ -29,11 +29,9 @@ export interface CurrentObs {
   windDirectionDeg: number;
   windGustKmh: number | null;
   pressureHpa: number | null;
-  cloudCoverPct: number | null;
   dewPointC: number | null;
   visibilityM: number | null;
   uvIndex: number | null;
-  precipLast1hMm: number | null;
   isDay: boolean;
 }
 
@@ -77,17 +75,13 @@ export interface DailyPoint {
   tempMaxC: number;
   precipSumMm: number;
   precipProbabilityMaxPct: number | null;
-  uvIndexMax: number | null;
   sunriseUtc: string | null;
   sunsetUtc: string | null;
   windSpeedMaxKmh: number | null;
-  windGustMaxKmh: number | null;
 }
 
 export interface AirQuality {
   usAqi: number | null;
-  pm25UgM3: number | null;
-  ozoneUgM3: number | null;
   observedAtUtc: string;
 }
 

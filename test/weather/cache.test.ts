@@ -3,7 +3,13 @@ import { mkdtemp, readdir, rm, stat as statFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { ProviderError, type WeatherProvider } from "../../src/lib/providers/types";
-import { type CacheIo, cachedForecast, cacheKey, cacheRoot } from "../../src/lib/weather/cache";
+import {
+  CACHE_SCHEMA_VERSION,
+  type CacheIo,
+  cachedForecast,
+  cacheKey,
+  cacheRoot,
+} from "../../src/lib/weather/cache";
 import type { GeoPoint, NormalizedForecast } from "../../src/lib/weather/types";
 
 const NOW = "2026-08-24T12:00:00.000Z";
@@ -27,11 +33,9 @@ function makeForecast(temperatureC = 18): NormalizedForecast {
       windDirectionDeg: 200,
       windGustKmh: null,
       pressureHpa: null,
-      cloudCoverPct: null,
       dewPointC: null,
       visibilityM: null,
       uvIndex: null,
-      precipLast1hMm: null,
       isDay: true,
     },
     minutely15: [],
@@ -85,7 +89,7 @@ function stubProvider(
 const KEY = cacheKey("stub", PORTLAND.latitude, PORTLAND.longitude);
 
 function envelopeText(fetchedAtUtc: string, forecast: NormalizedForecast): string {
-  return JSON.stringify({ fetchedAtUtc, forecast });
+  return JSON.stringify({ version: CACHE_SCHEMA_VERSION, fetchedAtUtc, forecast });
 }
 
 describe("cacheKey", () => {
@@ -257,7 +261,9 @@ describe("cachedForecast", () => {
   });
 
   test("envelope with malformed forecast body counts as corrupt", async () => {
-    const io = memoryIo(new Map([[KEY, JSON.stringify({ fetchedAtUtc: NOW })]]));
+    const io = memoryIo(
+      new Map([[KEY, JSON.stringify({ version: CACHE_SCHEMA_VERSION, fetchedAtUtc: NOW })]]),
+    );
     const provider = stubProvider(() => Promise.resolve(makeForecast(19)));
 
     const result = await cachedForecast(provider, PORTLAND, { nowUtc: NOW }, io);
@@ -270,7 +276,11 @@ describe("cachedForecast", () => {
   test("envelope with a null current block counts as corrupt", async () => {
     const forecast = makeForecast() as unknown as Record<string, unknown>;
     forecast.current = null;
-    const io = memoryIo(new Map([[KEY, JSON.stringify({ fetchedAtUtc: NOW, forecast })]]));
+    const io = memoryIo(
+      new Map([
+        [KEY, JSON.stringify({ version: CACHE_SCHEMA_VERSION, fetchedAtUtc: NOW, forecast })],
+      ]),
+    );
     const provider = stubProvider(() => Promise.resolve(makeForecast(21)));
 
     const result = await cachedForecast(provider, PORTLAND, { nowUtc: NOW }, io);
@@ -284,7 +294,11 @@ describe("cachedForecast", () => {
   test("envelope with an unknown condition counts as corrupt", async () => {
     const forecast = makeForecast() as unknown as Record<string, unknown>;
     (forecast.current as Record<string, unknown>).condition = "volcano";
-    const io = memoryIo(new Map([[KEY, JSON.stringify({ fetchedAtUtc: NOW, forecast })]]));
+    const io = memoryIo(
+      new Map([
+        [KEY, JSON.stringify({ version: CACHE_SCHEMA_VERSION, fetchedAtUtc: NOW, forecast })],
+      ]),
+    );
     const provider = stubProvider(() => Promise.resolve(makeForecast(22)));
 
     const result = await cachedForecast(provider, PORTLAND, { nowUtc: NOW }, io);
@@ -296,7 +310,16 @@ describe("cachedForecast", () => {
 
   test("envelope with an unparseable fetchedAtUtc counts as corrupt", async () => {
     const io = memoryIo(
-      new Map([[KEY, JSON.stringify({ fetchedAtUtc: "not-a-date", forecast: makeForecast() })]]),
+      new Map([
+        [
+          KEY,
+          JSON.stringify({
+            version: CACHE_SCHEMA_VERSION,
+            fetchedAtUtc: "not-a-date",
+            forecast: makeForecast(),
+          }),
+        ],
+      ]),
     );
     const provider = stubProvider(() => Promise.resolve(makeForecast(23)));
 
@@ -347,5 +370,24 @@ describe("cachedForecast", () => {
       else process.env.XDG_CACHE_HOME = prevCacheHome;
       await rm(join(dir, "tuiweather"), { recursive: true, force: true });
     }
+  });
+
+  test("old unversioned envelope is discarded and triggers a refetch", async () => {
+    const oldForecast = makeForecast(11);
+    const unversioned = JSON.stringify({
+      fetchedAtUtc: "2026-08-24T11:55:00.000Z",
+      forecast: oldForecast,
+    });
+    const io = memoryIo(new Map([[KEY, unversioned]]));
+    const fresh = makeForecast(23);
+    const provider = stubProvider(() => Promise.resolve(fresh));
+
+    const result = await cachedForecast(provider, PORTLAND, { nowUtc: NOW }, io);
+
+    expect(provider.calls()).toBe(1);
+    expect(result.stale).toBe(false);
+    expect(result.forecast).toEqual(fresh);
+    expect(io.removed).toEqual([KEY]);
+    expect(JSON.parse(io.store.get(KEY) ?? "{}").version).toBe(CACHE_SCHEMA_VERSION);
   });
 });

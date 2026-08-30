@@ -108,11 +108,9 @@ describe("normalizeForecast", () => {
     expect(forecast.current.isDay).toBe(true);
     expect(forecast.current.windGustKmh).toBeNull();
     expect(forecast.current.pressureHpa).toBeNull();
-    expect(forecast.current.cloudCoverPct).toBeNull();
     expect(forecast.current.dewPointC).toBeNull();
     expect(forecast.current.visibilityM).toBeNull();
     expect(forecast.current.uvIndex).toBeNull();
-    expect(forecast.current.precipLast1hMm).toBe(0.2);
 
     expect(forecast.minutely15[0]?.probabilityPct).toBeNull();
     expect(forecast.minutely15[1]?.probabilityPct).toBe(30);
@@ -122,7 +120,6 @@ describe("normalizeForecast", () => {
     expect(forecast.hourly[1]?.windGustKmh).toBe(33);
     expect(forecast.hourly[1]?.uvIndex).toBeNull();
 
-    expect(forecast.daily[0]?.windGustMaxKmh).toBeNull();
     expect(forecast.daily[0]?.sunriseUtc).toBe(
       new Date(Date.parse("2026-08-24T06:00Z") - 3600 * 1000).toISOString(),
     );
@@ -177,9 +174,7 @@ function syntheticBody({ probabilities = true }: { probabilities?: boolean } = {
       relative_humidity_2m: 55,
       apparent_temperature: 22.5,
       is_day: "1",
-      precipitation: 0.2,
       weather_code: 61,
-      cloud_cover: null,
       pressure_msl: null,
       wind_speed_10m: 9.1,
       wind_direction_10m: 180,
@@ -195,11 +190,9 @@ function syntheticBody({ probabilities = true }: { probabilities?: boolean } = {
       temperature_2m_min: [12.3],
       precipitation_sum: [1.2],
       precipitation_probability_max: [70],
-      uv_index_max: [6.5],
       sunrise: ["2026-08-24T06:00"],
       sunset: ["2026-08-24T21:00"],
       wind_speed_10m_max: [22],
-      wind_gusts_10m_max: [null],
     },
   };
 }

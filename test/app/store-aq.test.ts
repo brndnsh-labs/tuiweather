@@ -58,11 +58,9 @@ function makeForecast(): NormalizedForecast {
       windDirectionDeg: 200,
       windGustKmh: null,
       pressureHpa: null,
-      cloudCoverPct: null,
       dewPointC: null,
       visibilityM: null,
       uvIndex: null,
-      precipLast1hMm: null,
       isDay: true,
     },
     minutely15: [],
@@ -72,7 +70,7 @@ function makeForecast(): NormalizedForecast {
 }
 
 function makeAq(): AirQuality {
-  return { usAqi: 29, pm25UgM3: 3.8, ozoneUgM3: 66, observedAtUtc: NOW };
+  return { usAqi: 29, observedAtUtc: NOW };
 }
 
 async function makeConfigDir(): Promise<string> {

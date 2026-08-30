@@ -198,20 +198,16 @@ describe("nws normalize — gaps map to null", () => {
     }
   });
 
-  test("daily points carry no uv max, sunrise/sunset, gusts, or precip amounts", () => {
+  test("daily points carry no sunrise/sunset or precip amounts", () => {
     for (const day of forecast.daily) {
-      expect(day.uvIndexMax).toBeNull();
       expect(day.sunriseUtc).toBeNull();
       expect(day.sunsetUtc).toBeNull();
-      expect(day.windGustMaxKmh).toBeNull();
       expect(day.precipSumMm).toBe(0);
     }
   });
 
-  test("current observation lacks uv, cloud cover, and hourly precip", () => {
+  test("current observation lacks uv and hourly precip", () => {
     expect(forecast.current.uvIndex).toBeNull();
-    expect(forecast.current.cloudCoverPct).toBeNull();
-    expect(forecast.current.precipLast1hMm).toBeNull();
   });
 });
 

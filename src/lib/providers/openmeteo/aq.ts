@@ -20,8 +20,6 @@ export const aqResponseSchema = z
         time: localNaiveTime,
         interval: z.number().optional(),
         us_aqi: z.number().nullable().optional(),
-        pm2_5: z.number().nullable().optional(),
-        ozone: z.number().nullable().optional(),
       })
       .passthrough(),
     current_units: z.unknown().optional(),
@@ -34,7 +32,7 @@ export function buildAirQualityUrl(location: GeoPoint): string {
   const params = new URLSearchParams({
     latitude: String(location.latitude),
     longitude: String(location.longitude),
-    current: ["us_aqi", "pm2_5", "ozone"].join(","),
+    current: "us_aqi",
   });
   return `${AIR_QUALITY_ENDPOINT}?${params.toString()}`;
 }
@@ -53,8 +51,6 @@ function normalizeAirQuality(data: AqResponse): AirQuality {
   const observedAtUtc = new Date(Date.parse(`${data.current.time}Z`) - offsetMs).toISOString();
   return {
     usAqi: data.current.us_aqi ?? null,
-    pm25UgM3: data.current.pm2_5 ?? null,
-    ozoneUgM3: data.current.ozone ?? null,
     observedAtUtc,
   };
 }

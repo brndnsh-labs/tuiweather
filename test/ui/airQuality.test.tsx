@@ -57,7 +57,7 @@ async function makeStore(forecast: NormalizedForecast, airQuality: AirQuality | 
   const fetcher: ForecastFetcher = () => Promise.resolve({ forecast, stale: false });
   const aqFetcher: AirQualityFetcher = airQuality
     ? () => Promise.resolve(airQuality)
-    : () => Promise.resolve({ usAqi: null, pm25UgM3: null, ozoneUgM3: null, observedAtUtc: NOW });
+    : () => Promise.resolve({ usAqi: null, observedAtUtc: NOW });
   // for null case we simulate fetcher that returns null usAqi, but DetailsGrid checks usAqi != null so it will be omitted
   // To truly test omission, we need fetcher that returns null usAqi OR we can make AQ null by rejecting and store sets null
   // Instead for null case, provide a fetcher that resolves to null usAqi then DetailsGrid will omit
@@ -89,7 +89,7 @@ async function waitUntilFrame(
 describe("DetailsGrid air quality", () => {
   test("shows air cell with fixture AQI (29 good)", async () => {
     const forecast = fixtureForecast();
-    const aq: AirQuality = { usAqi: 29, pm25UgM3: 3.8, ozoneUgM3: 66, observedAtUtc: NOW };
+    const aq: AirQuality = { usAqi: 29, observedAtUtc: NOW };
     const store = await makeStore(forecast, aq);
     const setup = await testRender(<App store={store} nowMs={Date.parse(NOW)} nowUtc={NOW} />, {
       width: 80,
@@ -130,7 +130,7 @@ describe("DetailsGrid air quality", () => {
 
   test("air truncates at md floor 68 cols for very-unhealthy and stays on one row", async () => {
     const forecast = fixtureForecast();
-    const aq: AirQuality = { usAqi: 250, pm25UgM3: 22, ozoneUgM3: 120, observedAtUtc: NOW };
+    const aq: AirQuality = { usAqi: 250, observedAtUtc: NOW };
     const store = await makeStore(forecast, aq);
     const setup = await testRender(<App store={store} nowMs={Date.parse(NOW)} nowUtc={NOW} />, {
       width: 68,

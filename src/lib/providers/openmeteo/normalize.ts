@@ -68,11 +68,9 @@ export function normalizeForecast(
     windDirectionDeg: cur.wind_direction_10m,
     windGustKmh: cur.wind_gusts_10m ?? null,
     pressureHpa: cur.pressure_msl ?? null,
-    cloudCoverPct: cur.cloud_cover ?? null,
     dewPointC: cur.dew_point_2m ?? null,
     visibilityM: null,
     uvIndex: null,
-    precipLast1hMm: cur.precipitation ?? null,
     isDay: coerceIsDay(cur.is_day),
   };
 
@@ -117,11 +115,9 @@ export function normalizeForecast(
       tempMaxC: requireNum(d.temperature_2m_max, i, "daily.temperature_2m_max"),
       precipSumMm: requireNum(d.precipitation_sum, i, "daily.precipitation_sum"),
       precipProbabilityMaxPct: optNum(d.precipitation_probability_max, i),
-      uvIndexMax: optNum(d.uv_index_max, i),
       sunriseUtc: typeof sunrise === "string" ? toUtc(sunrise) : null,
       sunsetUtc: typeof sunset === "string" ? toUtc(sunset) : null,
       windSpeedMaxKmh: optNum(d.wind_speed_10m_max, i),
-      windGustMaxKmh: optNum(d.wind_gusts_10m_max, i),
     });
   }
 

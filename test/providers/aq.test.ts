@@ -39,8 +39,6 @@ describe("aqResponseSchema", () => {
     expect(parsed.success).toBe(true);
     if (!parsed.success) return;
     expect(parsed.data.current.us_aqi).toBe(29);
-    expect(parsed.data.current.pm2_5).toBe(3.8);
-    expect(parsed.data.current.ozone).toBe(66);
     expect(parsed.data.current.time).toBe("2026-08-28T22:00");
     expect(parsed.data.utc_offset_seconds).toBe(0);
   });
@@ -57,7 +55,7 @@ describe("aqResponseSchema", () => {
     const base = {
       utc_offset_seconds: 0,
       timezone: "GMT",
-      current: { time: "2026-08-28T22:00", us_aqi: null, pm2_5: null, ozone: null },
+      current: { time: "2026-08-28T22:00", us_aqi: null },
     };
     expect(aqResponseSchema.safeParse(base).success).toBe(true);
     const missing = {
@@ -77,7 +75,7 @@ describe("buildAirQualityUrl", () => {
     const params = new URL(url).searchParams;
     expect(params.get("latitude")).toBe("45.5");
     expect(params.get("longitude")).toBe("-122.7");
-    expect(params.get("current")).toBe("us_aqi,pm2_5,ozone");
+    expect(params.get("current")).toBe("us_aqi");
   });
 });
 
@@ -89,8 +87,6 @@ describe("fetchAirQuality", () => {
     mockResponds(JSON.stringify(body), 200);
     const aq = await fetchAirQuality(PORTLAND);
     expect(aq.usAqi).toBe(29);
-    expect(aq.pm25UgM3).toBe(3.8);
-    expect(aq.ozoneUgM3).toBe(66);
     expect(aq.observedAtUtc).toBe("2026-08-28T22:00:00.000Z");
   });
 
@@ -98,7 +94,7 @@ describe("fetchAirQuality", () => {
     const body = {
       utc_offset_seconds: 3600,
       timezone: "Europe/Paris",
-      current: { time: "2026-08-28T23:00", us_aqi: 42, pm2_5: 5, ozone: 70 },
+      current: { time: "2026-08-28T23:00", us_aqi: 42 },
     };
     mockResponds(JSON.stringify(body), 200);
     const aq = await fetchAirQuality(PORTLAND);
@@ -110,13 +106,11 @@ describe("fetchAirQuality", () => {
     const body = {
       utc_offset_seconds: 0,
       timezone: "GMT",
-      current: { time: "2026-08-28T22:00", us_aqi: null, pm2_5: null, ozone: null },
+      current: { time: "2026-08-28T22:00", us_aqi: null },
     };
     mockResponds(JSON.stringify(body), 200);
     const aq = await fetchAirQuality(PORTLAND);
     expect(aq.usAqi).toBeNull();
-    expect(aq.pm25UgM3).toBeNull();
-    expect(aq.ozoneUgM3).toBeNull();
   });
 
   test("wraps transport failures", async () => {
