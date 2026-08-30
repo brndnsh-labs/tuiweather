@@ -2,6 +2,40 @@
 
 All notable changes to this project are documented here.
 
+## v0.4.0 (2026-08-30)
+
+### Features
+- feat(config): add ink escape hatch for failed palette detection (schema v4) (#141) (29558bd)
+- feat: ship a windows-x64 standalone binary with a blocking release smoke (#164) (c839dc2)
+- feat: bare esc on the main view is a no-op instead of quit (#161) (2822b42)
+- feat: reduced_motion option for a static loading indicator (#163) (8ceed08)
+- feat(ui): add onboarding skip and re-run setup (#136) (a5ff85c)
+
+### Fixes
+- fix: repair stale default_location on save instead of warning forever (#170) (edfb635)
+- fix(config): surface validation details and make stale default_location survivable (#138) (8f40d57)
+- fix: Hero mini/compact share the full tier's cold-to-warm temp hue (#162) (e30bc08)
+- fix(config): create the config dir with 0700 (#155) (dfd5cc8)
+- fix: actionable error when the TUI boots on a pre-FFI runtime (#159) (ec83960)
+- fix(providers): cap provider response body size (#154) (a947fe9)
+- fix(providers): include sanitized network cause in pre-response error messages (#142) (66a00d2)
+- fix(security): reject off-host redirects in the NWS client (#139) (95c477c)
+- fix(ui): surface action errors and stop closing search overlay on failed add (#137) (9ab44d0)
+
+### Other
+- chore: add fixture recorder with --compare drift detection (#175) (b740e34)
+- chore(cache): sweep orphaned files left behind by cache-key version bumps (#173) (7aeade5)
+- refactor(providers): trim dead payload and domain fields; version the cache envelope (#172) (94479a5)
+- test: explicit timeouts for tests whose wait budgets beat the 5s default (#169) (57eaece)
+- chore: add bun run verify one-shot gate script, used by CI (#168) (0692738)
+- docs: update RELEASING.md to the post-first-release npm state (#157) (f1a038e)
+- test: give persist-waiting sidebar tests an explicit 30s timeout (#165) (d3eac5b)
+- perf: render the first frame before palette detection resolves (#160) (220cf63)
+- docs: state the imperial terminal default for display units (#158) (95d44ee)
+- refactor(providers): consolidate error-body handling into http.ts (#156) (2641033)
+- docs: add locations/, condition-display.ts, and cli.ts to the architecture map (#143) (eb4b904)
+- perf(nws): memoize immutable points/station metadata between refreshes (#140) (fdc9dc7)
+
 ## v0.3.7 (2026-08-29)
 
 ### Other
