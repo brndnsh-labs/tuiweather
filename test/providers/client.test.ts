@@ -78,10 +78,15 @@ describe("fetchForecast error mapping", () => {
     mockResponds(JSON.stringify({ error: true, reason: "Latitude must be numeric" }), 400);
     const error = await captureProviderError(fetchForecast(PORTLAND));
     expect(error.providerId).toBe("openmeteo");
-    expect(error.message).toContain("400");
-    expect(error.message).toContain("Latitude must be numeric");
+    expect(error.message).toBe("openmeteo forecast failed (HTTP 400): Latitude must be numeric");
     expect(error.message).not.toContain("https://");
     expect(error.message).not.toContain("?");
+  });
+
+  test("unified shape omits reason when absent", async () => {
+    mockResponds(JSON.stringify({ error: true }), 400);
+    const error = await captureProviderError(fetchForecast(PORTLAND));
+    expect(error.message).toBe("openmeteo forecast failed (HTTP 400)");
   });
 
   test("rejects an HTTP 200 body carrying the API error shape", async () => {

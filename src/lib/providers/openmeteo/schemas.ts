@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { sanitizeText } from "../http";
 
 export const LOCAL_NAIVE_TIME = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2})?)?$/;
 const LOCAL_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -15,11 +14,7 @@ export const apiErrorBodySchema = z.object({
   reason: z.string().optional(),
 });
 
-const MAX_REASON_CHARS = 200;
-
-export function sanitizedErrorReason(reason: string): string {
-  return sanitizeText(reason, MAX_REASON_CHARS);
-}
+export const MAX_REASON_CHARS = 200;
 
 export const currentBlockSchema = z.object({
   time: localNaiveTime,
@@ -143,8 +138,5 @@ export const geocodingResponseSchema = z.object({
   generationtime_ms: z.number(),
 });
 
-export type CurrentBlock = z.infer<typeof currentBlockSchema>;
 export type MinutelyBlock = z.infer<typeof minutelyBlockSchema>;
-export type HourlyBlock = z.infer<typeof hourlyBlockSchema>;
-export type DailyBlock = z.infer<typeof dailyBlockSchema>;
 export type ForecastResponse = z.infer<typeof forecastResponseSchema>;

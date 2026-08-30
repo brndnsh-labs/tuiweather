@@ -1,8 +1,8 @@
 import type { GeoPoint, NormalizedForecast } from "../../weather/types";
-import { causeSuffix, errorReason, httpError } from "../http";
+import { causeSuffix, errorReason, httpError, readJsonCapped } from "../http";
 import { ProviderError } from "../types";
 import { normalizeForecast } from "./normalize";
-import { apiErrorBodySchema, forecastResponseSchema } from "./schemas";
+import { apiErrorBodySchema, forecastResponseSchema, MAX_REASON_CHARS } from "./schemas";
 
 export const OPENMETEO_PROVIDER_ID = "openmeteo";
 
@@ -88,6 +88,7 @@ function httpErrorFor(status: number, body: unknown): ProviderError {
     label: "forecast",
     providerId: OPENMETEO_PROVIDER_ID,
     schema: apiErrorBodySchema,
+    maxChars: MAX_REASON_CHARS,
   });
 }
 
@@ -110,8 +111,12 @@ export async function fetchForecast(
 
   let body: unknown;
   try {
-    body = await res.json();
+    body = await readJsonCapped(res, {
+      providerId: OPENMETEO_PROVIDER_ID,
+      label: "forecast",
+    });
   } catch (cause) {
+    if (cause instanceof ProviderError) throw cause;
     throw new ProviderError(
       `openmeteo forecast returned a non-JSON body (HTTP ${res.status})`,
       OPENMETEO_PROVIDER_ID,

@@ -1,7 +1,7 @@
 import type { z } from "zod";
 import packageJson from "../../../../package.json";
 import type { GeoPoint, NormalizedForecast } from "../../weather/types";
-import { causeSuffix, sanitizeText } from "../http";
+import { causeSuffix, httpError, readJsonCapped } from "../http";
 import { type ForecastWindow, ProviderError, type WeatherProvider } from "../types";
 import { normalizeNwsForecast } from "./normalize";
 import {
@@ -23,6 +23,12 @@ const MAX_DETAIL_CHARS = 200;
 
 export const NWS_METADATA_TTL_MS = 24 * 60 * 60 * 1000;
 const NWS_METADATA_MAX_ENTRIES = 64;
+
+export function nwsProblemReason(data: unknown): string | undefined {
+  const v = data as { detail?: unknown; title?: unknown };
+  const candidate = v.detail ?? v.title;
+  return typeof candidate === "string" ? candidate : undefined;
+}
 
 type NwsMetadata = {
   points: import("./schemas").NwsPointsProperties;
@@ -56,13 +62,6 @@ const NWS_HEADERS = {
 
 export function buildPointsUrl(location: GeoPoint): string {
   return `${API_ROOT}/points/${location.latitude},${location.longitude}`;
-}
-
-function problemDetail(body: unknown): string | undefined {
-  const parsed = nwsProblemSchema.safeParse(body);
-  if (!parsed.success) return undefined;
-  const detail = parsed.data.detail ?? parsed.data.title;
-  return detail === undefined ? undefined : sanitizeText(detail, MAX_DETAIL_CHARS);
 }
 
 async function getJson(url: string, label: string): Promise<unknown> {
@@ -108,8 +107,9 @@ async function getJson(url: string, label: string): Promise<unknown> {
 
   let body: unknown;
   try {
-    body = await res.json();
+    body = await readJsonCapped(res, { providerId: NWS_PROVIDER_ID, label });
   } catch (cause) {
+    if (cause instanceof ProviderError) throw cause;
     throw new ProviderError(
       `nws ${label} returned a non-JSON body (HTTP ${res.status})`,
       NWS_PROVIDER_ID,
@@ -118,11 +118,13 @@ async function getJson(url: string, label: string): Promise<unknown> {
   }
 
   if (!res.ok) {
-    const detail = problemDetail(body);
-    throw new ProviderError(
-      `nws ${label} failed (HTTP ${res.status})${detail ? `: ${detail}` : ""}`,
-      NWS_PROVIDER_ID,
-    );
+    throw httpError(res.status, body, {
+      label,
+      providerId: NWS_PROVIDER_ID,
+      schema: nwsProblemSchema,
+      maxChars: MAX_DETAIL_CHARS,
+      extractor: nwsProblemReason,
+    });
   }
   return body;
 }
