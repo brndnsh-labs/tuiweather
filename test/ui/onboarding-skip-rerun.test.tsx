@@ -205,7 +205,11 @@ describe("onboarding skip and re-run", () => {
         (frame) => frame.includes("Tokyo, Tokyo") && frame.includes("main"),
       );
       expect(weather).not.toContain("find your first location");
-      expect(store.getState().config.locations.map((loc) => loc.slug)).toContain("tokyo-tokyo-jp");
+      expect(store.getState().config.locations.map((loc) => loc.slug)).toEqual([
+        "portland",
+        "london",
+        "tokyo-tokyo-jp",
+      ]);
       expect(store.getState().onboardingForced).toBe(false);
       expect(store.getState().activeSlug).toBe("tokyo-tokyo-jp");
     } finally {

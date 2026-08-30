@@ -26,7 +26,7 @@ const HELP_LINES: { text: string; dim?: boolean }[] = [
 export function HelpOverlay({ store, width, height, providerLabel }: HelpOverlayProps) {
   const palette = usePalette();
   useKeyboard((key) => {
-    if (key.name === "o") {
+    if (key.name === "o" && !key.ctrl && !key.meta && !key.option && !key.shift) {
       store.getState().requestOnboarding();
     }
   });

@@ -39,7 +39,7 @@ export function FirstRun({ store, width, height, quit }: FirstRunProps) {
       return;
     }
     if (step === "welcome") {
-      if (key.name === "s") {
+      if (key.name === "s" && !key.ctrl && !key.meta && !key.option && !key.shift) {
         store.getState().skipOnboarding();
         return;
       }

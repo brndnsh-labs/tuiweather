@@ -414,22 +414,16 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
           config.locations.map((loc) => loc.slug),
         );
         const finalEntry: LocationEntry = slug === entry.slug ? entry : { ...entry, slug };
-        const next: TuiConfig =
-          forced && config.locations.length > 0
-            ? {
-                ...config,
-                units,
-                unit_prefs: { temp: units, wind: units, precip: units, pressure: units },
-                default_location: slug,
-                locations: [...config.locations, finalEntry],
-              }
-            : {
-                ...config,
-                units,
-                unit_prefs: { temp: units, wind: units, precip: units, pressure: units },
-                default_location: slug,
-                locations: [finalEntry],
-              };
+        const next: TuiConfig = {
+          ...config,
+          units,
+          unit_prefs: { temp: units, wind: units, precip: units, pressure: units },
+          default_location: slug,
+          locations:
+            forced && config.locations.length > 0
+              ? [...config.locations, finalEntry]
+              : [finalEntry],
+        };
         set({ lastActionError: undefined });
         try {
           await saveConfig(next, deps.configPath);

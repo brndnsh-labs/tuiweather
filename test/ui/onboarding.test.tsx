@@ -130,7 +130,7 @@ describe("first-run onboarding", () => {
     }
   });
 
-  test("escape skips the tour to units and q quits from setup", async () => {
+  test("escape advances to units and q quits from setup", async () => {
     const { store } = await makeStore();
     let quits = 0;
     const setup = await testRender(<App store={store} quit={() => quits++} />, {
