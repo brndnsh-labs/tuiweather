@@ -271,19 +271,34 @@ export function LocationPicker({
 
 export function SearchOverlay({ store, width, height }: SearchOverlayProps) {
   const searchLocations = store((s) => s.searchLocations);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | undefined>(undefined);
   return (
     <LocationPicker
       searchLocations={searchLocations}
       width={width}
       height={height}
+      busy={busy}
+      actionError={actionError}
+      onQueryChange={() => setActionError(undefined)}
       onCancel={() => store.getState().setOverlayOpen(false)}
       onSelect={(chosen) => {
+        if (busy) return;
+        setBusy(true);
+        setActionError(undefined);
         const state = store.getState();
         const entry = buildLocationEntry(
           chosen,
           state.config.locations.map((loc) => loc.slug),
         );
-        void state.addLocation(entry).then(() => state.setOverlayOpen(false));
+        void state.addLocation(entry).then((ok) => {
+          if (ok) {
+            store.getState().setOverlayOpen(false);
+          } else {
+            setActionError(store.getState().lastActionError ?? "could not save config");
+            setBusy(false);
+          }
+        });
       }}
     />
   );

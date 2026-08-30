@@ -36,7 +36,7 @@ import { SIDEBAR_WIDTH, Sidebar } from "./components/Sidebar";
 import { StatusArea } from "./components/StatusArea";
 import { useNowMs } from "./hooks/useNowMs";
 import { handleKey, type KeymapApi } from "./keymap";
-import { appStore, isDeleteArmed, type WeatherStore } from "./store";
+import { appStore, isActionErrorActive, isDeleteArmed, type WeatherStore } from "./store";
 
 export { __setTickIntervalMs, TICK_INTERVAL_MS } from "./tick";
 
@@ -357,7 +357,10 @@ export function App(props: AppProps = {}) {
   const locationsOpen = store((s) => s.locationsOpen);
   const airQuality = store((s) => s.airQuality);
   const lastActionError = store((s) => s.lastActionError);
+  const lastActionErrorAtMs = store((s) => s.lastActionErrorAtMs);
   const deleteArmedAtMs = store((s) => s.deleteArmedAtMs);
+  const onboardingSkipped = store((s) => s.onboardingSkipped);
+  const onboardingForced = store((s) => s.onboardingForced);
 
   const viewport = useViewport();
   const renderer = useRenderer();
@@ -388,8 +391,13 @@ export function App(props: AppProps = {}) {
   const nowUtc = props.nowUtc ?? new Date(nowMs).toISOString();
   const tier = viewport.tier;
   const forecast = entry?.forecast;
-  const onboardingOpen = initStatus === "ready" && config.locations.length === 0;
+  const onboardingOpen =
+    initStatus === "ready" &&
+    ((config.locations.length === 0 && !onboardingSkipped) || onboardingForced);
   const deleteArmed = isDeleteArmed(deleteArmedAtMs, nowMs);
+  const actionError = isActionErrorActive(lastActionErrorAtMs, Date.now())
+    ? lastActionError
+    : undefined;
 
   const [focusedSlug, setFocusedSlug] = useState<string | null>(null);
   useEffect(() => {
@@ -410,9 +418,11 @@ export function App(props: AppProps = {}) {
       toggleHelp: () => store.getState().toggleHelp(),
       searchOpen: () => {
         const state = store.getState();
-        return (
-          state.overlayOpen || (state.initStatus === "ready" && state.config.locations.length === 0)
-        );
+        const onboardingActive =
+          state.initStatus === "ready" &&
+          ((state.config.locations.length === 0 && !state.onboardingSkipped) ||
+            state.onboardingForced);
+        return state.overlayOpen || onboardingActive;
       },
       openSearch: () => store.getState().setOverlayOpen(true),
       locationsOpen: () => store.getState().locationsOpen,
@@ -467,7 +477,8 @@ export function App(props: AppProps = {}) {
       error={error}
       stale={staleBadge}
       deleteArm={deleteArmed ? { label } : undefined}
-      width={viewport.width}
+      actionError={actionError}
+      width={tier === "lg" ? viewport.width - SIDEBAR_WIDTH : viewport.width}
     />
   );
 
@@ -489,13 +500,15 @@ export function App(props: AppProps = {}) {
       : null;
   const statusRows = deleteArmed
     ? 1
-    : loading
+    : actionError !== undefined
       ? 1
-      : error !== undefined
-        ? ERROR_PANEL_ROWS
-        : staleBadge
-          ? 1
-          : 0;
+      : loading
+        ? 1
+        : error !== undefined
+          ? ERROR_PANEL_ROWS
+          : staleBadge
+            ? 1
+            : 0;
   const statusBlock = statusRows > 0 ? statusRows + 1 : 0;
   const showOverflowHint =
     overflowEstimate !== null &&
@@ -589,6 +602,7 @@ export function App(props: AppProps = {}) {
             {body}
             {helpOpen ? (
               <HelpOverlay
+                store={store}
                 width={viewport.width}
                 height={viewport.height}
                 providerLabel={config.provider === "nws" ? "api.weather.gov" : "open-meteo.com"}

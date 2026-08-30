@@ -77,13 +77,33 @@ async function getJson(url: string, label: string): Promise<unknown> {
   }
   let res: Response;
   try {
-    res = await fetch(url, { headers: NWS_HEADERS, signal: AbortSignal.timeout(TIMEOUT_MS) });
+    res = await fetch(url, {
+      headers: NWS_HEADERS,
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+      redirect: "error",
+    });
   } catch (cause) {
+    const message = cause instanceof Error ? cause.message : String(cause);
+    if (message.toLowerCase().includes("redirect")) {
+      throw new ProviderError(`nws ${label} redirected off-host`, NWS_PROVIDER_ID, cause);
+    }
     throw new ProviderError(
       `nws ${label} request failed before an HTTP response`,
       NWS_PROVIDER_ID,
       cause,
     );
+  }
+
+  if (res.url) {
+    let final: URL;
+    try {
+      final = new URL(res.url);
+    } catch {
+      throw new ProviderError(`nws ${label} redirected off-host`, NWS_PROVIDER_ID);
+    }
+    if (final.protocol !== "https:" || final.host !== ALLOWED_HOST) {
+      throw new ProviderError(`nws ${label} redirected off-host`, NWS_PROVIDER_ID);
+    }
   }
 
   let body: unknown;
