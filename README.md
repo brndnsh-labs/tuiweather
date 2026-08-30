@@ -167,16 +167,16 @@ longitude = -122.6765
 | `daily_days` | integer | `7` | `1`–`16` forecast days |
 | `hourly_hours` | integer | `24` | `12`–`48` forecast hours |
 | `default_location` | string | none | Must match a `[[locations]]` slug |
-| `units.temp` | `metric` / `imperial` | legacy `units` | Display unit for temperatures |
-| `units.wind` | `metric` / `imperial` | legacy `units` | Display unit for wind speed and visibility |
-| `units.precip` | `metric` / `imperial` | legacy `units` | Display unit for precipitation amounts |
-| `units.pressure` | `metric` / `imperial` | legacy `units` | Display unit for pressure; `metric` → hPa (rounded), `imperial` → inHg to 2 decimals; defaults via legacy `units` |
+| `units.temp` | `metric` / `imperial` | legacy `units`, else `imperial` | Display unit for temperatures |
+| `units.wind` | `metric` / `imperial` | legacy `units`, else `imperial` | Display unit for wind speed and visibility |
+| `units.precip` | `metric` / `imperial` | legacy `units`, else `imperial` | Display unit for precipitation amounts |
+| `units.pressure` | `metric` / `imperial` | legacy `units`, else `imperial` | Display unit for pressure; `metric` → hPa (rounded), `imperial` → inHg to 2 decimals; falls back to `imperial` when unset |
 | `panels.nowcast` | boolean | `true` | Show/hide the nowcast banner |
 | `panels.details` | boolean | `true` | Show/hide the details grid |
 | `panels.hourly` | boolean | `true` | Show/hide the hourly strip |
 | `panels.daily` | boolean | `true` | Show/hide the daily list |
 
-Each `[units]` field can be set independently, so mixed display such as °C temperatures with mph wind works everywhere including one-line mode. The legacy top-level `units = "metric" | "imperial"` scalar is still accepted and acts as the fallback for any `[units]` field you omit; because TOML forbids a key and table with the same name, saved configs contain either the scalar (uniform prefs) or the full `[units]` table (mixed prefs), never both.
+Each `[units]` field can be set independently, so mixed display such as °C temperatures with mph wind works everywhere including one-line mode. The legacy top-level `units = "metric" | "imperial"` scalar is still accepted and acts as the fallback for any `[units]` field you omit; when neither the field nor the legacy scalar is set, the unit falls back to `imperial`. Because TOML forbids a key and table with the same name, saved configs contain either the scalar (uniform prefs) or the full `[units]` table (mixed prefs), never both.
 
 Each `[[locations]]` entry:
 
