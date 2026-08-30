@@ -130,6 +130,7 @@ export function LocationsOverlay({ store, width, height }: LocationsOverlayProps
         setCursor((c) => Math.max(0, Math.min(c, count - 2)));
         void store.getState().deleteLocation(slug);
       } else {
+        store.getState().clearActionError();
         setArmedSlug(slug);
         setArmedAtMs(Date.now());
       }
@@ -203,7 +204,7 @@ export function LocationsOverlay({ store, width, height }: LocationsOverlayProps
       </text>
       {overlayActionError !== undefined ? (
         <text fg={palette.danger} bg={palette.surface}>
-          {truncateCells(overlayActionError, innerWidth)}
+          {truncateCells(overlayActionError, Math.max(0, innerWidth - 1))}
         </text>
       ) : armedLabel !== null ? (
         <text fg={palette.danger} bg={palette.surface}>

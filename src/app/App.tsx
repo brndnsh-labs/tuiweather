@@ -472,7 +472,7 @@ export function App(props: AppProps = {}) {
       stale={staleBadge}
       deleteArm={deleteArmed ? { label } : undefined}
       actionError={actionError}
-      width={viewport.width}
+      width={tier === "lg" ? viewport.width - SIDEBAR_WIDTH : viewport.width}
     />
   );
 

@@ -1195,6 +1195,45 @@ longitude = -0.1276
     if (at !== null) expect(isActionErrorActive(at, Date.now())).toBe(true);
     store.getState().dispose();
   });
+
+  test("failed save while deleting the ACTIVE location still surfaces the error", async () => {
+    const dir = await makeConfigDir(CONFIG_TOML);
+    const path = join(dir, "config.toml");
+    const store = createStoreInstance({
+      configPath: path,
+      fetchForecast: stubFetcher(),
+      fetchAirQuality: stubNullAirQualityFetcher,
+    });
+    await store.getState().init();
+    expect(store.getState().activeSlug).toBe("london");
+
+    await rm(path);
+    await mkdir(path);
+    await store.getState().deleteLocation("london");
+
+    expect(store.getState().lastActionError).toBeDefined();
+    expect(store.getState().lastActionErrorAtMs).not.toBeNull();
+    store.getState().dispose();
+  });
+
+  test("init failure error persists past the action-error TTL", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "tuiweather-store-test-"));
+    tmpDirs.push(dir);
+    const store = createStoreInstance({
+      configPath: dir,
+      fetchForecast: stubFetcher(),
+      fetchAirQuality: stubNullAirQualityFetcher,
+    });
+
+    await store.getState().init();
+    expect(store.getState().initStatus).toBe("error");
+    const message = store.getState().lastActionError;
+    expect(message).toBeDefined();
+
+    await new Promise((resolve) => setTimeout(resolve, ACTION_ERROR_TTL_MS + 150));
+    expect(store.getState().lastActionError).toBe(message);
+    store.getState().dispose();
+  });
 });
 
 describe("refreshLoopPeriodMs", () => {

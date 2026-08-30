@@ -126,6 +126,7 @@ export interface WeatherState {
   setLocationsOpen(open: boolean): void;
   armDelete(): void;
   disarmDelete(): void;
+  clearActionError(): void;
   deleteArmed(nowMs: number): boolean;
   searchLocations(query: string): Promise<GeocodingResult[]>;
   addLocation(entry: LocationEntry): Promise<boolean>;
@@ -190,7 +191,8 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
     function setActionErrorState(message: string): void {
       clearActionErrorTimer();
       const now = Date.now();
-      set({ lastActionError: message, lastActionErrorAtMs: now });
+      const flat = message.replace(/\s+/g, " ").trim();
+      set({ lastActionError: flat, lastActionErrorAtMs: now });
       actionErrorTimer = setTimeout(() => {
         if (disposed) return;
         const cur = get();
@@ -287,8 +289,8 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
           }
           scheduleRefreshLoop();
         } catch (e) {
-          setActionErrorState(errorMessage(e));
-          set({ initStatus: "error" });
+          clearActionErrorTimer();
+          set({ initStatus: "error", lastActionError: errorMessage(e), lastActionErrorAtMs: null });
         }
       },
 
@@ -424,6 +426,10 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
         set({ deleteArmedAtMs: null });
       },
 
+      clearActionError: () => {
+        clearActionErrorState();
+      },
+
       deleteArmed: (nowMs: number) => isDeleteArmed(get().deleteArmedAtMs, nowMs),
 
       searchLocations: (query: string) => geocoder(query),
@@ -520,10 +526,11 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
           config: next,
           airQualityBySlug: withoutKey(s.airQualityBySlug, slug),
         }));
+        let saveError: string | undefined;
         try {
           await saveConfig(next, deps.configPath);
         } catch (e) {
-          setActionErrorState(errorMessage(e));
+          saveError = errorMessage(e);
         }
         if (slug === get().activeSlug) {
           if (nextActive) {
@@ -533,7 +540,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
             set({ activeSlug: null, airQuality: null });
           }
         }
-        if (get().lastActionError === undefined) clearActionErrorState();
+        if (saveError !== undefined) setActionErrorState(saveError);
       },
 
       setDefaultLocation: async (slug: string) => {
