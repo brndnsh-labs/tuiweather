@@ -142,6 +142,9 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 // (atomic tmp+rename with fsync), so waits on `config.*` absorb a disk round-trip on top of
 // CI contention; the 3s default blew through on the v0.3.0 release run's london wait.
 // Frame-content waits stay at 3s — those are render-loop bound, not disk bound.
+// The PERSIST_WAIT_MS budget (8s) exceeds bun's 5s default per-test timeout, so every test
+// that waits with it carries an explicit 30s test timeout — without one, bun kills the test
+// before its own wait can succeed on a loaded CI runner (twice observed on the verify job).
 const PERSIST_WAIT_MS = 8000;
 
 async function waitUntilFrame(
@@ -364,7 +367,7 @@ describe("sidebar navigation", () => {
     } finally {
       await setup.renderer.destroy();
     }
-  });
+  }, 30_000);
 
   test("s after resize below lg ignores ghost focus and uses active location", async () => {
     const { store, path } = await makeStore(THREE_TOML);
@@ -399,7 +402,7 @@ describe("sidebar navigation", () => {
     } finally {
       await setup.renderer.destroy();
     }
-  });
+  }, 30_000);
 
   test("J/K reorder focused location down/up and persist order", async () => {
     const { store, path } = await makeStore(THREE_TOML);
@@ -478,7 +481,7 @@ describe("sidebar navigation", () => {
     } finally {
       await setup.renderer.destroy();
     }
-  });
+  }, 30_000);
 
   test("J/K boundary no-ops at first/last position", async () => {
     const { store, path } = await makeStore(TWO_TOML);
