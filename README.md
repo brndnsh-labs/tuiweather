@@ -80,7 +80,7 @@ Use `tuiweather --help` for command-line options and `tuiweather --version` to p
 | `↑` / `↓` | Scroll the main panel when content overflows |
 | `?` | Toggle help overlay |
 | `o` | Re-run setup (from help overlay) |
-| `esc` | Clear sidebar focus if set; otherwise close help overlay or quit |
+| `esc` | Clear sidebar focus if set; otherwise close the help overlay |
 | `q` | Quit |
 
 While the search overlay is open it owns the keyboard: type to search, up/down to move the cursor, enter to add the highlighted result, esc to cancel. Number, focus, and reorder keys are ignored while the search input is focused (same as `d`/`r`).
