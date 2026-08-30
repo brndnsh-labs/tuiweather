@@ -1,4 +1,5 @@
 import packageJson from "../package.json";
+import type { TuiConfig } from "./lib/config/schema";
 
 export interface CliArgs {
   command: "run" | "help" | "version" | "watch";
@@ -52,6 +53,24 @@ function parseInterval(raw: string | undefined): number {
     throw new UsageError("--interval must be an integer between 1 and 120");
   }
   return value;
+}
+
+export function warnStaleDefault(config: TuiConfig, write: (line: string) => void): void {
+  if (
+    config.default_location !== undefined &&
+    config.locations.length > 0 &&
+    !config.locations.some((loc) => loc.slug === config.default_location)
+  ) {
+    const fallback = config.locations[0]?.slug ?? "";
+    let stale = "";
+    for (const ch of config.default_location) {
+      const code = ch.codePointAt(0) ?? 0;
+      if (code > 0x1f && code !== 0x7f) stale += ch;
+    }
+    write(
+      `warning: default_location "${stale}" does not match any [[locations]] slug — using "${fallback}"`,
+    );
+  }
 }
 
 export function parseArgs(argv: string[]): CliArgs {

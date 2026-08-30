@@ -5,7 +5,7 @@ import { buildJsonLine, buildOneLine } from "./app/oneline";
 import { appStore, refreshLoopPeriodMs } from "./app/store";
 import { runWatch } from "./app/watch";
 import type { CliArgs } from "./cli";
-import { HELP_TEXT, parseArgs, USAGE, VERSION } from "./cli";
+import { HELP_TEXT, parseArgs, USAGE, VERSION, warnStaleDefault } from "./cli";
 import { loadConfig } from "./lib/config/load";
 import { resolveDisplayPrefs, type TuiConfig } from "./lib/config/schema";
 import { selectProvider } from "./lib/providers/select";
@@ -14,19 +14,6 @@ import { detectTerminalAppearance } from "./theme/detect";
 
 function stderr(message: string): void {
   process.stderr.write(`${message}\n`);
-}
-
-function warnStaleDefault(config: TuiConfig): void {
-  if (
-    config.default_location !== undefined &&
-    config.locations.length > 0 &&
-    !config.locations.some((loc) => loc.slug === config.default_location)
-  ) {
-    const fallback = config.locations[0]?.slug ?? "";
-    stderr(
-      `warning: default_location "${config.default_location}" does not match any [[locations]] slug — using "${fallback}"`,
-    );
-  }
 }
 
 function resolveSlugFromConfig(
@@ -68,7 +55,7 @@ function resolveLocationForCli(
 
 async function runOneLine(args: CliArgs): Promise<number> {
   const config = await loadConfig();
-  warnStaleDefault(config);
+  warnStaleDefault(config, stderr);
   const resolved = resolveLocationForCli(args, config);
   if ("error" in resolved) {
     const hint = config.locations.length === 0 ? "; run tuiweather to set one up" : "";
@@ -96,7 +83,7 @@ async function runOneLine(args: CliArgs): Promise<number> {
 
 async function runTui(locationArg: string | null): Promise<number> {
   const config = await loadConfig();
-  warnStaleDefault(config);
+  warnStaleDefault(config, stderr);
   let initialSlug: string | undefined;
   if (locationArg !== null || config.locations.length > 0) {
     const resolved = resolveSlugFromConfig(config, locationArg);
@@ -116,7 +103,7 @@ async function runTui(locationArg: string | null): Promise<number> {
 
 async function runWatchCli(args: CliArgs): Promise<number> {
   const config = await loadConfig();
-  warnStaleDefault(config);
+  warnStaleDefault(config, stderr);
   const resolved = resolveLocationForCli(args, config);
   if ("error" in resolved) {
     const hint = config.locations.length === 0 ? "; run tuiweather to set one up" : "";

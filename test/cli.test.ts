@@ -2,7 +2,48 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { HELP_TEXT, parseArgs, USAGE, UsageError, VERSION } from "../src/cli";
+import { HELP_TEXT, parseArgs, USAGE, UsageError, VERSION, warnStaleDefault } from "../src/cli";
+import type { TuiConfig } from "../src/lib/config/schema";
+
+describe("warnStaleDefault", () => {
+  const base = {
+    schema_version: 4,
+    time_format: "auto",
+    refresh_minutes: 10,
+    theme: "night",
+    ink: "auto",
+    provider: "openmeteo",
+    daily_days: 7,
+    hourly_hours: 24,
+    unit_prefs: { temp: "metric", wind: "metric", precip: "metric", pressure: "metric" },
+  } as unknown as TuiConfig;
+
+  test("warns when default_location matches no slug, stripping control characters", () => {
+    const lines: string[] = [];
+    warnStaleDefault(
+      {
+        ...base,
+        default_location: "\u001b]0;pwned\u0007ghost",
+        locations: [{ slug: "portland", label: "Portland", latitude: 45.5, longitude: -122.6 }],
+      },
+      (line) => lines.push(line),
+    );
+    expect(lines.length).toBe(1);
+    expect(lines[0]).toContain('default_location "]0;pwnedghost"');
+    expect(lines[0]?.includes("\u001b")).toBe(false);
+    expect(lines[0]?.includes("\u0007")).toBe(false);
+  });
+
+  test("stays silent when the default resolves or is absent", () => {
+    const lines: string[] = [];
+    const write = (line: string) => lines.push(line);
+    const portland = { slug: "portland", label: "Portland", latitude: 45.5, longitude: -122.6 };
+    warnStaleDefault({ ...base, default_location: "portland", locations: [portland] }, write);
+    warnStaleDefault({ ...base, locations: [portland] }, write);
+    warnStaleDefault(base, write);
+    expect(lines.length).toBe(0);
+  });
+});
 
 describe("parseArgs", () => {
   test("defaults to the interactive app", () => {
