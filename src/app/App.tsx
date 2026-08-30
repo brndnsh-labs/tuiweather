@@ -479,6 +479,7 @@ export function App(props: AppProps = {}) {
       deleteArm={deleteArmed ? { label } : undefined}
       actionError={actionError}
       width={tier === "lg" ? viewport.width - SIDEBAR_WIDTH : viewport.width}
+      reducedMotion={config.reduced_motion}
     />
   );
 

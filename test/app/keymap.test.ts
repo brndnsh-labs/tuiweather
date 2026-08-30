@@ -3,8 +3,10 @@ import { handleKey, type KeymapApi } from "../../src/app/keymap";
 
 function makeApi(overrides: Partial<Record<keyof KeymapApi, unknown>> = {}): KeymapApi & {
   calls: Record<string, number>;
+  focusedArgs: (string | null)[];
 } {
   const calls: Record<string, number> = {};
+  const focusedArgs: (string | null)[] = [];
   const inc = (name: string) => {
     calls[name] = (calls[name] ?? 0) + 1;
   };
@@ -27,7 +29,10 @@ function makeApi(overrides: Partial<Record<keyof KeymapApi, unknown>> = {}): Key
     locations: () => ["portland", "london"],
     switchLocation: () => inc("switchLocation"),
     focusedSlug: () => null,
-    setFocused: () => inc("setFocused"),
+    setFocused: (slug: string | null) => {
+      inc("setFocused");
+      focusedArgs.push(slug);
+    },
     isLg: () => false,
     setDefault: () => inc("setDefault"),
     moveLocation: () => inc("moveLocation"),
@@ -36,7 +41,7 @@ function makeApi(overrides: Partial<Record<keyof KeymapApi, unknown>> = {}): Key
     // @ts-expect-error dynamic override
     base[k] = v;
   }
-  return Object.assign(base, { calls });
+  return Object.assign(base, { calls, focusedArgs });
 }
 
 describe("keymap help modal", () => {
@@ -136,5 +141,28 @@ describe("keymap help modal", () => {
     expect(api.calls.armDelete).toBe(1);
     handleKey("r", api);
     expect(api.calls.refresh).toBe(1);
+  });
+
+  test("escape with nothing open is a no-op", () => {
+    const api = makeApi();
+    handleKey("escape", api);
+    expect(api.calls.quit ?? 0).toBe(0);
+    expect(api.calls.toggleHelp ?? 0).toBe(0);
+    expect(api.calls.setFocused ?? 0).toBe(0);
+  });
+
+  test("escape clears focused slug", () => {
+    const api = makeApi({ focusedSlug: () => "london" });
+    handleKey("escape", api);
+    expect(api.calls.setFocused).toBe(1);
+    expect(api.focusedArgs).toEqual([null]);
+    expect(api.calls.quit ?? 0).toBe(0);
+    expect(api.calls.toggleHelp ?? 0).toBe(0);
+  });
+
+  test("q still quits when no modal is open", () => {
+    const api = makeApi();
+    handleKey("q", api);
+    expect(api.calls.quit).toBe(1);
   });
 });
