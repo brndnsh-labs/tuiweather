@@ -9,6 +9,7 @@ import { HELP_TEXT, parseArgs, USAGE, VERSION } from "./cli";
 import { loadConfig } from "./lib/config/load";
 import { resolveDisplayPrefs, type TuiConfig } from "./lib/config/schema";
 import { selectProvider } from "./lib/providers/select";
+import { formatFfiUnavailableMessage, probeFfiAvailable } from "./lib/runtime/ffi";
 import { cachedForecast } from "./lib/weather/cache";
 import { detectTerminalAppearance } from "./theme/detect";
 
@@ -91,6 +92,10 @@ async function runTui(locationArg: string | null): Promise<number> {
       return 2;
     }
     initialSlug = resolved.slug;
+  }
+  if (!(await probeFfiAvailable())) {
+    stderr(formatFfiUnavailableMessage(process.versions.node));
+    return 1;
   }
   const renderer = await createCliRenderer({ exitOnCtrlC: true });
   const appearance = await detectTerminalAppearance(renderer);
