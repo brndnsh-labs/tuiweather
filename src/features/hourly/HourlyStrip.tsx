@@ -23,6 +23,7 @@ interface HourlyStripProps {
   width: number;
   labels?: boolean;
   showDetail?: boolean;
+  heading?: string;
 }
 
 const FULL_BLOCK = "█";
@@ -319,6 +320,7 @@ export const HourlyStrip = memo(function HourlyStrip({
   width,
   labels = true,
   showDetail = false,
+  heading,
 }: HourlyStripProps) {
   const palette = usePalette();
 
@@ -345,13 +347,15 @@ export const HourlyStrip = memo(function HourlyStrip({
     window.map((p) => p.condition),
     precipValues,
   );
-  const title = peak
-    ? `next ${window.length}h · ${precipKind.glyph} ${Math.round(peak.pct)}% ${formatHourLabel(
-        peak.point.timeUtc,
-        utcOffsetSeconds,
-        prefs.timeFormat,
-      )}`
-    : `next ${window.length}h`;
+  const title =
+    heading ??
+    (peak
+      ? `next ${window.length}h · ${precipKind.glyph} ${Math.round(peak.pct)}% ${formatHourLabel(
+          peak.point.timeUtc,
+          utcOffsetSeconds,
+          prefs.timeFormat,
+        )}`
+      : `next ${window.length}h`);
 
   const chartRows = drawnRows.map((row, r) => {
     let col = 0;

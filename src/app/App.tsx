@@ -5,6 +5,7 @@ import { Sparkline } from "../components/Sparkline";
 import { DetailsGrid } from "../features/current/DetailsGrid";
 import { Hero } from "../features/current/Hero";
 import { DailyList, dailyChips } from "../features/daily/DailyList";
+import { DayDetailOverlay, localDateAtOffset } from "../features/daydetail/DayDetailOverlay";
 import {
   HourlyStrip,
   MIN_WIDE_AREA_SERIES_WIDTH,
@@ -163,6 +164,7 @@ interface MainContentProps {
   panels: TuiConfig["panels"];
   scrollHeight: number;
   airQuality?: AirQuality | null;
+  selectedDayDateLocal: string | null;
 }
 
 function XsChips({
@@ -191,6 +193,7 @@ const MainContent = memo(function MainContent({
   panels,
   scrollHeight,
   airQuality,
+  selectedDayDateLocal,
 }: MainContentProps) {
   const palette = usePalette();
   const nowcast = deriveNowcast(forecast, nowUtc);
@@ -280,6 +283,7 @@ const MainContent = memo(function MainContent({
                 columns={2}
                 width={width}
                 showPrecip={!showDetails}
+                selectedDateLocal={selectedDayDateLocal}
               />
             </>
           ) : null}
@@ -333,7 +337,13 @@ const MainContent = memo(function MainContent({
         {panels.daily ? (
           <>
             <text fg={palette.fgDim}>{sectionRule(`${forecast.daily.length} day`, width)}</text>
-            <DailyList days={forecast.daily} prefs={prefs} columns={1} width={width} />
+            <DailyList
+              days={forecast.daily}
+              prefs={prefs}
+              columns={1}
+              width={width}
+              selectedDateLocal={selectedDayDateLocal}
+            />
           </>
         ) : null}
       </box>
@@ -355,6 +365,8 @@ export function App(props: AppProps = {}) {
   const helpOpen = store((s) => s.helpOpen);
   const overlayOpen = store((s) => s.overlayOpen);
   const locationsOpen = store((s) => s.locationsOpen);
+  const dayCursorDate = store((s) => s.dayCursorDate);
+  const dayDetailDate = store((s) => s.dayDetailDate);
   const airQuality = store((s) => s.airQuality);
   const lastActionError = store((s) => s.lastActionError);
   const lastActionErrorAtMs = store((s) => s.lastActionErrorAtMs);
@@ -407,6 +419,12 @@ export function App(props: AppProps = {}) {
     }
   }, [config.locations, focusedSlug, tier]);
 
+  useEffect(() => {
+    if (dayCursorDate !== null && !forecast?.daily.some((day) => day.dateLocal === dayCursorDate)) {
+      store.getState().setDayCursorDate(null);
+    }
+  }, [dayCursorDate, forecast, store]);
+
   const api = useMemo<KeymapApi>(
     () => ({
       quit,
@@ -431,6 +449,31 @@ export function App(props: AppProps = {}) {
         if (state.initStatus !== "ready" || state.config.locations.length === 0) return;
         state.setLocationsOpen(true);
       },
+      dayDetailOpen: () => store.getState().dayDetailDate !== null,
+      closeDayDetail: () => store.getState().setDayDetailDate(null),
+      moveDayCursor: (delta) => {
+        if (!forecast || forecast.daily.length === 0) return;
+        const dates = forecast.daily.map((day) => day.dateLocal);
+        const todayDate = localDateAtOffset(nowUtc, forecast.utcOffsetSeconds);
+        const current = store.getState().dayCursorDate;
+        const currentIndex = current === null ? -1 : dates.indexOf(current);
+        const todayIndex = todayDate === null ? -1 : dates.indexOf(todayDate);
+        const anchorIndex = currentIndex >= 0 ? currentIndex : Math.max(0, todayIndex);
+        const nextIndex = Math.max(0, Math.min(dates.length - 1, anchorIndex + delta));
+        store.getState().setDayCursorDate(dates[nextIndex] ?? null);
+      },
+      openDayDetail: () => {
+        if (!forecast || forecast.daily.length === 0) return;
+        const dates = forecast.daily.map((day) => day.dateLocal);
+        const todayDate = localDateAtOffset(nowUtc, forecast.utcOffsetSeconds);
+        const cursorDate = store.getState().dayCursorDate;
+        const selected =
+          (cursorDate !== null && dates.includes(cursorDate) ? cursorDate : null) ??
+          (todayDate !== null && dates.includes(todayDate) ? todayDate : null) ??
+          dates[0] ??
+          null;
+        if (selected !== null) store.getState().setDayDetailDate(selected);
+      },
       deleteArmed: () => store.getState().deleteArmed(Date.now()),
       armDelete: () => store.getState().armDelete(),
       disarmDelete: () => store.getState().disarmDelete(),
@@ -443,7 +486,7 @@ export function App(props: AppProps = {}) {
       setDefault: (slug) => void store.getState().setDefaultLocation(slug),
       moveLocation: (slug, delta) => void store.getState().moveLocation(slug, delta),
     }),
-    [store, quit, focusedSlug, tier],
+    [store, quit, focusedSlug, tier, forecast, nowUtc],
   );
 
   useKeyboard((key) => {
@@ -488,7 +531,8 @@ export function App(props: AppProps = {}) {
 
   const mainWidth = tier === "lg" ? viewport.width - SIDEBAR_WIDTH - 4 : viewport.width - 4;
 
-  const forecastVisible = forecast !== undefined && !helpOpen && !overlayOpen && !locationsOpen;
+  const forecastVisible =
+    forecast !== undefined && !helpOpen && !overlayOpen && !locationsOpen && dayDetailDate === null;
   const overflowEstimate =
     forecastVisible && forecast
       ? estimateMainContentRows({
@@ -520,7 +564,11 @@ export function App(props: AppProps = {}) {
   );
 
   const mainView =
-    forecast !== undefined && !helpOpen && !overlayOpen && !locationsOpen ? (
+    forecast !== undefined &&
+    !helpOpen &&
+    !overlayOpen &&
+    !locationsOpen &&
+    dayDetailDate === null ? (
       <MainContent
         tier={tier}
         width={mainWidth}
@@ -530,6 +578,7 @@ export function App(props: AppProps = {}) {
         panels={config.panels}
         scrollHeight={mainScrollHeight}
         airQuality={airQuality}
+        selectedDayDateLocal={dayCursorDate}
       />
     ) : (
       <text fg={palette.fgDim}>{truncateTo(EMPTY_FORECAST_HINT, Math.max(0, mainWidth - 1))}</text>
@@ -614,6 +663,16 @@ export function App(props: AppProps = {}) {
             ) : null}
             {locationsOpen ? (
               <LocationsOverlay store={store} width={viewport.width} height={viewport.height} />
+            ) : null}
+            {dayDetailDate !== null && forecast ? (
+              <DayDetailOverlay
+                forecast={forecast}
+                dateLocal={dayDetailDate}
+                nowUtc={nowUtc}
+                prefs={prefs}
+                width={viewport.width}
+                height={viewport.height}
+              />
             ) : null}
           </>
         )}

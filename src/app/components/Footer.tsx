@@ -8,10 +8,11 @@ interface FooterProps {
 }
 
 // u units is trimmed below lg so ↑↓ scroll fits the 68/48-col floors; the help overlay still documents it.
-const HINTS_FULL = "/ search · r refresh · u units · [ ]/l locations · ↑↓ scroll · ? help · q quit";
-const HINTS_MD = "/ search · r refresh · l locations · ↑↓ scroll · ? help · q quit";
-const HINTS_SM = "r refresh · ↑↓ scroll · ? help · q quit";
-const HINTS_XS = "r u ? q";
+const HINTS_FULL =
+  "←→ day · v view · / search · r refresh · u units · [ ]/l locations · ↑↓ scroll · ? help · q quit";
+const HINTS_MD = "←→ day · v view · r refresh · l locations · ↑↓ scroll · ? help";
+const HINTS_SM = "v day · r refresh · ↑↓ scroll · ? · q quit";
+const HINTS_XS = "v r u ? q";
 
 export function footerText(tier: Tier, width: number): string {
   const hints =

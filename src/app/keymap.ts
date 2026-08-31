@@ -10,6 +10,10 @@ export interface KeymapApi {
   openSearch(): void;
   locationsOpen(): boolean;
   openLocations(): void;
+  dayDetailOpen(): boolean;
+  closeDayDetail(): void;
+  moveDayCursor(delta: 1 | -1): void;
+  openDayDetail(): void;
   deleteArmed(): boolean;
   armDelete(): void;
   disarmDelete(): void;
@@ -35,6 +39,10 @@ export function handleKey(
   const name = typeof nameOrEvent === "string" ? nameOrEvent : nameOrEvent.name;
   const shift = typeof nameOrEvent === "string" ? false : !!nameOrEvent.shift;
   if (name === "escape") {
+    if (api.dayDetailOpen()) {
+      api.closeDayDetail();
+      return;
+    }
     if (api.searchOpen()) return;
     if (api.locationsOpen()) return;
     if (api.focusedSlug() !== null) {
@@ -47,7 +55,7 @@ export function handleKey(
     }
     return;
   }
-  if (api.searchOpen() || api.locationsOpen() || api.helpOpen()) return;
+  if (api.searchOpen() || api.locationsOpen() || api.helpOpen() || api.dayDetailOpen()) return;
   switch (name) {
     case "q":
       api.quit();
@@ -72,6 +80,15 @@ export function handleKey(
       break;
     case "l":
       api.openLocations();
+      break;
+    case "left":
+      api.moveDayCursor(-1);
+      break;
+    case "right":
+      api.moveDayCursor(1);
+      break;
+    case "v":
+      api.openDayDetail();
       break;
     case "d":
       if (api.deleteArmed()) {

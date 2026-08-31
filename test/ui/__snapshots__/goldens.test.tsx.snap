@@ -40,7 +40,7 @@ exports[`golden frames portland fixture at lg 120x40: lg 120x40 1`] = `
 │                        ││                                                                                            │
 │                        │└────────────────────────────────────────────────────────────────────────────────────────────┘
 │                        │                                                                                              
-└────────────────────────┘/ search · r refresh · u units · [ ]/l locations · ↑↓ scroll · ? help · q quit                
+└────────────────────────┘←→ day · v view · / search · r refresh · u units · [ ]/l locations · ↑↓ scroll · ? help · …   
 "
 `;
 
@@ -68,7 +68,7 @@ exports[`golden frames portland fixture at md 80x24: md 80x24 1`] = `
 │                                                                       ↓ more │
 └──────────────────────────────────────────────────────────────────────────────┘
                                                                                 
-/ search · r refresh · l locations · ↑↓ scroll · ? help · q quit                
+←→ day · v view · r refresh · l locations · ↑↓ scroll · ? help                  
 "
 `;
 
@@ -92,7 +92,7 @@ exports[`golden frames portland fixture at sm 60x20: sm 60x20 1`] = `
 │                                                   ↓ more │
 └──────────────────────────────────────────────────────────┘
                                                             
-r refresh · ↑↓ scroll · ? help · q quit                     
+v day · r refresh · ↑↓ scroll · ? · q quit                  
 "
 `;
 
@@ -108,7 +108,7 @@ exports[`golden frames portland fixture at xs 40x12: xs 40x12 1`] = `
 │                                      │
 └──────────────────────────────────────┘
                                         
-r u ? q                                 
+v r u ? q                               
 "
 `;
 
@@ -136,7 +136,7 @@ exports[`golden frames portland fixture at md 80x24 with 24h clock and mixed uni
 │                                                                       ↓ more │
 └──────────────────────────────────────────────────────────────────────────────┘
                                                                                 
-/ search · r refresh · l locations · ↑↓ scroll · ? help · q quit                
+←→ day · v view · r refresh · l locations · ↑↓ scroll · ? help                  
 "
 `;
 
@@ -160,6 +160,6 @@ exports[`golden frames portland fixture at sm 60x20 with 24h header clock and mi
 │                                                   ↓ more │
 └──────────────────────────────────────────────────────────┘
                                                             
-r refresh · ↑↓ scroll · ? help · q quit                     
+v day · r refresh · ↑↓ scroll · ? · q quit                  
 "
 `;

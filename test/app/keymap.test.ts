@@ -22,6 +22,10 @@ function makeApi(overrides: Partial<Record<keyof KeymapApi, unknown>> = {}): Key
     openSearch: () => inc("openSearch"),
     locationsOpen: () => false,
     openLocations: () => inc("openLocations"),
+    dayDetailOpen: () => false,
+    closeDayDetail: () => inc("closeDayDetail"),
+    moveDayCursor: () => inc("moveDayCursor"),
+    openDayDetail: () => inc("openDayDetail"),
     deleteArmed: () => false,
     armDelete: () => inc("armDelete"),
     disarmDelete: () => inc("disarmDelete"),
@@ -132,6 +136,29 @@ describe("keymap help modal", () => {
     expect(api.calls.cycleLocation ?? 0).toBe(0);
     handleKey("escape", api);
     expect(api.calls.quit ?? 0).toBe(0);
+    expect(api.calls.toggleHelp ?? 0).toBe(0);
+  });
+
+  test("left/right move the day cursor and v opens the selected day", () => {
+    const api = makeApi();
+    handleKey("left", api);
+    handleKey("right", api);
+    handleKey("v", api);
+    expect(api.calls.moveDayCursor).toBe(2);
+    expect(api.calls.openDayDetail).toBe(1);
+  });
+
+  test("day detail is modal and escape closes it before other actions", () => {
+    const api = makeApi({ dayDetailOpen: () => true });
+    handleKey("r", api);
+    handleKey("d", api);
+    handleKey("v", api);
+    expect(api.calls.refresh ?? 0).toBe(0);
+    expect(api.calls.armDelete ?? 0).toBe(0);
+    expect(api.calls.openDayDetail ?? 0).toBe(0);
+
+    handleKey("escape", api);
+    expect(api.calls.closeDayDetail).toBe(1);
     expect(api.calls.toggleHelp ?? 0).toBe(0);
   });
 

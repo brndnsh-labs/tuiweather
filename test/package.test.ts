@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { closeSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import packageJson from "../package.json";
@@ -49,12 +49,19 @@ test("the packed artifact contains only the supported product surface and can ex
     mkdirSync(unpacked);
     execFileSync("tar", ["-xzf", join(work, metadata.filename), "-C", unpacked]);
     const packageRoot = join(unpacked, "package");
-    expect(
+    const versionOutputPath = join(work, "version-output.txt");
+    const versionOutputFd = openSync(versionOutputPath, "w");
+    try {
       execFileSync("node", [join(packageRoot, "bin", "tuiweather.js"), "--version"], {
         cwd: packageRoot,
-        encoding: "utf8",
-      }).trim(),
-    ).toBe(`tuiweather ${packageJson.version}`);
+        stdio: ["ignore", versionOutputFd, "pipe"],
+      });
+    } finally {
+      closeSync(versionOutputFd);
+    }
+    expect(readFileSync(versionOutputPath, "utf8").trim()).toBe(
+      `tuiweather ${packageJson.version}`,
+    );
 
     const bin = await Bun.file(join(ROOT, "bin", "tuiweather.js")).text();
     expect(bin.startsWith("#!/usr/bin/env node")).toBe(true);

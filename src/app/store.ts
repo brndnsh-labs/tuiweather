@@ -113,6 +113,8 @@ export interface WeatherState {
   helpOpen: boolean;
   overlayOpen: boolean;
   locationsOpen: boolean;
+  dayCursorDate: string | null;
+  dayDetailDate: string | null;
   deleteArmedAtMs: number | null;
   onboardingSkipped: boolean;
   onboardingForced: boolean;
@@ -126,6 +128,8 @@ export interface WeatherState {
   toggleHelp(): void;
   setOverlayOpen(open: boolean): void;
   setLocationsOpen(open: boolean): void;
+  setDayCursorDate(dateLocal: string | null): void;
+  setDayDetailDate(dateLocal: string | null): void;
   armDelete(): void;
   disarmDelete(): void;
   clearActionError(): void;
@@ -286,6 +290,8 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
       helpOpen: false,
       overlayOpen: false,
       locationsOpen: false,
+      dayCursorDate: null,
+      dayDetailDate: null,
       deleteArmedAtMs: null,
       onboardingSkipped: false,
       onboardingForced: false,
@@ -375,7 +381,12 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
         if (!findLocation(get().config, slug)) return;
         clearActionErrorState();
         const aq = get().airQualityBySlug[slug] ?? null;
-        set({ activeSlug: slug, airQuality: aq });
+        set({
+          activeSlug: slug,
+          airQuality: aq,
+          dayCursorDate: null,
+          dayDetailDate: null,
+        });
         scheduleRefreshLoop();
         void get().loadForecast(slug);
       },
@@ -423,7 +434,12 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
         clearActionErrorState();
         set(
           open
-            ? { overlayOpen: true, locationsOpen: false, deleteArmedAtMs: null }
+            ? {
+                overlayOpen: true,
+                locationsOpen: false,
+                dayDetailDate: null,
+                deleteArmedAtMs: null,
+              }
             : { overlayOpen: false },
         );
       },
@@ -432,8 +448,32 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
         clearActionErrorState();
         set(
           open
-            ? { locationsOpen: true, overlayOpen: false, deleteArmedAtMs: null }
+            ? {
+                locationsOpen: true,
+                overlayOpen: false,
+                dayDetailDate: null,
+                deleteArmedAtMs: null,
+              }
             : { locationsOpen: false },
+        );
+      },
+
+      setDayCursorDate: (dateLocal: string | null) => {
+        set({ dayCursorDate: dateLocal });
+      },
+
+      setDayDetailDate: (dateLocal: string | null) => {
+        clearActionErrorState();
+        set(
+          dateLocal === null
+            ? { dayDetailDate: null }
+            : {
+                dayDetailDate: dateLocal,
+                helpOpen: false,
+                overlayOpen: false,
+                locationsOpen: false,
+                deleteArmedAtMs: null,
+              },
         );
       },
 
@@ -622,6 +662,8 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
           helpOpen: false,
           overlayOpen: false,
           locationsOpen: false,
+          dayCursorDate: null,
+          dayDetailDate: null,
         }),
 
       dispose: () => {

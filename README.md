@@ -5,7 +5,7 @@ Keyboard-driven terminal weather app: Dark Sky-style rain nowcasting, hourly and
 ## Features
 
 - **Rain nowcast** — minute-level "umbrella in N min" warnings derived from 15-minute precipitation buckets (Open-Meteo only; NWS has no minute-level precipitation feed — the nowcast panel hides and the watch bell stays inactive under `provider = "nws"`, nothing renders a false "Dry")
-- **Hourly + daily forecast** — sparkline temperature strip, emoji condition icons, precipitation probabilities, and (md+ widths) a UV/humidity/visibility summary row
+- **Hourly + daily forecast** — sparkline temperature strip, emoji condition icons, precipitation probabilities, and a day-detail view with hourly temperature, precipitation, wind/gust, UV, and daylight context
 - **Location search** — type `/`, search the Open-Meteo geocoder, enter to add; locations persist to config
 - **Guided first run** — choose units and find a location without editing a config file
 - **Units** — metric/imperial toggle persisted across runs
@@ -68,6 +68,8 @@ Use `tuiweather --help` for command-line options and `tuiweather --version` to p
 | --- | --- |
 | `r` | Refresh current location (bypasses cache) |
 | `[` / `]` | Previous / next location |
+| `←` / `→` | Select a day in the daily list |
+| `v` | Inspect the selected day (defaults to today) |
 | `l` | Open the locations overlay: switch, set default, delete, reorder |
 | `1`–`9` | Jump to location N by sidebar order (1-based; no-op out of range) |
 | `u` | Toggle metric / imperial units |
@@ -80,12 +82,14 @@ Use `tuiweather --help` for command-line options and `tuiweather --version` to p
 | `↑` / `↓` | Scroll the main panel when content overflows |
 | `?` | Toggle help overlay |
 | `o` | Re-run setup (from help overlay) |
-| `esc` | Clear sidebar focus if set; otherwise close the help overlay |
+| `esc` | Close day detail first; otherwise clear sidebar focus or close the help overlay |
 | `q` | Quit |
 
 While the search overlay is open it owns the keyboard: type to search, up/down to move the cursor, enter to add the highlighted result, esc to cancel. Number, focus, and reorder keys are ignored while the search input is focused (same as `d`/`r`).
 
 The locations overlay (`l`) also owns the keyboard while open: up/down (or `j`/`k`) to move the cursor, enter or `1`–`9` to switch, `s` to set the cursor row as default, `d` twice to delete it, `J`/`K` to reorder it, `/` to jump into search, esc to close.
+
+Use left/right to move the daily-list cursor, then `v` to open that local day's hourly story. The day-detail overlay owns the keyboard while open; up/down scrolls compact views and esc returns to the unchanged main view.
 
 ### One-line mode
 
