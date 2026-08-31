@@ -18,6 +18,7 @@ interface DailyListProps {
   columns: 1 | 2;
   width: number;
   showPrecip?: boolean;
+  selectedDateLocal?: string | null;
 }
 
 const DAY_LABEL_WIDTH = 3;
@@ -116,18 +117,27 @@ function DailyRow({
   barWidth,
   weekMin,
   weekMax,
+  selected,
+  showCursor,
 }: {
   parts: RowParts;
   temp: DisplayPrefs["temp"];
   barWidth: number;
   weekMin: number;
   weekMax: number;
+  selected: boolean;
+  showCursor: boolean;
 }) {
   const palette = usePalette();
   return (
-    <box flexDirection="row">
-      <text fg={palette.fgDim}>{parts.head}</text>
-      <text fg={palette.fg}>{formatTemp(parts.lo, temp)}</text>
+    <box flexDirection="row" backgroundColor={selected ? palette.surface : undefined}>
+      {showCursor ? (
+        <text fg={selected ? palette.accent : palette.fgDim}>{selected ? "▸" : " "}</text>
+      ) : null}
+      <text fg={selected ? palette.accent : palette.fgDim}>{parts.head}</text>
+      <text fg={palette.fg} bg={selected ? palette.surface : undefined}>
+        {formatTemp(parts.lo, temp)}
+      </text>
       <RangeBar
         lo={parts.lo}
         hi={parts.hi}
@@ -136,8 +146,14 @@ function DailyRow({
         width={barWidth}
         palette={palette}
       />
-      <text fg={palette.fg}>{formatTemp(parts.hi, temp)}</text>
-      {parts.precip !== null ? <text fg={palette.accent}>{` ${parts.precip}`}</text> : null}
+      <text fg={palette.fg} bg={selected ? palette.surface : undefined}>
+        {formatTemp(parts.hi, temp)}
+      </text>
+      {parts.precip !== null ? (
+        <text fg={palette.accent} bg={selected ? palette.surface : undefined}>
+          {` ${parts.precip}`}
+        </text>
+      ) : null}
     </box>
   );
 }
@@ -148,12 +164,19 @@ export const DailyList = memo(function DailyList({
   columns,
   width,
   showPrecip = true,
+  selectedDateLocal = null,
 }: DailyListProps) {
   if (days.length === 0 || width < 12) return null;
 
   const weekMin = Math.min(...days.map((d) => d.tempMinC));
   const weekMax = Math.max(...days.map((d) => d.tempMaxC));
-  const { colWidth, barWidth, chipTier } = dailyMetrics(days, { width, columns, showPrecip });
+  const showCursor = selectedDateLocal !== null;
+  const metricsWidth = Math.max(columns, width - (showCursor ? columns : 0));
+  const { colWidth, barWidth, chipTier } = dailyMetrics(days, {
+    width: metricsWidth,
+    columns,
+    showPrecip,
+  });
 
   if (columns === 1) {
     return (
@@ -166,6 +189,8 @@ export const DailyList = memo(function DailyList({
             barWidth={barWidth}
             weekMin={weekMin}
             weekMax={weekMax}
+            selected={day.dateLocal === selectedDateLocal}
+            showCursor={showCursor}
           />
         ))}
       </box>
@@ -188,6 +213,8 @@ export const DailyList = memo(function DailyList({
                 barWidth={barWidth}
                 weekMin={weekMin}
                 weekMax={weekMax}
+                selected={day.dateLocal === selectedDateLocal}
+                showCursor={showCursor}
               />
             </box>
           ))}

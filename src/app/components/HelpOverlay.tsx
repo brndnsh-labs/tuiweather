@@ -15,7 +15,8 @@ const HELP_BOX_HEIGHT = 12;
 
 const HELP_LINES: { text: string; dim?: boolean }[] = [
   { text: "q quit        r refresh      u units" },
-  { text: "[ ] prev/next  1-9 jump  ? toggle help" },
+  { text: "← → select day  v inspect day" },
+  { text: "[ ] location  1-9 jump  ? toggle help" },
   { text: "l locations  j/k focus  enter open (lg)" },
   { text: "s default  J/K reorder (lg)  ↑↓ scroll" },
   { text: "/ search     d delete (press twice)", dim: true },

@@ -278,7 +278,7 @@ describe("App shell", () => {
       expect(frame).not.toContain("●");
       expect(frame).toContain("┌─main");
       expect(frame).not.toContain("· md");
-      expect(frame).toContain("/ search");
+      expect(frame).toContain("v view");
     } finally {
       await setup.renderer.destroy();
     }

@@ -797,6 +797,24 @@ describe("deleteLocation (arbitrary slug)", () => {
     expect(store.getState().overlayOpen).toBe(true);
     expect(store.getState().locationsOpen).toBe(false);
   });
+
+  test("day detail state is modal and closes when another overlay opens", async () => {
+    const { store } = await makeStore();
+    store.getState().armDelete();
+    store.getState().setDayDetailDate("2026-08-24");
+
+    expect(store.getState().dayDetailDate).toBe("2026-08-24");
+    expect(store.getState().overlayOpen).toBe(false);
+    expect(store.getState().locationsOpen).toBe(false);
+    expect(store.getState().deleteArmedAtMs).toBeNull();
+
+    store.getState().setOverlayOpen(true);
+    expect(store.getState().dayDetailDate).toBeNull();
+
+    store.getState().setDayDetailDate("2026-08-25");
+    store.getState().setLocationsOpen(true);
+    expect(store.getState().dayDetailDate).toBeNull();
+  });
 });
 
 interface FakeRefreshTimers extends RefreshTimerDeps {
