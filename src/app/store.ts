@@ -117,6 +117,7 @@ export interface WeatherState {
   dayDetailDate: string | null;
   dailyPageIndex: number;
   hourlyInspectTimeUtc: string | null;
+  nowcastExpanded: boolean;
   deleteArmedAtMs: number | null;
   onboardingSkipped: boolean;
   onboardingForced: boolean;
@@ -134,6 +135,7 @@ export interface WeatherState {
   setDayDetailDate(dateLocal: string | null): void;
   setDailyPageIndex(index: number): void;
   setHourlyInspectTimeUtc(timeUtc: string | null): void;
+  toggleNowcastExpanded(): void;
   armDelete(): void;
   disarmDelete(): void;
   clearActionError(): void;
@@ -298,6 +300,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
       dayDetailDate: null,
       dailyPageIndex: 0,
       hourlyInspectTimeUtc: null,
+      nowcastExpanded: false,
       deleteArmedAtMs: null,
       onboardingSkipped: false,
       onboardingForced: false,
@@ -476,6 +479,10 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
 
       setHourlyInspectTimeUtc: (timeUtc: string | null) => {
         set({ hourlyInspectTimeUtc: timeUtc });
+      },
+
+      toggleNowcastExpanded: () => {
+        set((s) => ({ nowcastExpanded: !s.nowcastExpanded }));
       },
 
       setDayDetailDate: (dateLocal: string | null) => {

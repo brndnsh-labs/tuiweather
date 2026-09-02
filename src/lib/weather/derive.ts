@@ -1,4 +1,4 @@
-import type { NormalizedForecast } from "./types";
+import type { NormalizedForecast, PrecipInterval } from "./types";
 
 /**
  * Buckets at or above this are wet. Open-Meteo labels each minutely_15 bucket
@@ -108,26 +108,27 @@ export function deriveNowcast(f: NormalizedForecast, nowUtc: string): Nowcast {
 }
 
 /**
- * Per-15-min precipitation from the bucket containing now through the end of
- * minutely15 data. Buckets are labeled by their END instant, so the bucket
- * spanning [startUtc, endUtc) with startUtc <= now < endUtc counts as
- * upcoming; empty when now is outside the data window.
+ * Full-fidelity buckets (mm + probability) from the bucket containing now
+ * through the end of minutely15 data. Buckets are labeled by their END
+ * instant, so the bucket spanning [startUtc, endUtc) with startUtc <= now <
+ * endUtc counts as upcoming; empty when now is outside the data window.
  */
-export function upcomingPrecipSeries(f: NormalizedForecast, nowUtc: string): number[] {
+export function upcomingPrecipBuckets(f: NormalizedForecast, nowUtc: string): PrecipInterval[] {
   const nowMs = Date.parse(nowUtc);
-  const buckets = sortedBuckets(f);
+  const sorted = [...f.minutely15].sort((a, b) => Date.parse(a.startUtc) - Date.parse(b.startUtc));
 
-  const first = buckets[0];
-  const last = buckets.at(-1);
-  if (!first || !last || nowMs < first.startMs || nowMs >= last.endMs) {
+  const first = sorted[0];
+  const last = sorted.at(-1);
+  if (!first || !last || nowMs < Date.parse(first.startUtc) || nowMs >= Date.parse(last.endUtc)) {
     return [];
   }
 
-  const series: number[] = [];
-  for (const b of buckets) {
-    if (b.endMs > nowMs) series.push(b.precipMm);
-  }
-  return series;
+  return sorted.filter((b) => Date.parse(b.endUtc) > nowMs);
+}
+
+/** Per-15-min precipitation amounts only — see upcomingPrecipBuckets for full fidelity. */
+export function upcomingPrecipSeries(f: NormalizedForecast, nowUtc: string): number[] {
+  return upcomingPrecipBuckets(f, nowUtc).map((b) => b.precipMm);
 }
 
 const INTENSITY_WORD: Record<Intensity, string> = {

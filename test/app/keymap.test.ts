@@ -31,6 +31,7 @@ function makeApi(overrides: Partial<Record<keyof KeymapApi, unknown>> = {}): Key
     toggleHourlyInspect: () => inc("toggleHourlyInspect"),
     exitHourlyInspect: () => inc("exitHourlyInspect"),
     moveHourlyInspect: () => inc("moveHourlyInspect"),
+    toggleNowcastExpanded: () => inc("toggleNowcastExpanded"),
     deleteArmed: () => false,
     armDelete: () => inc("armDelete"),
     disarmDelete: () => inc("disarmDelete"),
@@ -171,6 +172,26 @@ describe("keymap help modal", () => {
     const api = makeApi();
     handleKey("i", api);
     expect(api.calls.toggleHourlyInspect).toBe(1);
+  });
+
+  test("m toggles the nowcast expansion", () => {
+    const api = makeApi();
+    handleKey("m", api);
+    handleKey("m", api);
+    expect(api.calls.toggleNowcastExpanded).toBe(2);
+  });
+
+  test("help/search/locations/day-detail modals block m", () => {
+    for (const overrides of [
+      { helpOpen: () => true },
+      { searchOpen: () => true },
+      { locationsOpen: () => true },
+      { dayDetailOpen: () => true },
+    ] as const) {
+      const api = makeApi(overrides);
+      handleKey("m", api);
+      expect(api.calls.toggleNowcastExpanded ?? 0).toBe(0);
+    }
   });
 
   test("left/right route to moveHourlyInspect (not moveDayCursor) while inspect is open", () => {
