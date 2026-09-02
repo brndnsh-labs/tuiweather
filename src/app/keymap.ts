@@ -14,6 +14,7 @@ export interface KeymapApi {
   closeDayDetail(): void;
   moveDayCursor(delta: 1 | -1): void;
   openDayDetail(): void;
+  moveDailyPage(delta: 1 | -1): void;
   hourlyInspectOpen(): boolean;
   toggleHourlyInspect(): void;
   exitHourlyInspect(): void;
@@ -110,6 +111,12 @@ export function handleKey(
       break;
     case "v":
       api.openDayDetail();
+      break;
+    case ",":
+      api.moveDailyPage(-1);
+      break;
+    case ".":
+      api.moveDailyPage(1);
       break;
     case "d":
       if (api.deleteArmed()) {

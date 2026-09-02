@@ -127,6 +127,19 @@ describe("cacheKey", () => {
       cacheKey("stub", 45.5204, -122.6765, { forecastDays: 7 }),
     );
   });
+
+  test("openmeteo ignores forecastDays — its real request is always the same depth", () => {
+    expect(cacheKey("openmeteo", 45.5202, -122.6765, { forecastDays: 3 })).toBe(
+      cacheKey("openmeteo", 45.5202, -122.6765, { forecastDays: 14 }),
+    );
+    expect(cacheKey("openmeteo", 45.5202, -122.6765, { forecastDays: 3 })).not.toBe(
+      cacheKey("openmeteo", 45.5202, -122.6765, { forecastDays: 3, forecastHours: 24 }),
+    );
+    // Other providers (e.g. NWS) still vary by forecastDays, since it changes their real slicing.
+    expect(cacheKey("nws", 45.5202, -122.6765, { forecastDays: 3 })).not.toBe(
+      cacheKey("nws", 45.5202, -122.6765, { forecastDays: 14 }),
+    );
+  });
 });
 
 describe("cacheRoot", () => {

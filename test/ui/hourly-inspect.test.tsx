@@ -10,7 +10,7 @@ import { forecastResponseSchema } from "../../src/lib/providers/openmeteo/schema
 import portlandFixture from "../fixtures/openmeteo/portland.json";
 import { stubNullAirQualityFetcher } from "../helpers";
 
-const NOW = "2026-08-24T16:15:00.000Z";
+const NOW = "2026-09-02T12:45:00.000Z";
 const NOW_MS = Date.parse(NOW);
 
 const CONFIG_TOML = `schema_version = 1
@@ -74,12 +74,12 @@ async function waitUntilFrame(
 }
 
 // First and last points of the lg-tier (48-point) window computed against the
-// fixture from NOW: window[0] is 2026-08-24T17:00:00.000Z local 10:00 AM, and
-// window[47] is 2026-08-26T16:00:00.000Z local 9:00 AM.
-const FIRST_ROW = "10:00 AM  68° feels 68°  0.00 in 0%  7 mph N";
-const LAST_ROW = "9:00 AM  67° feels 66°  0.00 in 0%  4 mph S";
-const FIRST_TIME_UTC = "2026-08-24T17:00:00.000Z";
-const LAST_TIME_UTC = "2026-08-26T16:00:00.000Z";
+// fixture from NOW: window[0] is 2026-09-02T13:00:00.000Z local 6:00 AM, and
+// window[47] is 2026-09-04T12:00:00.000Z local 5:00 AM.
+const FIRST_ROW = "6:00 AM  58° feels 57°  0.00 in 12%  4 mph S";
+const LAST_ROW = "5:00 AM  55° feels 55°  0.00 in 25%  1 mph NE";
+const FIRST_TIME_UTC = "2026-09-02T13:00:00.000Z";
+const LAST_TIME_UTC = "2026-09-04T12:00:00.000Z";
 
 describe("hourly inspect cursor", () => {
   test("i opens a readout matching the fixture's next upcoming hour", async () => {

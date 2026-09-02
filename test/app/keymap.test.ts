@@ -26,6 +26,7 @@ function makeApi(overrides: Partial<Record<keyof KeymapApi, unknown>> = {}): Key
     closeDayDetail: () => inc("closeDayDetail"),
     moveDayCursor: () => inc("moveDayCursor"),
     openDayDetail: () => inc("openDayDetail"),
+    moveDailyPage: () => inc("moveDailyPage"),
     hourlyInspectOpen: () => false,
     toggleHourlyInspect: () => inc("toggleHourlyInspect"),
     exitHourlyInspect: () => inc("exitHourlyInspect"),
@@ -242,5 +243,27 @@ describe("keymap help modal", () => {
     const api = makeApi();
     handleKey("q", api);
     expect(api.calls.quit).toBe(1);
+  });
+
+  test(", and . page the daily list backward/forward", () => {
+    const api = makeApi();
+    handleKey(",", api);
+    handleKey(".", api);
+    handleKey(".", api);
+    expect(api.calls.moveDailyPage).toBe(3);
+  });
+
+  test("help/search/locations/day-detail modals block , and .", () => {
+    for (const overrides of [
+      { helpOpen: () => true },
+      { searchOpen: () => true },
+      { locationsOpen: () => true },
+      { dayDetailOpen: () => true },
+    ] as const) {
+      const api = makeApi(overrides);
+      handleKey(",", api);
+      handleKey(".", api);
+      expect(api.calls.moveDailyPage ?? 0).toBe(0);
+    }
   });
 });

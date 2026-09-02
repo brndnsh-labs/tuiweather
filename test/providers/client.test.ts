@@ -55,18 +55,18 @@ describe("buildForecastUrl", () => {
     }
 
     expect(params.get("minutely_15")).toBe("precipitation,precipitation_probability");
-    expect(params.get("forecast_days")).toBe("3");
+    expect(params.get("forecast_days")).toBe("14");
     expect(params.get("past_minutely_15")).toBe("8");
     expect(params.get("forecast_minutely_15")).toBe("12");
     // hourly_hours is opt-in via config; the default request must not pin it
     expect(params.get("forecast_hours")).toBeNull();
   });
 
-  test("honors explicit window overrides", () => {
+  test("honors explicit window overrides, except forecast_days which stays fixed", () => {
     const params = new URL(
       buildForecastUrl(PORTLAND, { forecastDays: 7, forecastHours: 48, pastMinutely15: 4 }),
     ).searchParams;
-    expect(params.get("forecast_days")).toBe("7");
+    expect(params.get("forecast_days")).toBe("14");
     expect(params.get("forecast_hours")).toBe("48");
     expect(params.get("past_minutely_15")).toBe("4");
   });

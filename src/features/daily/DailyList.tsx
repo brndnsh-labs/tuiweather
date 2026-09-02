@@ -13,7 +13,10 @@ import type { DailyPoint } from "../../lib/weather/types";
 import { usePalette } from "../../theme/tokens";
 
 interface DailyListProps {
+  /** The full forecast window — used for range/geometry so both stay stable across pages. */
   days: DailyPoint[];
+  /** Which DAILY_PAGE_SIZE-sized slice of `days` to render. */
+  pageIndex?: number;
   prefs: DisplayPrefs;
   columns: 1 | 2;
   width: number;
@@ -78,6 +81,33 @@ export interface DailyListMetrics {
   colWidth: number;
   barWidth: number;
   chipTier: PrecipChipTier;
+}
+
+/**
+ * Rows shown per page. Matches the pre-paging default day count so the section's on-screen
+ * height (and estimateMainContentRows' budget for it) doesn't change — only the pool of days
+ * available to page through grows.
+ */
+export const DAILY_PAGE_SIZE = 7;
+
+function dailyPageCount(totalDays: number): number {
+  return Math.max(1, Math.ceil(totalDays / DAILY_PAGE_SIZE));
+}
+
+export function clampDailyPageIndex(pageIndex: number, totalDays: number): number {
+  return Math.max(0, Math.min(dailyPageCount(totalDays) - 1, pageIndex));
+}
+
+export function dailyPageWindow(days: DailyPoint[], pageIndex: number): DailyPoint[] {
+  const clamped = clampDailyPageIndex(pageIndex, days.length);
+  return days.slice(clamped * DAILY_PAGE_SIZE, clamped * DAILY_PAGE_SIZE + DAILY_PAGE_SIZE);
+}
+
+export function dailySectionLabel(totalDays: number, pageIndex: number): string {
+  const pages = dailyPageCount(totalDays);
+  if (pages <= 1) return `${totalDays} day`;
+  const clamped = clampDailyPageIndex(pageIndex, totalDays);
+  return `${totalDays} day · page ${clamped + 1}/${pages}`;
 }
 
 export function dailyMetrics(
@@ -160,6 +190,7 @@ function DailyRow({
 
 export const DailyList = memo(function DailyList({
   days,
+  pageIndex = 0,
   prefs,
   columns,
   width,
@@ -168,9 +199,11 @@ export const DailyList = memo(function DailyList({
 }: DailyListProps) {
   if (days.length === 0 || width < 12) return null;
 
+  const pageDays = dailyPageWindow(days, pageIndex);
   const weekMin = Math.min(...days.map((d) => d.tempMinC));
   const weekMax = Math.max(...days.map((d) => d.tempMaxC));
-  const showCursor = selectedDateLocal !== null;
+  const showCursor =
+    selectedDateLocal !== null && pageDays.some((d) => d.dateLocal === selectedDateLocal);
   const metricsWidth = Math.max(columns, width - (showCursor ? columns : 0));
   const { colWidth, barWidth, chipTier } = dailyMetrics(days, {
     width: metricsWidth,
@@ -181,7 +214,7 @@ export const DailyList = memo(function DailyList({
   if (columns === 1) {
     return (
       <box flexDirection="column">
-        {days.map((day) => (
+        {pageDays.map((day) => (
           <DailyRow
             key={day.dateLocal}
             parts={rowParts(day, prefs.precip, chipTier)}
@@ -198,8 +231,8 @@ export const DailyList = memo(function DailyList({
   }
 
   const rows: DailyPoint[][] = [];
-  for (let i = 0; i < days.length; i += 2) {
-    rows.push(days.slice(i, i + 2));
+  for (let i = 0; i < pageDays.length; i += 2) {
+    rows.push(pageDays.slice(i, i + 2));
   }
   return (
     <box flexDirection="column">

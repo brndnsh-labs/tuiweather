@@ -11,7 +11,7 @@ import type { NormalizedForecast } from "../../src/lib/weather/types";
 import portlandFixture from "../fixtures/openmeteo/portland.json";
 import { stubNullAirQualityFetcher } from "../helpers";
 
-const NOW = "2026-08-24T16:15:00.000Z";
+const NOW = "2026-09-02T12:45:00.000Z";
 
 function configToml(panels: {
   nowcast?: boolean;
@@ -107,15 +107,15 @@ describe("main overflow estimate", () => {
       panels: ALL_PANELS,
       nowUtc: NOW,
     });
-    expect(rows).toBe(24);
+    expect(rows).toBe(25);
     expect((rows ?? 0) + 6).toBeGreaterThan(24);
   });
 
   test("tier shapes change the estimate deterministically", () => {
     const forecast = fixtureForecast();
     const base = { width: 90, forecast, panels: ALL_PANELS, nowUtc: NOW };
-    expect(estimateMainContentRows({ ...base, tier: "lg" })).toBe(27);
-    expect(estimateMainContentRows({ ...base, tier: "sm" })).toBe(18);
+    expect(estimateMainContentRows({ ...base, tier: "lg" })).toBe(28);
+    expect(estimateMainContentRows({ ...base, tier: "sm" })).toBe(19);
     expect(estimateMainContentRows({ ...base, tier: "xs" })).toBeNull();
   });
 });
@@ -161,12 +161,12 @@ describe("panels config toggles", () => {
         await setup.flush().catch(() => undefined);
       }
       for (let i = 0; i < 12; i++) {
-        if (setup.captureCharFrame().includes("7 day")) return;
+        if (setup.captureCharFrame().includes("14 day")) return;
         setup.mockInput.pressArrow("down");
         await sleep(20);
         await setup.flush().catch(() => undefined);
       }
-      expect(setup.captureCharFrame()).toContain("7 day");
+      expect(setup.captureCharFrame()).toContain("14 day");
     } finally {
       await setup.renderer.destroy();
     }
@@ -177,7 +177,7 @@ describe("panels config toggles", () => {
     expect(frame).toContain("feels like");
     expect(frame).not.toContain("sunrise");
     expect(frame).toContain("temp ");
-    expect(frame).toContain("7 day");
+    expect(frame).toContain("14 day");
   });
 
   test("panels.hourly=false drops the strip but keeps other sections", async () => {
@@ -185,13 +185,13 @@ describe("panels config toggles", () => {
     expect(frame).toContain("╭━━━╮");
     expect(frame).not.toContain("temp ");
     expect(frame).toContain("sunrise");
-    expect(frame).toContain("7 day");
+    expect(frame).toContain("14 day");
   });
 
   test("panels.daily=false drops list and its rule but keeps other sections", async () => {
     const frame = await frameFor(configToml({ daily: false }));
     expect(frame).toContain("╭━━━╮");
-    expect(frame).not.toContain("7 day");
+    expect(frame).not.toContain("14 day");
     expect(frame).not.toContain("Mon ☁️");
     expect(frame).toContain("temp ");
   });
@@ -201,26 +201,26 @@ describe("panels config toggles", () => {
       ...fixtureForecast(),
       minutely15: [
         {
-          startUtc: "2026-08-24T16:00:00.000Z",
-          endUtc: "2026-08-24T16:15:00.000Z",
+          startUtc: "2026-09-02T12:30:00.000Z",
+          endUtc: "2026-09-02T12:45:00.000Z",
           precipMm: 0,
           probabilityPct: 10,
         },
         {
-          startUtc: "2026-08-24T16:15:00.000Z",
-          endUtc: "2026-08-24T16:30:00.000Z",
+          startUtc: "2026-09-02T12:45:00.000Z",
+          endUtc: "2026-09-02T13:00:00.000Z",
           precipMm: 0.2,
           probabilityPct: 80,
         },
         {
-          startUtc: "2026-08-24T16:30:00.000Z",
-          endUtc: "2026-08-24T16:45:00.000Z",
+          startUtc: "2026-09-02T13:00:00.000Z",
+          endUtc: "2026-09-02T13:15:00.000Z",
           precipMm: 0.2,
           probabilityPct: 80,
         },
         {
-          startUtc: "2026-08-24T16:45:00.000Z",
-          endUtc: "2026-08-24T17:00:00.000Z",
+          startUtc: "2026-09-02T13:15:00.000Z",
+          endUtc: "2026-09-02T13:30:00.000Z",
           precipMm: 0,
           probabilityPct: 10,
         },
@@ -245,14 +245,14 @@ describe("panels config toggles", () => {
       ...fixtureForecast(),
       minutely15: [
         {
-          startUtc: "2026-08-24T16:15:00.000Z",
-          endUtc: "2026-08-24T16:30:00.000Z",
+          startUtc: "2026-09-02T12:45:00.000Z",
+          endUtc: "2026-09-02T13:00:00.000Z",
           precipMm: 0.6,
           probabilityPct: 80,
         },
         {
-          startUtc: "2026-08-24T16:30:00.000Z",
-          endUtc: "2026-08-24T16:45:00.000Z",
+          startUtc: "2026-09-02T13:00:00.000Z",
+          endUtc: "2026-09-02T13:15:00.000Z",
           precipMm: 0.05,
           probabilityPct: 60,
         },
@@ -268,8 +268,8 @@ describe("panels config toggles", () => {
       ...fixtureForecast(),
       minutely15: [
         {
-          startUtc: "2026-08-24T16:15:00.000Z",
-          endUtc: "2026-08-24T16:30:00.000Z",
+          startUtc: "2026-09-02T12:45:00.000Z",
+          endUtc: "2026-09-02T13:00:00.000Z",
           precipMm: 0.2,
           probabilityPct: 80,
         },
@@ -294,8 +294,8 @@ describe("panels config toggles", () => {
       hasMinutePrecip: false,
       minutely15: [
         {
-          startUtc: "2026-08-24T16:15:00.000Z",
-          endUtc: "2026-08-24T16:30:00.000Z",
+          startUtc: "2026-09-02T12:45:00.000Z",
+          endUtc: "2026-09-02T13:00:00.000Z",
           precipMm: 0.6,
           probabilityPct: 80,
         },
