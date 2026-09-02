@@ -5,7 +5,9 @@ import {
   fitNotes,
   hourLabelsRow,
   hourlyDetailRow,
+  hourlyInspectRow,
   MIN_WIDE_AREA_SERIES_WIDTH,
+  nextInspectTimeUtc,
   PROB_SUMMARY_PCT,
   peakProbability,
   planTempNotes,
@@ -409,5 +411,81 @@ describe("hourlyDetailRow", () => {
     const row = hourlyDetailRow(pts, "metric", 80);
     expect(row.startsWith("     ")).toBe(true);
     expect(row.includes("·")).toBe(true);
+  });
+});
+
+describe("hourlyInspectRow", () => {
+  const prefs = {
+    temp: "imperial",
+    wind: "imperial",
+    precip: "imperial",
+    pressure: "imperial",
+    timeFormat: "12h",
+  } as const;
+
+  function point(): HourlyPoint {
+    return withOverrides(hourlyPoints(1)[0] as HourlyPoint, {
+      timeUtc: "2026-08-24T17:00:00.000Z",
+      temperatureC: 20,
+      apparentC: 18,
+      precipMm: 1,
+      precipProbabilityPct: 40,
+      windSpeedKmh: 10,
+      windDirectionDeg: 90,
+    });
+  }
+
+  test("composes time, temp, feels, precip, and wind for the pointed hour", () => {
+    const row = hourlyInspectRow(point(), -25200, prefs, 80);
+    expect(row).toContain("10:00 AM");
+    expect(row).toContain("68° feels 64°");
+    expect(row).toContain("40%");
+    expect(row).toContain("mph E");
+  });
+
+  test("width truncation keeps row at most width - 1 columns", () => {
+    const width = 20;
+    const row = hourlyInspectRow(point(), 0, prefs, width);
+    expect(displayWidth(row)).toBeLessThanOrEqual(width - 1);
+    expect(row.endsWith("…")).toBe(true);
+  });
+
+  test("returns empty string for non-positive width", () => {
+    expect(hourlyInspectRow(point(), 0, prefs, 0)).toBe("");
+  });
+});
+
+describe("nextInspectTimeUtc", () => {
+  test("advances by delta from the current point", () => {
+    const window = hourlyPoints(5);
+    const next = nextInspectTimeUtc(window, window[1]?.timeUtc ?? null, 1);
+    expect(next).toBe(window[2]?.timeUtc ?? null);
+  });
+
+  test("clamps at the last point when moving past the end", () => {
+    const window = hourlyPoints(3);
+    const next = nextInspectTimeUtc(window, window[2]?.timeUtc ?? null, 1);
+    expect(next).toBe(window[2]?.timeUtc ?? null);
+  });
+
+  test("clamps at the first point when moving before the start", () => {
+    const window = hourlyPoints(3);
+    const next = nextInspectTimeUtc(window, window[0]?.timeUtc ?? null, -1);
+    expect(next).toBe(window[0]?.timeUtc ?? null);
+  });
+
+  test("re-anchors from the window start when the current point aged out (hard rule 2: index by time, not position)", () => {
+    const full = hourlyPoints(5);
+    // Simulate the clock crossing an hour boundary: the point the user was
+    // inspecting (full[0]) drops off the front of the window. A position-keyed
+    // cursor would silently relabel whatever now sits at index 0; this must
+    // instead re-anchor to a real point still present in the window.
+    const shrunk = full.slice(1);
+    const next = nextInspectTimeUtc(shrunk, full[0]?.timeUtc ?? null, 1);
+    expect(shrunk.some((p) => p.timeUtc === next)).toBe(true);
+  });
+
+  test("returns null for an empty window", () => {
+    expect(nextInspectTimeUtc([], null, 1)).toBeNull();
   });
 });
