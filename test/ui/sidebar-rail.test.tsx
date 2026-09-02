@@ -1,0 +1,211 @@
+import { afterEach, describe, expect, test } from "bun:test";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { testRender } from "@opentui/react/test-utils";
+import { App } from "../../src/app/App";
+import { createStoreInstance, type ForecastFetcher, type WeatherStore } from "../../src/app/store";
+import { normalizeForecast } from "../../src/lib/providers/openmeteo/normalize";
+import { forecastResponseSchema } from "../../src/lib/providers/openmeteo/schemas";
+import { displayWidth } from "../../src/lib/weather/format";
+import type { NormalizedForecast } from "../../src/lib/weather/types";
+import portlandFixture from "../fixtures/openmeteo/portland.json";
+import { stubNullAirQualityFetcher } from "../helpers";
+
+const NOW = "2026-09-02T12:45:00.000Z";
+const NOW_MS = Date.parse(NOW);
+
+function toml(panels: { nowcast: boolean; details: boolean }): string {
+  return `schema_version = 1
+units = "imperial"
+refresh_minutes = 10
+theme = "night"
+default_location = "portland"
+
+[[locations]]
+slug = "portland"
+label = "Portland"
+latitude = 45.5202
+longitude = -122.6765
+
+[panels]
+nowcast = ${panels.nowcast}
+details = ${panels.details}
+hourly = true
+daily = true
+`;
+}
+
+const tmpDirs: string[] = [];
+
+afterEach(async () => {
+  while (tmpDirs.length > 0) {
+    const dir = tmpDirs.pop();
+    if (dir) await rm(dir, { recursive: true, force: true });
+  }
+});
+
+function fixtureForecast(): NormalizedForecast {
+  const forecast = normalizeForecast(forecastResponseSchema.parse(portlandFixture));
+  return { ...forecast, fetchedAtUtc: NOW };
+}
+
+async function makeStore(
+  configToml: string,
+  forecast: NormalizedForecast = fixtureForecast(),
+): Promise<WeatherStore> {
+  const dir = await mkdtemp(join(tmpdir(), "tuiweather-rail-"));
+  tmpDirs.push(dir);
+  await writeFile(join(dir, "config.toml"), configToml, "utf8");
+  const fetcher: ForecastFetcher = () => Promise.resolve({ forecast, stale: false });
+  return createStoreInstance({
+    configPath: join(dir, "config.toml"),
+    fetchForecast: fetcher,
+    fetchAirQuality: stubNullAirQualityFetcher,
+  });
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function waitUntilFrame(
+  setup: Awaited<ReturnType<typeof testRender>>,
+  predicate: (frame: string) => boolean,
+  timeoutMs = 3000,
+): Promise<string> {
+  const deadline = Date.now() + timeoutMs;
+  let frame = "";
+  while (Date.now() < deadline) {
+    frame = setup.captureCharFrame();
+    if (predicate(frame)) return frame;
+    await sleep(15);
+    await setup.flush().catch(() => undefined);
+  }
+  throw new Error(`waitUntilFrame timed out; last frame:\n${frame}`);
+}
+
+async function renderAt(
+  store: WeatherStore,
+  width: number,
+  height: number,
+): Promise<{ frame: string; destroy: () => void }> {
+  const setup = await testRender(<App store={store} nowMs={NOW_MS} nowUtc={NOW} />, {
+    width,
+    height,
+  });
+  await setup.flush();
+  const frame = await waitUntilFrame(setup, (f) => f.includes("Portland"));
+  return { frame, destroy: () => setup.renderer.destroy() };
+}
+
+/** The rail occupies the first SIDEBAR_WIDTH columns of every body row. */
+function railColumn(frame: string): string[] {
+  return frame.split("\n").map((line) => line.slice(0, 26));
+}
+
+describe("lg status rail", () => {
+  test("the nowcast reaches the lg tier with no keypress", async () => {
+    const store = await makeStore(toml({ nowcast: true, details: true }));
+    const { frame, destroy } = await renderAt(store, 120, 40);
+    try {
+      const rail = railColumn(frame).join("\n");
+      expect(rail).toContain("── now · m");
+      expect(rail).toContain("Dry");
+      expect(rail).toContain("── today");
+      expect(rail).toContain("☂ 92% · 0.66 in");
+      expect(rail).toContain("↑ 6:33 AM  ↓ 7:46 PM");
+    } finally {
+      destroy();
+    }
+  });
+
+  test("today pins to the bottom, with the leftover rows between it and the nowcast", async () => {
+    const store = await makeStore(toml({ nowcast: true, details: true }));
+    const { frame, destroy } = await renderAt(store, 120, 40);
+    try {
+      const rail = railColumn(frame);
+      const nowRow = rail.findIndex((line) => line.includes("── now · m"));
+      const todayRow = rail.findIndex((line) => line.includes("── today"));
+      const sunRow = rail.findIndex((line) => line.includes("↑ 6:33 AM"));
+      expect(nowRow).toBeGreaterThan(0);
+      // Today sits at the foot of the rail: its last row is the row above the bottom border.
+      const bottomBorder = rail.findIndex((line) => line.startsWith("└"));
+      expect(sunRow).toBe(bottomBorder - 1);
+      // The gap lands between the two sections, not after both.
+      expect(todayRow - nowRow).toBeGreaterThan(10);
+      for (const line of rail.slice(nowRow + 2, todayRow)) {
+        expect(line.slice(1, 25).trim()).toBe("");
+      }
+    } finally {
+      destroy();
+    }
+  });
+
+  test("panels.nowcast = false suppresses the now section but keeps today", async () => {
+    const store = await makeStore(toml({ nowcast: false, details: true }));
+    const { frame, destroy } = await renderAt(store, 120, 40);
+    try {
+      const rail = railColumn(frame).join("\n");
+      expect(rail).not.toContain("── now");
+      expect(rail).not.toContain("Dry");
+      expect(rail).toContain("── today");
+    } finally {
+      destroy();
+    }
+  });
+
+  test("panels.details = false suppresses today but keeps the nowcast", async () => {
+    const store = await makeStore(toml({ nowcast: true, details: false }));
+    const { frame, destroy } = await renderAt(store, 120, 40);
+    try {
+      const rail = railColumn(frame).join("\n");
+      expect(rail).toContain("── now · m");
+      expect(rail).not.toContain("── today");
+    } finally {
+      destroy();
+    }
+  });
+
+  test("a provider with no minute feed hides the section — never a false Dry", async () => {
+    const forecast: NormalizedForecast = { ...fixtureForecast(), hasMinutePrecip: false };
+    const store = await makeStore(toml({ nowcast: true, details: true }), forecast);
+    const { frame, destroy } = await renderAt(store, 120, 40);
+    try {
+      const rail = railColumn(frame).join("\n");
+      expect(rail).not.toContain("── now");
+      expect(rail).not.toContain("Dry");
+      expect(rail).toContain("── today");
+    } finally {
+      destroy();
+    }
+  });
+
+  test("renders at the 96-column lg floor with no row overflowing the terminal", async () => {
+    const store = await makeStore(toml({ nowcast: true, details: true }));
+    const { frame, destroy } = await renderAt(store, 96, 24);
+    try {
+      const lines = frame.split("\n").filter((line) => line.length > 0);
+      for (const line of lines) {
+        expect(displayWidth(line)).toBeLessThanOrEqual(96);
+      }
+      const rail = railColumn(frame).join("\n");
+      expect(rail).toContain("── now · m");
+      expect(rail).toContain("── today");
+    } finally {
+      destroy();
+    }
+  });
+
+  test("a short rail sheds today before the nowcast, and never half-draws a section", async () => {
+    const store = await makeStore(toml({ nowcast: true, details: true }));
+    const { frame, destroy } = await renderAt(store, 96, 8);
+    try {
+      const rail = railColumn(frame).join("\n");
+      expect(rail).toContain("── now · m");
+      expect(rail).not.toContain("── today");
+      // Today's rows must not leak in without their rule.
+      expect(rail).not.toContain("☂ 92%");
+    } finally {
+      destroy();
+    }
+  });
+});
