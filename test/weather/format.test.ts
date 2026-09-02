@@ -5,14 +5,17 @@ import {
   formatDayDate,
   formatDayLabel,
   formatHourLabel,
+  formatHourRange,
   formatPct,
   formatPrecip,
   formatPressure,
   formatTemp,
   formatVisibility,
   formatWind,
+  hourlyRainLabel,
   tempWarmthT,
   uvLabel,
+  windComfortLabel,
 } from "../../src/lib/weather/format";
 
 describe("tempWarmthT", () => {
@@ -173,6 +176,46 @@ describe("formatClock", () => {
   test("24h: midnight and noon render 00:00 and 12:00", () => {
     expect(formatClock("2026-08-24T00:00:00Z", 0, "24h")).toBe("00:00");
     expect(formatClock("2026-08-24T03:00:00Z", 9 * 3600, "24h")).toBe("12:00");
+  });
+});
+
+describe("formatHourRange", () => {
+  test("same meridiem merges into one suffix: 2-5 PM", () => {
+    expect(formatHourRange("2026-08-24T14:00:00Z", "2026-08-24T17:00:00Z", 0, "12h")).toBe(
+      "2–5 PM",
+    );
+  });
+
+  test("crossing the meridiem keeps both suffixes: 11 AM-1 PM", () => {
+    expect(formatHourRange("2026-08-24T11:00:00Z", "2026-08-24T13:00:00Z", 0, "12h")).toBe(
+      "11 AM–1 PM",
+    );
+  });
+
+  test("24h format is zero-padded HH-HH with no meridiem", () => {
+    expect(formatHourRange("2026-08-24T14:00:00Z", "2026-08-24T17:00:00Z", 0, "24h")).toBe("14–17");
+  });
+
+  test("respects the UTC offset, not the raw UTC hour", () => {
+    expect(formatHourRange("2026-08-24T14:00:00Z", "2026-08-24T17:00:00Z", 9 * 3600, "12h")).toBe(
+      "11 PM–2 AM",
+    );
+  });
+});
+
+describe("windComfortLabel", () => {
+  test("bands from calm through breezy", () => {
+    expect(windComfortLabel(5)).toBe("calm");
+    expect(windComfortLabel(15)).toBe("light wind");
+    expect(windComfortLabel(30)).toBe("breezy");
+  });
+});
+
+describe("hourlyRainLabel", () => {
+  test("bands from light through heavy", () => {
+    expect(hourlyRainLabel(0.5)).toBe("light rain");
+    expect(hourlyRainLabel(3)).toBe("rain");
+    expect(hourlyRainLabel(10)).toBe("heavy rain");
   });
 });
 

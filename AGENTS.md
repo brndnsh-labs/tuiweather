@@ -29,7 +29,7 @@ src/
   index.tsx              entry: renderer boot; CLI parsing (--one-line, --json, watch) in cli.ts
   app/                   shell, global keymap, store (zustand), refresh scheduler
   components/            presentational primitives (Sparkline, RangeBar, DaylightBar)
-  features/              current/ (incl. DetailsGrid) hourly/ daily/ daydetail/ nowcast/ search/ locations/ onboarding/
+  features/              current/ (incl. DetailsGrid) hourly/ daily/ daydetail/ nowcast/ comfort/ search/ locations/ onboarding/
   lib/weather/types.ts   DOMAIN MODEL — Condition enum, CurrentObs, NormalizedForecast
   lib/providers/
     types.ts             WeatherProvider interface, PROVIDER_IDS

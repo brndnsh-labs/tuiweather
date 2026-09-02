@@ -2,6 +2,7 @@ import { useKeyboard, useRenderer } from "@opentui/react";
 import { memo, type ReactNode, useEffect, useMemo, useState } from "react";
 import { DAYLIGHT_MIN_WIDTH, DaylightBar } from "../components/DaylightBar";
 import { Sparkline } from "../components/Sparkline";
+import { ComfortLines } from "../features/comfort/ComfortLines";
 import { DetailsGrid } from "../features/current/DetailsGrid";
 import { Hero } from "../features/current/Hero";
 import {
@@ -29,7 +30,7 @@ import { FirstRun } from "../features/onboarding/FirstRun";
 import { SearchOverlay } from "../features/search/SearchOverlay";
 import type { DisplayPrefs, TuiConfig } from "../lib/config/schema";
 import { resolveDisplayPrefs } from "../lib/config/schema";
-import { deriveNowcast } from "../lib/weather/derive";
+import { deriveComfortWindows, deriveNowcast } from "../lib/weather/derive";
 import { displayWidth, truncateCells } from "../lib/weather/format";
 import type { AirQuality, NormalizedForecast } from "../lib/weather/types";
 import { FALLBACK_APPEARANCE, type TerminalAppearance } from "../theme/detect";
@@ -85,6 +86,13 @@ function heroRowsFor(tier: Tier, panels: TuiConfig["panels"]): number {
 /** Single source of truth for the hourly window size per tier — mirrors the maxPoints passed to every <HourlyStrip>. */
 function hourlyWindowMaxPoints(tier: Tier): number {
   return tier === "sm" ? 12 : 48;
+}
+
+/** The comfort lines need real width for their "range · dry · temp · wind · uv" prose; xs/sm have no budget for two extra rows. */
+function comfortRowsFor(tier: Tier, forecast: NormalizedForecast, nowUtc: string): number {
+  if (tier !== "md" && tier !== "lg") return 0;
+  const { goOut, headsUp } = deriveComfortWindows(forecast, nowUtc);
+  return (goOut !== null ? 1 : 0) + (headsUp !== null ? 1 : 0);
 }
 
 function hourlyRowsFor(
@@ -152,6 +160,8 @@ export function estimateMainContentRows(input: MainOverflowInput): number | null
   if (tier !== "lg" && panels.nowcast && nowcastKind !== "dry" && nowcastKind !== "unavailable") {
     sections.push(NOWCAST_BANNER_ROWS + (nowcastExpanded ? NOWCAST_EXPANSION_ROWS : 0));
   }
+  const comfortRows = comfortRowsFor(tier, forecast, nowUtc);
+  if (comfortRows > 0) sections.push(comfortRows);
   const hourlyRows = hourlyRowsFor(tier, width, forecast, panels, nowUtc, hourlyInspectTimeUtc);
   if (hourlyRows > 0) sections.push(hourlyRows);
   if (panels.daily && forecast.daily.length > 0 && width >= 12) {
@@ -231,6 +241,10 @@ const MainContent = memo(function MainContent({
 }: MainContentProps) {
   const palette = usePalette();
   const nowcast = deriveNowcast(forecast, nowUtc);
+  const comfort =
+    tier === "md" || tier === "lg"
+      ? deriveComfortWindows(forecast, nowUtc)
+      : { goOut: null, headsUp: null };
   const today = forecast.daily[0];
   const showDaylight =
     panels.details === true && today?.sunriseUtc != null && today?.sunsetUtc != null;
@@ -299,6 +313,15 @@ const MainContent = memo(function MainContent({
               timeFormat={prefs.timeFormat}
             />
           ) : null}
+          {showDetails && (comfort.goOut !== null || comfort.headsUp !== null) ? (
+            <ComfortLines
+              goOut={comfort.goOut}
+              headsUp={comfort.headsUp}
+              utcOffsetSeconds={forecast.utcOffsetSeconds}
+              prefs={prefs}
+              width={width}
+            />
+          ) : null}
           {panels.hourly ? (
             <HourlyStrip
               points={forecast.hourly}
@@ -360,6 +383,15 @@ const MainContent = memo(function MainContent({
             utcOffsetSeconds={forecast.utcOffsetSeconds}
             width={width}
             timeFormat={prefs.timeFormat}
+          />
+        ) : null}
+        {comfort.goOut !== null || comfort.headsUp !== null ? (
+          <ComfortLines
+            goOut={comfort.goOut}
+            headsUp={comfort.headsUp}
+            utcOffsetSeconds={forecast.utcOffsetSeconds}
+            prefs={prefs}
+            width={width}
           />
         ) : null}
         {panels.hourly ? (
