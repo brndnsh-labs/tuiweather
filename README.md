@@ -11,6 +11,7 @@ Keyboard-driven terminal weather app: Dark Sky-style rain nowcasting, hourly and
 - **Units** — metric/imperial toggle persisted across runs
 - **Themes** — day/night accent palettes follow the forecast location's sunrise/sunset; text ink adapts to your terminal's background
 - **Air quality** — US AQI with category label in the details grid, from the Open-Meteo Air Quality API
+- **Status rail** — on wide terminals (96+ columns) the sidebar carries the location list plus a live nowcast card and a bottom-anchored today summary (range, rain, sunrise/sunset, UV and AQI)
 - **Responsive layout** — four breakpoint tiers down to 32 columns; clamps gracefully below that
 - **One-line mode** — a single status line for tmux bars and prompts
 
@@ -192,8 +193,8 @@ longitude = -122.6765
 | `units.wind` | `metric` / `imperial` | legacy `units`, else `imperial` | Display unit for wind speed and visibility |
 | `units.precip` | `metric` / `imperial` | legacy `units`, else `imperial` | Display unit for precipitation amounts |
 | `units.pressure` | `metric` / `imperial` | legacy `units`, else `imperial` | Display unit for pressure; `metric` → hPa (rounded), `imperial` → inHg to 2 decimals; falls back to `imperial` when unset |
-| `panels.nowcast` | boolean | `true` | Show/hide the nowcast banner |
-| `panels.details` | boolean | `true` | Show/hide the details grid |
+| `panels.nowcast` | boolean | `true` | Show/hide the nowcast banner, and the status rail's `now` card at the lg tier |
+| `panels.details` | boolean | `true` | Show/hide the details grid, and the status rail's `today` card at the lg tier (it repeats the grid's sunrise/sunset and UV) |
 | `panels.hourly` | boolean | `true` | Show/hide the hourly strip |
 | `panels.daily` | boolean | `true` | Show/hide the daily list |
 

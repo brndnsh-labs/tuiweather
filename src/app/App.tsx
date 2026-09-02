@@ -710,7 +710,16 @@ export function App(props: AppProps = {}) {
   } else if (tier === "lg") {
     body = (
       <box flexDirection="row" flexGrow={1}>
-        <Sidebar store={store} focusedSlug={focusedSlug} prefs={prefs} />
+        <Sidebar
+          store={store}
+          focusedSlug={focusedSlug}
+          prefs={prefs}
+          forecast={forecast}
+          nowUtc={nowUtc}
+          airQuality={airQuality}
+          panels={config.panels}
+          height={viewport.height}
+        />
         <box flexDirection="column" flexGrow={1} gap={1}>
           {header}
           {status}
