@@ -36,6 +36,31 @@ daily = true
 `;
 }
 
+function tomlManyLocations(count: number, defaultIndex: number): string {
+  const locations = Array.from(
+    { length: count },
+    (_, i) => `
+[[locations]]
+slug = "location-${i}"
+label = "Location ${i}"
+latitude = 45.5202
+longitude = -122.6765
+`,
+  ).join("");
+  return `schema_version = 1
+units = "imperial"
+refresh_minutes = 10
+theme = "night"
+default_location = "location-${defaultIndex}"
+${locations}
+[panels]
+nowcast = true
+details = true
+hourly = true
+daily = true
+`;
+}
+
 const tmpDirs: string[] = [];
 
 afterEach(async () => {
@@ -87,14 +112,26 @@ async function renderAt(
   store: WeatherStore,
   width: number,
   height: number,
-): Promise<{ frame: string; destroy: () => void }> {
+  waitFor = "Portland",
+): Promise<{
+  frame: string;
+  destroy: () => void;
+  pressKeys: (keys: string[], predicate: (frame: string) => boolean) => Promise<string>;
+}> {
   const setup = await testRender(<App store={store} nowMs={NOW_MS} nowUtc={NOW} />, {
     width,
     height,
   });
   await setup.flush();
-  const frame = await waitUntilFrame(setup, (f) => f.includes("Portland"));
-  return { frame, destroy: () => setup.renderer.destroy() };
+  const frame = await waitUntilFrame(setup, (f) => f.includes(waitFor));
+  return {
+    frame,
+    destroy: () => setup.renderer.destroy(),
+    pressKeys: async (keys: string[], predicate: (frame: string) => boolean) => {
+      await setup.mockInput.pressKeys(keys);
+      return waitUntilFrame(setup, predicate);
+    },
+  };
 }
 
 /** The rail occupies the first SIDEBAR_WIDTH columns of every body row. */
@@ -190,6 +227,41 @@ describe("lg status rail", () => {
       const rail = railColumn(frame).join("\n");
       expect(rail).toContain("── now · m");
       expect(rail).toContain("── today");
+    } finally {
+      destroy();
+    }
+  });
+
+  test("a long location list clamps with a '+N more' row, keeping the active location visible", async () => {
+    const store = await makeStore(tomlManyLocations(30, 29), undefined);
+    const { frame, destroy } = await renderAt(store, 96, 24, "Location 29");
+    try {
+      const rail = railColumn(frame).join("\n");
+      // The active location (last configured) stays in view, with its neighbors
+      // contiguous — no rows silently dropped from the middle of the window.
+      for (let i = 9; i <= 29; i++) {
+        expect(rail).toContain(`Location ${i} `);
+      }
+      for (let i = 0; i <= 8; i++) {
+        expect(rail).not.toContain(`Location ${i} `);
+      }
+      expect(rail).toContain("● Location 29");
+      expect(rail).toContain("+9 more · l");
+    } finally {
+      destroy();
+    }
+  });
+
+  test("j/k focus navigation scrolls the clamped window into view instead of going invisible", async () => {
+    const store = await makeStore(tomlManyLocations(30, 0));
+    const { destroy, pressKeys } = await renderAt(store, 96, 24, "Location 0");
+    try {
+      // With nothing focused yet, a single `k` (vim "up") jumps focus straight
+      // to the last configured location — the reviewer-found gap: that used to
+      // land outside the active-anchored window with no `▸` marker anywhere.
+      const afterK = await pressKeys(["k"], (f) => f.includes("▸"));
+      const rail = railColumn(afterK).join("\n");
+      expect(rail).toContain("▸ Location 29");
     } finally {
       destroy();
     }
