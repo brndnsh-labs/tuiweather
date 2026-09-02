@@ -4,7 +4,13 @@ import { DAYLIGHT_MIN_WIDTH, DaylightBar } from "../components/DaylightBar";
 import { Sparkline } from "../components/Sparkline";
 import { DetailsGrid } from "../features/current/DetailsGrid";
 import { Hero } from "../features/current/Hero";
-import { DailyList, dailyChips } from "../features/daily/DailyList";
+import {
+  clampDailyPageIndex,
+  DAILY_PAGE_SIZE,
+  DailyList,
+  dailyChips,
+  dailySectionLabel,
+} from "../features/daily/DailyList";
 import { DayDetailOverlay, localDateAtOffset } from "../features/daydetail/DayDetailOverlay";
 import {
   HourlyStrip,
@@ -139,7 +145,8 @@ export function estimateMainContentRows(input: MainOverflowInput): number | null
   if (hourlyRows > 0) sections.push(hourlyRows);
   if (panels.daily && forecast.daily.length > 0 && width >= 12) {
     sections.push(1);
-    sections.push(tier === "lg" ? forecast.daily.length : Math.ceil(forecast.daily.length / 2));
+    const pageDays = Math.min(forecast.daily.length, DAILY_PAGE_SIZE);
+    sections.push(tier === "lg" ? pageDays : Math.ceil(pageDays / 2));
   }
 
   const sectionRows = sections.reduce((sum, rows) => sum + rows, 0);
@@ -175,6 +182,7 @@ interface MainContentProps {
   scrollHeight: number;
   airQuality?: AirQuality | null;
   selectedDayDateLocal: string | null;
+  dailyPageIndex: number;
   hourlyInspectTimeUtc: string | null;
 }
 
@@ -205,6 +213,7 @@ const MainContent = memo(function MainContent({
   scrollHeight,
   airQuality,
   selectedDayDateLocal,
+  dailyPageIndex,
   hourlyInspectTimeUtc,
 }: MainContentProps) {
   const palette = usePalette();
@@ -289,9 +298,12 @@ const MainContent = memo(function MainContent({
           ) : null}
           {panels.daily ? (
             <>
-              <text fg={palette.fgDim}>{sectionRule(`${forecast.daily.length} day`, width)}</text>
+              <text fg={palette.fgDim}>
+                {sectionRule(dailySectionLabel(forecast.daily.length, dailyPageIndex), width)}
+              </text>
               <DailyList
                 days={forecast.daily}
+                pageIndex={dailyPageIndex}
                 prefs={prefs}
                 columns={2}
                 width={width}
@@ -350,9 +362,12 @@ const MainContent = memo(function MainContent({
         ) : null}
         {panels.daily ? (
           <>
-            <text fg={palette.fgDim}>{sectionRule(`${forecast.daily.length} day`, width)}</text>
+            <text fg={palette.fgDim}>
+              {sectionRule(dailySectionLabel(forecast.daily.length, dailyPageIndex), width)}
+            </text>
             <DailyList
               days={forecast.daily}
+              pageIndex={dailyPageIndex}
               prefs={prefs}
               columns={1}
               width={width}
@@ -381,6 +396,7 @@ export function App(props: AppProps = {}) {
   const locationsOpen = store((s) => s.locationsOpen);
   const dayCursorDate = store((s) => s.dayCursorDate);
   const dayDetailDate = store((s) => s.dayDetailDate);
+  const dailyPageIndex = store((s) => s.dailyPageIndex);
   const hourlyInspectTimeUtc = store((s) => s.hourlyInspectTimeUtc);
   const airQuality = store((s) => s.airQuality);
   const lastActionError = store((s) => s.lastActionError);
@@ -476,6 +492,28 @@ export function App(props: AppProps = {}) {
         const anchorIndex = currentIndex >= 0 ? currentIndex : Math.max(0, todayIndex);
         const nextIndex = Math.max(0, Math.min(dates.length - 1, anchorIndex + delta));
         store.getState().setDayCursorDate(dates[nextIndex] ?? null);
+        const targetPage = Math.floor(nextIndex / DAILY_PAGE_SIZE);
+        if (store.getState().dailyPageIndex !== targetPage) {
+          store.getState().setDailyPageIndex(targetPage);
+        }
+      },
+      moveDailyPage: (delta) => {
+        if (!forecast || forecast.daily.length === 0) return;
+        const current = store.getState().dailyPageIndex;
+        const next = clampDailyPageIndex(current + delta, forecast.daily.length);
+        if (next === current) return;
+        store.getState().setDailyPageIndex(next);
+        // Why: keep an existing cursor visible on the page it now points at — otherwise the
+        // next arrow-key press re-derives its target page from the (now off-screen) cursor and
+        // silently snaps the view back to the old page.
+        const cursorDate = store.getState().dayCursorDate;
+        if (cursorDate === null) return;
+        const dates = forecast.daily.map((day) => day.dateLocal);
+        const cursorIndex = dates.indexOf(cursorDate);
+        const cursorPage = cursorIndex < 0 ? -1 : Math.floor(cursorIndex / DAILY_PAGE_SIZE);
+        if (cursorPage !== next) {
+          store.getState().setDayCursorDate(dates[next * DAILY_PAGE_SIZE] ?? null);
+        }
       },
       openDayDetail: () => {
         if (!forecast || forecast.daily.length === 0) return;
@@ -617,6 +655,7 @@ export function App(props: AppProps = {}) {
         scrollHeight={mainScrollHeight}
         airQuality={airQuality}
         selectedDayDateLocal={dayCursorDate}
+        dailyPageIndex={dailyPageIndex}
         hourlyInspectTimeUtc={hourlyInspectTimeUtc}
       />
     ) : (

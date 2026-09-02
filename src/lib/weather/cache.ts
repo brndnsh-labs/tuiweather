@@ -3,6 +3,7 @@ import { chmod, mkdir, open, readdir, readFile, rename, rm, stat, unlink } from 
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
+import { OPENMETEO_PROVIDER_ID } from "../providers/openmeteo/client";
 import { type ForecastWindow, ProviderError, type WeatherProvider } from "../providers/types";
 import type { AirQuality, Condition, GeoPoint, NormalizedForecast } from "./types";
 
@@ -146,8 +147,13 @@ export function cacheKey(
   longitude: number,
   window?: ForecastWindow,
 ): string {
+  // Why: Open-Meteo always fetches DAILY_FORECAST_DAYS regardless of forecastDays (see
+  // openmeteo/client.ts) — keying on it here would fragment the cache across daily_days values
+  // that no longer change what's actually fetched.
+  const forecastDaysTag =
+    providerId === OPENMETEO_PROVIDER_ID ? "*" : (window?.forecastDays ?? "*");
   const windowTag =
-    window === undefined ? "" : `|${window.forecastDays ?? "*"}|${window.forecastHours ?? "*"}`;
+    window === undefined ? "" : `|${forecastDaysTag}|${window.forecastHours ?? "*"}`;
   const digest = createHash("sha256")
     .update(
       `${CACHE_SCHEMA_VERSION}|${providerId}|${latitude.toFixed(3)}|${longitude.toFixed(3)}${windowTag}`,

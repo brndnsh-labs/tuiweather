@@ -115,6 +115,7 @@ export interface WeatherState {
   locationsOpen: boolean;
   dayCursorDate: string | null;
   dayDetailDate: string | null;
+  dailyPageIndex: number;
   hourlyInspectTimeUtc: string | null;
   deleteArmedAtMs: number | null;
   onboardingSkipped: boolean;
@@ -131,6 +132,7 @@ export interface WeatherState {
   setLocationsOpen(open: boolean): void;
   setDayCursorDate(dateLocal: string | null): void;
   setDayDetailDate(dateLocal: string | null): void;
+  setDailyPageIndex(index: number): void;
   setHourlyInspectTimeUtc(timeUtc: string | null): void;
   armDelete(): void;
   disarmDelete(): void;
@@ -294,6 +296,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
       locationsOpen: false,
       dayCursorDate: null,
       dayDetailDate: null,
+      dailyPageIndex: 0,
       hourlyInspectTimeUtc: null,
       deleteArmedAtMs: null,
       onboardingSkipped: false,
@@ -389,6 +392,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
           airQuality: aq,
           dayCursorDate: null,
           dayDetailDate: null,
+          dailyPageIndex: 0,
           hourlyInspectTimeUtc: null,
         });
         scheduleRefreshLoop();
@@ -464,6 +468,10 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
 
       setDayCursorDate: (dateLocal: string | null) => {
         set({ dayCursorDate: dateLocal });
+      },
+
+      setDailyPageIndex: (index: number) => {
+        set({ dailyPageIndex: index });
       },
 
       setHourlyInspectTimeUtc: (timeUtc: string | null) => {
@@ -672,6 +680,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
           locationsOpen: false,
           dayCursorDate: null,
           dayDetailDate: null,
+          dailyPageIndex: 0,
           hourlyInspectTimeUtc: null,
         }),
 

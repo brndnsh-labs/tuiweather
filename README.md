@@ -70,6 +70,7 @@ Use `tuiweather --help` for command-line options and `tuiweather --version` to p
 | `[` / `]` | Previous / next location |
 | `←` / `→` | Select a day in the daily list |
 | `v` | Inspect the selected day (defaults to today) |
+| `,` / `.` | Page the daily list backward / forward through the fetched range |
 | `l` | Open the locations overlay: switch, set default, delete, reorder |
 | `1`–`9` | Jump to location N by sidebar order (1-based; no-op out of range) |
 | `u` | Toggle metric / imperial units |
@@ -184,7 +185,7 @@ longitude = -122.6765
 | `theme` | `day` / `night` / `auto` | `"auto"` | Accent palette; `auto` follows the location's sunrise/sunset. Text ink adapts via `ink` |
 | `ink` | `auto` / `light` / `dark` | `"auto"` | Terminal ink override; `auto` detects the background via an OSC query (300ms timeout, fallback dark), `light`/`dark` skips detection and uses that ink directly |
 | `provider` | `openmeteo` / `nws` | `"openmeteo"` | Weather data source. Open-Meteo is the default full-feature experience; NWS is the official US source fallback — works: conditions, temperatures, precipitation probabilities; goes quiet: minute-level nowcast (panel hides, watch bell inactive), hourly/daily precip amounts (blank bars/chips), air quality |
-| `daily_days` | integer | `7` | `1`–`16` forecast days |
+| `daily_days` | integer | `7` | `1`–`16` forecast days requested from NWS; Open-Meteo always requests 14 days and pages the daily list with `,`/`.` regardless of this setting |
 | `hourly_hours` | integer | `24` | `12`–`48` forecast hours |
 | `default_location` | string | none | Must match a `[[locations]]` slug |
 | `units.temp` | `metric` / `imperial` | legacy `units`, else `imperial` | Display unit for temperatures |

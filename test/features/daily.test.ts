@@ -3,8 +3,11 @@ import {
   anyPrecipChip,
   CHIP_FULL_RESERVE,
   CHIP_PROB_ONLY_RESERVE,
+  clampDailyPageIndex,
   dailyChips,
   dailyMetrics,
+  dailyPageWindow,
+  dailySectionLabel,
   precipChip,
 } from "../../src/features/daily/DailyList";
 import type { DailyPoint } from "../../src/lib/weather/types";
@@ -161,5 +164,40 @@ describe("dailyChips", () => {
   test("renders one compact chip per day", () => {
     const chips = dailyChips([day(65)], "imperial");
     expect(chips).toBe("Mon\uD83C\uDF27\uFE0F68°");
+  });
+});
+
+function daysOfLength(n: number): DailyPoint[] {
+  return Array.from({ length: n }, (_, i) =>
+    day(null, { dateLocal: `2026-09-${String(i + 1).padStart(2, "0")}` }),
+  );
+}
+
+describe("daily paging", () => {
+  test("an exact multiple of the page size has no partial trailing page", () => {
+    const fourteen = daysOfLength(14);
+    expect(dailyPageWindow(fourteen, 0)).toHaveLength(7);
+    expect(dailyPageWindow(fourteen, 1)).toHaveLength(7);
+    expect(dailySectionLabel(14, 1)).toBe("14 day · page 2/2");
+  });
+
+  test("a page-boundary-plus-one total leaves a single-day trailing page", () => {
+    const eight = daysOfLength(8);
+    expect(dailyPageWindow(eight, 0).map((d) => d.dateLocal)).toEqual(
+      eight.slice(0, 7).map((d) => d.dateLocal),
+    );
+    const lastPage = dailyPageWindow(eight, 1);
+    expect(lastPage).toEqual(eight.slice(7, 8));
+    expect(dailySectionLabel(8, 1)).toBe("8 day · page 2/2");
+    // Clamped past the end: still the same trailing page, not an empty one.
+    expect(clampDailyPageIndex(5, 8)).toBe(1);
+    expect(dailyPageWindow(eight, 5)).toEqual(lastPage);
+  });
+
+  test("a forecast at or under the page size never shows a page suffix", () => {
+    const seven = daysOfLength(7);
+    expect(clampDailyPageIndex(9, 7)).toBe(0);
+    expect(dailySectionLabel(7, 0)).toBe("7 day");
+    expect(dailyPageWindow(seven, 3)).toEqual(seven);
   });
 });

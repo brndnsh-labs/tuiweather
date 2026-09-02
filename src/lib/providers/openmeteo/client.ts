@@ -9,6 +9,12 @@ export const OPENMETEO_PROVIDER_ID = "openmeteo";
 const FORECAST_ENDPOINT = "https://api.open-meteo.com/v1/forecast";
 const TIMEOUT_MS = 10_000;
 
+/**
+ * Daily block depth is fixed, not driven by `daily_days` — the UI pages through this fixed
+ * pool (see DailyList's DAILY_PAGE_SIZE) rather than re-fetching a wider window on demand.
+ */
+const DAILY_FORECAST_DAYS = 14;
+
 const CURRENT_VARIABLES = [
   "temperature_2m",
   "relative_humidity_2m",
@@ -51,6 +57,7 @@ const DAILY_VARIABLES = [
 ] as const;
 
 export interface ForecastOptions {
+  /** Accepted for shape-compatibility with ForecastWindow; ignored — see DAILY_FORECAST_DAYS. */
   forecastDays?: number;
   forecastHours?: number;
   pastMinutely15?: number;
@@ -67,7 +74,7 @@ export function buildForecastUrl(location: GeoPoint, opts: ForecastOptions = {})
     daily: DAILY_VARIABLES.join(","),
     timezone: "auto",
     timeformat: "iso8601",
-    forecast_days: String(opts.forecastDays ?? 3),
+    forecast_days: String(DAILY_FORECAST_DAYS),
     past_minutely_15: String(opts.pastMinutely15 ?? 8),
     forecast_minutely_15: String(opts.forecastMinutely15 ?? 12),
   });

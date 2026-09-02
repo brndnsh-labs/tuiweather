@@ -10,7 +10,7 @@ import { forecastResponseSchema } from "../../src/lib/providers/openmeteo/schema
 import portlandFixture from "../fixtures/openmeteo/portland.json";
 import { stubNullAirQualityFetcher } from "../helpers";
 
-const PORTLAND_FIXTURE_NOW = "2026-08-24T16:15:00.000Z";
+const PORTLAND_FIXTURE_NOW = "2026-09-02T12:45:00.000Z";
 const PORTLAND_NOW_MS = Date.parse(PORTLAND_FIXTURE_NOW);
 
 const IMPERIAL_12H_TOML = `schema_version = 1
@@ -134,9 +134,9 @@ describe("golden frames", () => {
     try {
       await setup.flush();
       const frame = await waitUntilFrame(setup, (f) => f.includes("Portland"));
-      expect(frame).toContain("sunrise  06:22");
+      expect(frame).toContain("sunrise  06:33");
       expect(frame).toContain("18°");
-      expect(frame).toContain("14 mph");
+      expect(frame).toContain("gusts    6 mph");
       expect(frame).toMatchSnapshot("md 80x24 mixed 24h");
     } finally {
       await setup.renderer.destroy();
@@ -151,8 +151,8 @@ describe("golden frames", () => {
     );
     try {
       await setup.flush();
-      const frame = await waitUntilFrame(setup, (f) => f.includes("09:15"));
-      expect(frame).toContain("7 mph");
+      const frame = await waitUntilFrame(setup, (f) => f.includes("05:45"));
+      expect(frame).toContain("4 mph");
       expect(frame).toMatchSnapshot("sm 60x20 mixed 24h");
     } finally {
       await setup.renderer.destroy();

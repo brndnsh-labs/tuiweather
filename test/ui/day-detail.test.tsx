@@ -11,7 +11,7 @@ import { displayWidth } from "../../src/lib/weather/format";
 import portlandFixture from "../fixtures/openmeteo/portland.json";
 import { stubNullAirQualityFetcher } from "../helpers";
 
-const NOW = "2026-08-24T16:15:00.000Z";
+const NOW = "2026-09-02T12:45:00.000Z";
 const NOW_MS = Date.parse(NOW);
 
 const CONFIG_TOML = `schema_version = 1
@@ -93,12 +93,12 @@ describe("day detail overlay", () => {
       await setup.flush();
       await waitUntilFrame(setup, (frame) => frame.includes("Portland"));
       setup.mockInput.pressArrow("right");
-      const before = await waitUntilFrame(setup, (frame) => frame.includes("▸Tue"));
-      expect(before).toContain("▸Tue");
+      const before = await waitUntilFrame(setup, (frame) => frame.includes("▸Thu"));
+      expect(before).toContain("▸Thu");
 
       const open = await openDayDetail(setup);
-      expect(open).toContain("Tue 2026-08-25");
-      expect(store.getState().dayDetailDate).toBe("2026-08-25");
+      expect(open).toContain("Thu 2026-09-03");
+      expect(store.getState().dayDetailDate).toBe("2026-09-03");
 
       await setup.mockInput.pressEscape();
       await sleep(30);
@@ -148,7 +148,7 @@ describe("day detail overlay", () => {
         await setup.flush();
         await waitUntilFrame(setup, (frame) => frame.includes("Portland"));
         const frame = await openDayDetail(setup);
-        expect(frame).toContain("Mon 2026-08-24");
+        expect(frame).toContain("Wed 2026-09-02");
         expect(frame).toMatchSnapshot(name);
       } finally {
         await setup.renderer.destroy();
