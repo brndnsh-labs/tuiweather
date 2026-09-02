@@ -1,3 +1,5 @@
+import { WIND_SUSTAINED_PENALTY_KMH } from "./derive";
+
 export type Units = "metric" | "imperial";
 
 export type TimeFormat = "12h" | "24h";
@@ -123,6 +125,50 @@ export function formatClock(
   const h12 = hours % 12 === 0 ? 12 : hours % 12;
   const meridiem = hours < 12 ? "AM" : "PM";
   return `${h12}:${mm} ${meridiem}`;
+}
+
+/**
+ * Compact hour-only range for a comfort window, e.g. "2–5 PM" or, crossing
+ * the meridiem, "11 AM–1 PM". Comfort windows are hourly-forecast-aligned so
+ * minutes are always :00 — formatClock's HH:MM form would be redundant here.
+ */
+export function formatHourRange(
+  startUtc: string,
+  endUtc: string,
+  utcOffsetSeconds: number,
+  timeFormat: TimeFormat,
+): string {
+  const start = shiftUtc(startUtc, utcOffsetSeconds);
+  const end = shiftUtc(endUtc, utcOffsetSeconds);
+  const startHour = start.getUTCHours();
+  const endHour = end.getUTCHours();
+  if (Number.isNaN(startHour) || Number.isNaN(endHour)) return EN_DASH;
+  if (timeFormat === "24h") {
+    return `${String(startHour).padStart(2, "0")}–${String(endHour).padStart(2, "0")}`;
+  }
+  const to12 = (h: number) => (h % 12 === 0 ? 12 : h % 12);
+  const startMeridiem = startHour < 12 ? "AM" : "PM";
+  const endMeridiem = endHour < 12 ? "AM" : "PM";
+  if (startMeridiem === endMeridiem) return `${to12(startHour)}–${to12(endHour)} ${endMeridiem}`;
+  return `${to12(startHour)} ${startMeridiem}–${to12(endHour)} ${endMeridiem}`;
+}
+
+/** Qualitative label for a comfort window's mean wind speed — no unit conversion, so metric in either display mode. */
+export function windComfortLabel(speedKmh: number): string {
+  if (speedKmh < 10) return "calm";
+  if (speedKmh < WIND_SUSTAINED_PENALTY_KMH) return "light wind";
+  return "breezy";
+}
+
+/**
+ * Qualitative label for a comfort window's peak hourly precip rate. Bands
+ * track the visual density ladder in HourlyStrip's PRECIP_MM_BUCKETS (▄ at
+ * 1mm/h, ▆ at 5mm/h) rather than inventing a separate scale.
+ */
+export function hourlyRainLabel(mmPerHour: number): string {
+  if (mmPerHour < 1) return "light rain";
+  if (mmPerHour < 5) return "rain";
+  return "heavy rain";
 }
 
 export function formatDayDate(

@@ -6,6 +6,7 @@ Keyboard-driven terminal weather app: Dark Sky-style rain nowcasting, hourly and
 
 - **Rain nowcast** — minute-level "umbrella in N min" warnings derived from 15-minute precipitation buckets (Open-Meteo only; NWS has no minute-level precipitation feed — the nowcast panel hides and the watch bell stays inactive under `provider = "nws"`, nothing renders a false "Dry")
 - **Hourly + daily forecast** — sparkline temperature strip, emoji condition icons, precipitation probabilities, and a day-detail view with hourly temperature, precipitation, wind/gust, UV, and daylight context
+- **Go out / heads up** — on medium and wide terminals, a "go out" line names the best dry, comfortable 2+ hour window in the next 24h, and a "heads up" line flags the worst hazardous (rainy or high-gust) one; either line is omitted when nothing in the forecast clears its bar
 - **Location search** — type `/`, search the Open-Meteo geocoder, enter to add; locations persist to config
 - **Guided first run** — choose units and find a location without editing a config file
 - **Units** — metric/imperial toggle persisted across runs

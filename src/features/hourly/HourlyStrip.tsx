@@ -2,6 +2,7 @@ import { memo } from "react";
 import { resample, SPARKLINE_RAMP } from "../../components/Sparkline";
 import type { DisplayPrefs } from "../../lib/config/schema";
 import { conditionGlyph } from "../../lib/weather/condition-display";
+import { PROB_SUMMARY_PCT, TRACE_MM } from "../../lib/weather/derive";
 import {
   displayWidth,
   formatClock,
@@ -17,6 +18,8 @@ import {
 } from "../../lib/weather/format";
 import type { Condition, HourlyPoint } from "../../lib/weather/types";
 import { usePalette } from "../../theme/tokens";
+
+export { PROB_SUMMARY_PCT, TRACE_MM };
 
 interface HourlyStripProps {
   points: HourlyPoint[];
@@ -54,8 +57,6 @@ export const TEMP_AREA_ROWS_WIDE = 4;
 export const TEMP_AREA_ROWS_NARROW = 2;
 /** Below this series width the chart drops to the narrow row count to stay legible. */
 export const MIN_WIDE_AREA_SERIES_WIDTH = 20;
-export const TRACE_MM = 0.05;
-export const PROB_SUMMARY_PCT = 40;
 
 /**
  * Absolute mm/h intensity ladder for hourly precip bars (documented contract,
