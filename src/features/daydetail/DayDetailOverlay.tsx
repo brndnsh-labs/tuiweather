@@ -1,6 +1,12 @@
 import { DaylightBar } from "../../components/DaylightBar";
 import type { DisplayPrefs } from "../../lib/config/schema";
-import { formatDayLabel, formatPrecip, formatWind, truncateCells } from "../../lib/weather/format";
+import {
+  formatDayLabel,
+  formatPrecip,
+  formatTemp,
+  formatWind,
+  truncateCells,
+} from "../../lib/weather/format";
 import type { HourlyPoint, NormalizedForecast } from "../../lib/weather/types";
 import { usePalette } from "../../theme/tokens";
 import { tierFor } from "../../viewport/breakpoints";
@@ -66,6 +72,28 @@ function maxOrNull(values: Array<number | null>): number | null {
   return present.length > 0 ? Math.max(...present) : null;
 }
 
+export interface NightSummary {
+  minTempC: number | null;
+  precipMm: number;
+  firstMorningTempC: number | null;
+}
+
+/**
+ * Night = this local day's !isDay hours: the pre-sunrise tail and the
+ * post-sunset start, both already inside `points` (issue #177, option A —
+ * no cross-midnight fetch). "First morning hour" is the day's first point
+ * (local midnight), not the sunrise hour — it's the earliest reading a
+ * "what does the morning feel like" question could mean without guessing
+ * a wake time.
+ */
+export function deriveNightSummary(points: readonly HourlyPoint[]): NightSummary {
+  const night = points.filter((point) => !point.isDay);
+  const minTempC = night.length > 0 ? Math.min(...night.map((point) => point.temperatureC)) : null;
+  const precipMm = night.reduce((sum, point) => sum + point.precipMm, 0);
+  const firstMorningTempC = points[0]?.temperatureC ?? null;
+  return { minTempC, precipMm, firstMorningTempC };
+}
+
 export function DayDetailOverlay({
   forecast,
   dateLocal,
@@ -97,6 +125,7 @@ export function DayDetailOverlay({
   const gustMax = maxOrNull(points.map((point) => point.windGustKmh));
   const uvMax = maxOrNull(points.map((point) => point.uvIndex));
   const precipTotal = points.reduce((sum, point) => sum + point.precipMm, 0);
+  const night = deriveNightSummary(points);
   const clip = (value: string, budget = summaryWidth) =>
     truncateCells(value, Math.max(1, budget - 1));
 
@@ -108,6 +137,17 @@ export function DayDetailOverlay({
         <text fg={palette.fg}>{clip(`UV max    ${uvMax === null ? "--" : uvMax.toFixed(1)}`)}</text>
         <text fg={palette.rain}>
           {clip(`precip    ${formatPrecip(precipTotal, prefs.precip)}`)}
+        </text>
+      </box>
+      <box flexDirection="column">
+        <text fg={palette.fgDim}>
+          {clip(`night low ${formatTemp(night.minTempC, prefs.temp)}`)}
+        </text>
+        <text fg={palette.rain}>
+          {clip(`night rain ${formatPrecip(night.precipMm, prefs.precip)}`)}
+        </text>
+        <text fg={palette.fgDim}>
+          {clip(`morning   ${formatTemp(night.firstMorningTempC, prefs.temp)}`)}
         </text>
       </box>
       {day ? (

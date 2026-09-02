@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   annotateRows,
+  applyNightDim,
   buildTempAreaRows,
   fitNotes,
   hourLabelsRow,
@@ -8,6 +9,7 @@ import {
   hourlyInspectRow,
   MIN_WIDE_AREA_SERIES_WIDTH,
   nextInspectTimeUtc,
+  nightColumns,
   PROB_SUMMARY_PCT,
   peakProbability,
   planTempNotes,
@@ -337,6 +339,44 @@ describe("segmentRow", () => {
 
   test("unmarked rows stay one accent run", () => {
     expect(segmentRow("████", [])).toEqual([{ text: "████", dim: false }]);
+  });
+});
+
+describe("nightColumns", () => {
+  test("maps each column to its nearest point's isDay", () => {
+    const points = hourlyPoints(4).map((point, i) => withOverrides(point, { isDay: i >= 2 }));
+    expect(nightColumns(points, 4)).toEqual([true, true, false, false]);
+  });
+
+  test("empty input yields no columns", () => {
+    expect(nightColumns([], 4)).toEqual([]);
+    expect(nightColumns(hourlyPoints(2), 0)).toEqual([]);
+  });
+});
+
+describe("applyNightDim", () => {
+  test("widens dim into night columns without touching text", () => {
+    expect(applyNightDim([{ text: "████", dim: false }], [true, true, false, false])).toEqual([
+      { text: "██", dim: true },
+      { text: "██", dim: false },
+    ]);
+  });
+
+  test("annotation dim stays dim even over a day column", () => {
+    expect(
+      applyNightDim(
+        [
+          { text: "  ", dim: false },
+          { text: "85°", dim: true },
+          { text: "██", dim: false },
+        ],
+        [false, false, false, false, false, false, false],
+      ),
+    ).toEqual([
+      { text: "  ", dim: false },
+      { text: "85°", dim: true },
+      { text: "██", dim: false },
+    ]);
   });
 });
 
