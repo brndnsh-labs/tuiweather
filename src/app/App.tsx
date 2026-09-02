@@ -58,6 +58,8 @@ const SLICK_HERO_ROWS = 7;
 const COMPACT_HERO_ROWS = 2;
 const DETAILS_GRID_ROWS = 4;
 const NOWCAST_BANNER_ROWS = 2;
+/** Extra rows the toggled minutely-15 expansion adds under the banner: a labeled bar row + a time-tick row. */
+const NOWCAST_EXPANSION_ROWS = 2;
 /** Error panel: border pair plus message and retry-hint rows. */
 const ERROR_PANEL_ROWS = 4;
 /** Hint line reserved under the scroll region when the overflow hint shows. */
@@ -71,6 +73,7 @@ export interface MainOverflowInput {
   panels: TuiConfig["panels"];
   nowUtc: string;
   hourlyInspectTimeUtc?: string | null;
+  nowcastExpanded?: boolean;
 }
 
 function heroRowsFor(tier: Tier, panels: TuiConfig["panels"]): number {
@@ -121,7 +124,15 @@ function hourlyRowsFor(
  * Hourly height mirrors the area-chart block via its exported row constants.
  */
 export function estimateMainContentRows(input: MainOverflowInput): number | null {
-  const { tier, width, forecast, panels, nowUtc, hourlyInspectTimeUtc = null } = input;
+  const {
+    tier,
+    width,
+    forecast,
+    panels,
+    nowUtc,
+    hourlyInspectTimeUtc = null,
+    nowcastExpanded = false,
+  } = input;
   if (tier === "xs") return null;
 
   const sections: number[] = [heroRowsFor(tier, panels)];
@@ -139,7 +150,7 @@ export function estimateMainContentRows(input: MainOverflowInput): number | null
   }
   const nowcastKind = deriveNowcast(forecast, nowUtc).kind;
   if (tier !== "lg" && panels.nowcast && nowcastKind !== "dry" && nowcastKind !== "unavailable") {
-    sections.push(NOWCAST_BANNER_ROWS);
+    sections.push(NOWCAST_BANNER_ROWS + (nowcastExpanded ? NOWCAST_EXPANSION_ROWS : 0));
   }
   const hourlyRows = hourlyRowsFor(tier, width, forecast, panels, nowUtc, hourlyInspectTimeUtc);
   if (hourlyRows > 0) sections.push(hourlyRows);
@@ -184,6 +195,7 @@ interface MainContentProps {
   selectedDayDateLocal: string | null;
   dailyPageIndex: number;
   hourlyInspectTimeUtc: string | null;
+  nowcastExpanded: boolean;
 }
 
 function XsChips({
@@ -215,6 +227,7 @@ const MainContent = memo(function MainContent({
   selectedDayDateLocal,
   dailyPageIndex,
   hourlyInspectTimeUtc,
+  nowcastExpanded,
 }: MainContentProps) {
   const palette = usePalette();
   const nowcast = deriveNowcast(forecast, nowUtc);
@@ -282,6 +295,8 @@ const MainContent = memo(function MainContent({
               width={width}
               forecast={forecast}
               nowUtc={nowUtc}
+              expanded={nowcastExpanded}
+              timeFormat={prefs.timeFormat}
             />
           ) : null}
           {panels.hourly ? (
@@ -396,6 +411,7 @@ export function App(props: AppProps = {}) {
   const dayDetailDate = store((s) => s.dayDetailDate);
   const dailyPageIndex = store((s) => s.dailyPageIndex);
   const hourlyInspectTimeUtc = store((s) => s.hourlyInspectTimeUtc);
+  const nowcastExpanded = store((s) => s.nowcastExpanded);
   const airQuality = store((s) => s.airQuality);
   const lastActionError = store((s) => s.lastActionError);
   const lastActionErrorAtMs = store((s) => s.lastActionErrorAtMs);
@@ -540,6 +556,10 @@ export function App(props: AppProps = {}) {
         store.getState().setHourlyInspectTimeUtc(first.timeUtc);
       },
       exitHourlyInspect: () => store.getState().setHourlyInspectTimeUtc(null),
+      toggleNowcastExpanded: () => {
+        if (tier === "xs" || !forecast || !store.getState().config.panels.nowcast) return;
+        store.getState().toggleNowcastExpanded();
+      },
       moveHourlyInspect: (delta) => {
         if (!forecast) return;
         const maxPoints = hourlyWindowMaxPoints(tier);
@@ -615,6 +635,7 @@ export function App(props: AppProps = {}) {
           panels: config.panels,
           nowUtc,
           hourlyInspectTimeUtc,
+          nowcastExpanded,
         })
       : null;
   const statusRows = deleteArmed
@@ -655,6 +676,7 @@ export function App(props: AppProps = {}) {
         selectedDayDateLocal={dayCursorDate}
         dailyPageIndex={dailyPageIndex}
         hourlyInspectTimeUtc={hourlyInspectTimeUtc}
+        nowcastExpanded={nowcastExpanded}
       />
     ) : (
       <text fg={palette.fgDim}>{truncateTo(EMPTY_FORECAST_HINT, Math.max(0, mainWidth - 1))}</text>

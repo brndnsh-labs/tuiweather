@@ -4,6 +4,7 @@ import {
   describeNowcast,
   precipGlyph,
   todayPrecipWindow,
+  upcomingPrecipBuckets,
   upcomingPrecipSeries,
   WET_MM,
 } from "../../src/lib/weather/derive";
@@ -298,6 +299,48 @@ describe("upcomingPrecipSeries", () => {
     );
     const shuffled = forecast([...ordered.minutely15].reverse());
     expect(upcomingPrecipSeries(shuffled, instant("14:05"))).toEqual([0.2, 0.7]);
+  });
+});
+
+describe("upcomingPrecipBuckets", () => {
+  test("returns full buckets — endUtc and probability alongside mm — same window as upcomingPrecipSeries", () => {
+    const f = forecast(
+      buckets([
+        ["14:00", 0],
+        ["14:15", 0.2],
+        ["14:30", 0.5],
+      ]),
+    );
+    expect(upcomingPrecipBuckets(f, instant("14:12"))).toEqual([
+      { startUtc: instant("14:00"), endUtc: instant("14:15"), precipMm: 0.2, probabilityPct: null },
+      { startUtc: instant("14:15"), endUtc: instant("14:30"), precipMm: 0.5, probabilityPct: null },
+    ]);
+  });
+
+  test("preserves probabilityPct when the fixture carries it", () => {
+    const f = forecast([
+      {
+        startUtc: instant("14:00"),
+        endUtc: instant("14:15"),
+        precipMm: 0.2,
+        probabilityPct: 62,
+      },
+      {
+        startUtc: instant("14:15"),
+        endUtc: instant("14:30"),
+        precipMm: 0.5,
+        probabilityPct: 80,
+      },
+    ]);
+    expect(upcomingPrecipBuckets(f, instant("14:05")).map((b) => b.probabilityPct)).toEqual([
+      62, 80,
+    ]);
+  });
+
+  test("empty when now is outside the data window", () => {
+    const f = forecast(buckets([["14:15", 0.5]]));
+    expect(upcomingPrecipBuckets(f, instant("13:50"))).toEqual([]);
+    expect(upcomingPrecipBuckets(f, instant("14:15"))).toEqual([]);
   });
 });
 

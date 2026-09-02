@@ -19,6 +19,7 @@ export interface KeymapApi {
   toggleHourlyInspect(): void;
   exitHourlyInspect(): void;
   moveHourlyInspect(delta: 1 | -1): void;
+  toggleNowcastExpanded(): void;
   deleteArmed(): boolean;
   armDelete(): void;
   disarmDelete(): void;
@@ -94,6 +95,9 @@ export function handleKey(
       break;
     case "i":
       api.toggleHourlyInspect();
+      break;
+    case "m":
+      api.toggleNowcastExpanded();
       break;
     case "left":
       if (api.hourlyInspectOpen()) {

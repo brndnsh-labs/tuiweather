@@ -11,12 +11,13 @@ interface HelpOverlayProps {
 }
 
 export const HELP_BOX_WIDTH = 46;
-const HELP_BOX_HEIGHT = 12;
+const HELP_BOX_HEIGHT = 13;
 
 const HELP_LINES: { text: string; dim?: boolean }[] = [
   { text: "q quit        r refresh      u units" },
   { text: "← → select day  v inspect day" },
   { text: "i inspect hour  , . page days" },
+  { text: "m expand nowcast timeline" },
   { text: "[ ] location  1-9 jump  ? toggle help" },
   { text: "l locations  j/k focus  enter open (lg)" },
   { text: "s default  J/K reorder (lg)  ↑↓ scroll" },
