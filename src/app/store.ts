@@ -115,6 +115,7 @@ export interface WeatherState {
   locationsOpen: boolean;
   dayCursorDate: string | null;
   dayDetailDate: string | null;
+  hourlyInspectTimeUtc: string | null;
   deleteArmedAtMs: number | null;
   onboardingSkipped: boolean;
   onboardingForced: boolean;
@@ -130,6 +131,7 @@ export interface WeatherState {
   setLocationsOpen(open: boolean): void;
   setDayCursorDate(dateLocal: string | null): void;
   setDayDetailDate(dateLocal: string | null): void;
+  setHourlyInspectTimeUtc(timeUtc: string | null): void;
   armDelete(): void;
   disarmDelete(): void;
   clearActionError(): void;
@@ -292,6 +294,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
       locationsOpen: false,
       dayCursorDate: null,
       dayDetailDate: null,
+      hourlyInspectTimeUtc: null,
       deleteArmedAtMs: null,
       onboardingSkipped: false,
       onboardingForced: false,
@@ -386,6 +389,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
           airQuality: aq,
           dayCursorDate: null,
           dayDetailDate: null,
+          hourlyInspectTimeUtc: null,
         });
         scheduleRefreshLoop();
         void get().loadForecast(slug);
@@ -460,6 +464,10 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
 
       setDayCursorDate: (dateLocal: string | null) => {
         set({ dayCursorDate: dateLocal });
+      },
+
+      setHourlyInspectTimeUtc: (timeUtc: string | null) => {
+        set({ hourlyInspectTimeUtc: timeUtc });
       },
 
       setDayDetailDate: (dateLocal: string | null) => {
@@ -664,6 +672,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
           locationsOpen: false,
           dayCursorDate: null,
           dayDetailDate: null,
+          hourlyInspectTimeUtc: null,
         }),
 
       dispose: () => {

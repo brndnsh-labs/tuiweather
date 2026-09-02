@@ -26,6 +26,10 @@ function makeApi(overrides: Partial<Record<keyof KeymapApi, unknown>> = {}): Key
     closeDayDetail: () => inc("closeDayDetail"),
     moveDayCursor: () => inc("moveDayCursor"),
     openDayDetail: () => inc("openDayDetail"),
+    hourlyInspectOpen: () => false,
+    toggleHourlyInspect: () => inc("toggleHourlyInspect"),
+    exitHourlyInspect: () => inc("exitHourlyInspect"),
+    moveHourlyInspect: () => inc("moveHourlyInspect"),
     deleteArmed: () => false,
     armDelete: () => inc("armDelete"),
     disarmDelete: () => inc("disarmDelete"),
@@ -160,6 +164,53 @@ describe("keymap help modal", () => {
     handleKey("escape", api);
     expect(api.calls.closeDayDetail).toBe(1);
     expect(api.calls.toggleHelp ?? 0).toBe(0);
+  });
+
+  test("i toggles hourly inspect", () => {
+    const api = makeApi();
+    handleKey("i", api);
+    expect(api.calls.toggleHourlyInspect).toBe(1);
+  });
+
+  test("left/right route to moveHourlyInspect (not moveDayCursor) while inspect is open", () => {
+    const api = makeApi({ hourlyInspectOpen: () => true });
+    handleKey("left", api);
+    handleKey("right", api);
+    expect(api.calls.moveHourlyInspect).toBe(2);
+    expect(api.calls.moveDayCursor ?? 0).toBe(0);
+  });
+
+  test("left/right route to moveDayCursor when inspect is closed", () => {
+    const api = makeApi({ hourlyInspectOpen: () => false });
+    handleKey("left", api);
+    handleKey("right", api);
+    expect(api.calls.moveDayCursor).toBe(2);
+    expect(api.calls.moveHourlyInspect ?? 0).toBe(0);
+  });
+
+  test("escape exits hourly inspect before other modal checks, without closing day detail", () => {
+    const api = makeApi({ hourlyInspectOpen: () => true, dayDetailOpen: () => false });
+    handleKey("escape", api);
+    expect(api.calls.exitHourlyInspect).toBe(1);
+    expect(api.calls.closeDayDetail ?? 0).toBe(0);
+    expect(api.calls.quit ?? 0).toBe(0);
+  });
+
+  test("day detail escape takes priority over hourly inspect", () => {
+    const api = makeApi({ hourlyInspectOpen: () => true, dayDetailOpen: () => true });
+    handleKey("escape", api);
+    expect(api.calls.closeDayDetail).toBe(1);
+    expect(api.calls.exitHourlyInspect ?? 0).toBe(0);
+  });
+
+  test("search/locations own their own escape handler, so hourly inspect defers to them", () => {
+    const searchApi = makeApi({ hourlyInspectOpen: () => true, searchOpen: () => true });
+    handleKey("escape", searchApi);
+    expect(searchApi.calls.exitHourlyInspect ?? 0).toBe(0);
+
+    const locationsApi = makeApi({ hourlyInspectOpen: () => true, locationsOpen: () => true });
+    handleKey("escape", locationsApi);
+    expect(locationsApi.calls.exitHourlyInspect ?? 0).toBe(0);
   });
 
   test("without modal, d arms and r refreshes normally", () => {

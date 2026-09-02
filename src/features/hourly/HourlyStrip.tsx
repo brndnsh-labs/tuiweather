@@ -4,9 +4,13 @@ import type { DisplayPrefs } from "../../lib/config/schema";
 import { conditionGlyph } from "../../lib/weather/condition-display";
 import {
   displayWidth,
+  formatClock,
   formatHourLabel,
+  formatPct,
+  formatPrecip,
   formatTemp,
   formatVisibility,
+  formatWind,
   type TimeFormat,
   truncateCells,
   type Units,
@@ -24,6 +28,7 @@ interface HourlyStripProps {
   labels?: boolean;
   showDetail?: boolean;
   heading?: string;
+  inspectTimeUtc?: string | null;
 }
 
 const FULL_BLOCK = "█";
@@ -117,6 +122,25 @@ export function sliceUpcoming(points: HourlyPoint[], nowUtc: string, max: number
   const nowMs = Date.parse(nowUtc);
   const upcoming = points.filter((p) => Date.parse(p.timeUtc) > nowMs);
   return upcoming.slice(0, Math.max(0, max));
+}
+
+/**
+ * Next inspect-cursor timeUtc for a delta move within the current window, keyed by absolute
+ * time rather than array position: if `currentTimeUtc` has aged out of the window (its point is
+ * no longer upcoming), the move re-anchors from the window's start instead of silently landing
+ * on a different hour that now happens to sit at the same index.
+ */
+export function nextInspectTimeUtc(
+  window: HourlyPoint[],
+  currentTimeUtc: string | null,
+  delta: 1 | -1,
+): string | null {
+  if (window.length === 0) return null;
+  const currentIndex =
+    currentTimeUtc === null ? -1 : window.findIndex((p) => p.timeUtc === currentTimeUtc);
+  const anchorIndex = currentIndex >= 0 ? currentIndex : 0;
+  const nextIndex = Math.max(0, Math.min(window.length - 1, anchorIndex + delta));
+  return window[nextIndex]?.timeUtc ?? null;
 }
 
 export function seriesWidthFor(pointCount: number, width: number): number {
@@ -297,6 +321,26 @@ export function hourlyDetailRow(points: HourlyPoint[], windUnits: Units, width: 
   return row;
 }
 
+/** Readout for the inspected hour: local time, temp/feels, precip amount+probability, wind. */
+export function hourlyInspectRow(
+  point: HourlyPoint,
+  utcOffsetSeconds: number,
+  prefs: DisplayPrefs,
+  width: number,
+): string {
+  if (width <= 0) return "";
+  const time = formatClock(point.timeUtc, utcOffsetSeconds, prefs.timeFormat);
+  const temp = formatTemp(point.temperatureC, prefs.temp);
+  const feels = formatTemp(point.apparentC, prefs.temp);
+  const precip = formatPrecip(point.precipMm, prefs.precip);
+  const prob = formatPct(point.precipProbabilityPct);
+  const wind = formatWind(point.windSpeedKmh, point.windDirectionDeg, prefs.wind);
+  const content = `${time}  ${temp} feels ${feels}  ${precip} ${prob}  ${wind}`;
+  const row = `${BLANK_GUTTER}${content}`;
+  if (displayWidth(row) > Math.max(0, width - 1)) return truncateCells(row, Math.max(0, width - 1));
+  return row;
+}
+
 /** Splits a finished row into runs so annotated spans can render dim beside accent fill. */
 export function segmentRow(row: string, marks: readonly AreaNote[]): RowSegment[] {
   const segments: RowSegment[] = [];
@@ -321,6 +365,7 @@ export const HourlyStrip = memo(function HourlyStrip({
   labels = true,
   showDetail = false,
   heading,
+  inspectTimeUtc = null,
 }: HourlyStripProps) {
   const palette = usePalette();
 
@@ -375,6 +420,12 @@ export const HourlyStrip = memo(function HourlyStrip({
 
   const detailRow = showDetail ? hourlyDetailRow(window, prefs.wind, width) : "";
 
+  const inspectPoint =
+    inspectTimeUtc === null ? undefined : window.find((p) => p.timeUtc === inspectTimeUtc);
+  const inspectRow = inspectPoint
+    ? hourlyInspectRow(inspectPoint, utcOffsetSeconds, prefs, width)
+    : "";
+
   return (
     <box flexDirection="column">
       <text fg={palette.fgDim}>{sectionRule(title, width)}</text>
@@ -390,6 +441,7 @@ export const HourlyStrip = memo(function HourlyStrip({
           </text>
         </box>
       ))}
+      {inspectRow ? <text fg={palette.accent}>{inspectRow}</text> : null}
       {windowIsDry(precipValues, probabilities) ? null : (
         <box flexDirection="row">
           <text fg={palette.fgDim}>{precipKind.label}</text>

@@ -14,6 +14,10 @@ export interface KeymapApi {
   closeDayDetail(): void;
   moveDayCursor(delta: 1 | -1): void;
   openDayDetail(): void;
+  hourlyInspectOpen(): boolean;
+  toggleHourlyInspect(): void;
+  exitHourlyInspect(): void;
+  moveHourlyInspect(delta: 1 | -1): void;
   deleteArmed(): boolean;
   armDelete(): void;
   disarmDelete(): void;
@@ -43,8 +47,14 @@ export function handleKey(
       api.closeDayDetail();
       return;
     }
+    // Search/locations own their own escape handler (they close themselves via a separate
+    // useKeyboard hook); defer to them here so one escape doesn't also silently drop inspect.
     if (api.searchOpen()) return;
     if (api.locationsOpen()) return;
+    if (api.hourlyInspectOpen()) {
+      api.exitHourlyInspect();
+      return;
+    }
     if (api.focusedSlug() !== null) {
       api.setFocused(null);
       return;
@@ -81,11 +91,22 @@ export function handleKey(
     case "l":
       api.openLocations();
       break;
+    case "i":
+      api.toggleHourlyInspect();
+      break;
     case "left":
-      api.moveDayCursor(-1);
+      if (api.hourlyInspectOpen()) {
+        api.moveHourlyInspect(-1);
+      } else {
+        api.moveDayCursor(-1);
+      }
       break;
     case "right":
-      api.moveDayCursor(1);
+      if (api.hourlyInspectOpen()) {
+        api.moveHourlyInspect(1);
+      } else {
+        api.moveDayCursor(1);
+      }
       break;
     case "v":
       api.openDayDetail();

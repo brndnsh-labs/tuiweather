@@ -9,6 +9,7 @@ import { DayDetailOverlay, localDateAtOffset } from "../features/daydetail/DayDe
 import {
   HourlyStrip,
   MIN_WIDE_AREA_SERIES_WIDTH,
+  nextInspectTimeUtc,
   sectionRule,
   seriesWidthFor,
   sliceUpcoming,
@@ -63,6 +64,7 @@ export interface MainOverflowInput {
   forecast: NormalizedForecast;
   panels: TuiConfig["panels"];
   nowUtc: string;
+  hourlyInspectTimeUtc?: string | null;
 }
 
 function heroRowsFor(tier: Tier, panels: TuiConfig["panels"]): number {
@@ -71,15 +73,21 @@ function heroRowsFor(tier: Tier, panels: TuiConfig["panels"]): number {
   return Math.max(SLICK_HERO_ROWS, DETAILS_GRID_ROWS);
 }
 
+/** Single source of truth for the hourly window size per tier — mirrors the maxPoints passed to every <HourlyStrip>. */
+function hourlyWindowMaxPoints(tier: Tier): number {
+  return tier === "sm" ? 12 : 48;
+}
+
 function hourlyRowsFor(
   tier: Tier,
   width: number,
   forecast: NormalizedForecast,
   panels: TuiConfig["panels"],
   nowUtc: string,
+  hourlyInspectTimeUtc: string | null,
 ): number {
   if (!panels.hourly || width < 6) return 0;
-  const maxPoints = tier === "sm" ? 12 : 48;
+  const maxPoints = hourlyWindowMaxPoints(tier);
   const window = sliceUpcoming(forecast.hourly, nowUtc, maxPoints);
   if (window.length === 0) return 0;
   const seriesWidth = seriesWidthFor(window.length, width);
@@ -96,7 +104,9 @@ function hourlyRowsFor(
     window.some((p) => p.uvIndex !== null || p.humidityPct !== null || p.visibilityM !== null)
       ? 1
       : 0;
-  return 1 + chartRows + precipRows + detailRows + 1;
+  const inspectRows =
+    hourlyInspectTimeUtc !== null && window.some((p) => p.timeUtc === hourlyInspectTimeUtc) ? 1 : 0;
+  return 1 + chartRows + precipRows + detailRows + inspectRows + 1;
 }
 
 /**
@@ -105,7 +115,7 @@ function hourlyRowsFor(
  * Hourly height mirrors the area-chart block via its exported row constants.
  */
 export function estimateMainContentRows(input: MainOverflowInput): number | null {
-  const { tier, width, forecast, panels, nowUtc } = input;
+  const { tier, width, forecast, panels, nowUtc, hourlyInspectTimeUtc = null } = input;
   if (tier === "xs") return null;
 
   const sections: number[] = [heroRowsFor(tier, panels)];
@@ -125,7 +135,7 @@ export function estimateMainContentRows(input: MainOverflowInput): number | null
   if (tier !== "lg" && panels.nowcast && nowcastKind !== "dry" && nowcastKind !== "unavailable") {
     sections.push(NOWCAST_BANNER_ROWS);
   }
-  const hourlyRows = hourlyRowsFor(tier, width, forecast, panels, nowUtc);
+  const hourlyRows = hourlyRowsFor(tier, width, forecast, panels, nowUtc, hourlyInspectTimeUtc);
   if (hourlyRows > 0) sections.push(hourlyRows);
   if (panels.daily && forecast.daily.length > 0 && width >= 12) {
     sections.push(1);
@@ -165,6 +175,7 @@ interface MainContentProps {
   scrollHeight: number;
   airQuality?: AirQuality | null;
   selectedDayDateLocal: string | null;
+  hourlyInspectTimeUtc: string | null;
 }
 
 function XsChips({
@@ -194,6 +205,7 @@ const MainContent = memo(function MainContent({
   scrollHeight,
   airQuality,
   selectedDayDateLocal,
+  hourlyInspectTimeUtc,
 }: MainContentProps) {
   const palette = usePalette();
   const nowcast = deriveNowcast(forecast, nowUtc);
@@ -269,9 +281,10 @@ const MainContent = memo(function MainContent({
               nowUtc={nowUtc}
               utcOffsetSeconds={forecast.utcOffsetSeconds}
               prefs={prefs}
-              maxPoints={showDetails ? 48 : 12}
+              maxPoints={hourlyWindowMaxPoints(tier)}
               width={width}
               showDetail={showDetails}
+              inspectTimeUtc={hourlyInspectTimeUtc}
             />
           ) : null}
           {panels.daily ? (
@@ -329,9 +342,10 @@ const MainContent = memo(function MainContent({
             nowUtc={nowUtc}
             utcOffsetSeconds={forecast.utcOffsetSeconds}
             prefs={prefs}
-            maxPoints={48}
+            maxPoints={hourlyWindowMaxPoints(tier)}
             width={width}
             showDetail
+            inspectTimeUtc={hourlyInspectTimeUtc}
           />
         ) : null}
         {panels.daily ? (
@@ -367,6 +381,7 @@ export function App(props: AppProps = {}) {
   const locationsOpen = store((s) => s.locationsOpen);
   const dayCursorDate = store((s) => s.dayCursorDate);
   const dayDetailDate = store((s) => s.dayDetailDate);
+  const hourlyInspectTimeUtc = store((s) => s.hourlyInspectTimeUtc);
   const airQuality = store((s) => s.airQuality);
   const lastActionError = store((s) => s.lastActionError);
   const lastActionErrorAtMs = store((s) => s.lastActionErrorAtMs);
@@ -474,6 +489,28 @@ export function App(props: AppProps = {}) {
           null;
         if (selected !== null) store.getState().setDayDetailDate(selected);
       },
+      hourlyInspectOpen: () => store.getState().hourlyInspectTimeUtc !== null,
+      toggleHourlyInspect: () => {
+        const current = store.getState().hourlyInspectTimeUtc;
+        if (current !== null) {
+          store.getState().setHourlyInspectTimeUtc(null);
+          return;
+        }
+        if (tier === "xs" || !forecast || !store.getState().config.panels.hourly) return;
+        const maxPoints = hourlyWindowMaxPoints(tier);
+        const window = sliceUpcoming(forecast.hourly, nowUtc, maxPoints);
+        const first = window[0];
+        if (!first) return;
+        store.getState().setHourlyInspectTimeUtc(first.timeUtc);
+      },
+      exitHourlyInspect: () => store.getState().setHourlyInspectTimeUtc(null),
+      moveHourlyInspect: (delta) => {
+        if (!forecast) return;
+        const maxPoints = hourlyWindowMaxPoints(tier);
+        const window = sliceUpcoming(forecast.hourly, nowUtc, maxPoints);
+        const next = nextInspectTimeUtc(window, store.getState().hourlyInspectTimeUtc, delta);
+        if (next !== null) store.getState().setHourlyInspectTimeUtc(next);
+      },
       deleteArmed: () => store.getState().deleteArmed(Date.now()),
       armDelete: () => store.getState().armDelete(),
       disarmDelete: () => store.getState().disarmDelete(),
@@ -541,6 +578,7 @@ export function App(props: AppProps = {}) {
           forecast,
           panels: config.panels,
           nowUtc,
+          hourlyInspectTimeUtc,
         })
       : null;
   const statusRows = deleteArmed
@@ -579,6 +617,7 @@ export function App(props: AppProps = {}) {
         scrollHeight={mainScrollHeight}
         airQuality={airQuality}
         selectedDayDateLocal={dayCursorDate}
+        hourlyInspectTimeUtc={hourlyInspectTimeUtc}
       />
     ) : (
       <text fg={palette.fgDim}>{truncateTo(EMPTY_FORECAST_HINT, Math.max(0, mainWidth - 1))}</text>
