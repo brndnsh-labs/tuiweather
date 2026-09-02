@@ -305,7 +305,6 @@ const MainContent = memo(function MainContent({
                 days={forecast.daily}
                 pageIndex={dailyPageIndex}
                 prefs={prefs}
-                columns={2}
                 width={width}
                 showPrecip={!showDetails}
                 selectedDateLocal={selectedDayDateLocal}
@@ -369,7 +368,6 @@ const MainContent = memo(function MainContent({
               days={forecast.daily}
               pageIndex={dailyPageIndex}
               prefs={prefs}
-              columns={1}
               width={width}
               selectedDateLocal={selectedDayDateLocal}
             />

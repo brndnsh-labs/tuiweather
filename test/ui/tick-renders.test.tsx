@@ -201,8 +201,8 @@ describe("perf 60: memo and tick scoping", () => {
       return (
         <box flexDirection="column">
           <text>{`c:${churn}`}</text>
-          <SpyDailyList days={days} prefs={prefs} columns={1} width={40} />
-          <PlainDailyList days={days} prefs={prefs} columns={1} width={40} />
+          <SpyDailyList days={days} prefs={prefs} width={40} />
+          <PlainDailyList days={days} prefs={prefs} width={40} />
         </box>
       );
     }

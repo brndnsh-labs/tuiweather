@@ -18,7 +18,6 @@ interface DailyListProps {
   /** Which DAILY_PAGE_SIZE-sized slice of `days` to render. */
   pageIndex?: number;
   prefs: DisplayPrefs;
-  columns: 1 | 2;
   width: number;
   showPrecip?: boolean;
   selectedDateLocal?: string | null;
@@ -78,7 +77,6 @@ function chipCeiling(days: DailyPoint[], showPrecip: boolean): PrecipChipTier {
 }
 
 export interface DailyListMetrics {
-  colWidth: number;
   barWidth: number;
   chipTier: PrecipChipTier;
 }
@@ -112,15 +110,14 @@ export function dailySectionLabel(totalDays: number, pageIndex: number): string 
 
 export function dailyMetrics(
   days: DailyPoint[],
-  opts: { width: number; columns: 1 | 2; showPrecip: boolean },
+  opts: { width: number; showPrecip: boolean },
 ): DailyListMetrics {
-  const colWidth = Math.floor(opts.width / opts.columns);
   const ceiling = chipCeiling(days, opts.showPrecip);
   for (const tier of TIER_LADDER[ceiling]) {
-    const barWidth = colWidth - BASE_FIXED_WIDTH - TIER_RESERVE[tier];
-    if (barWidth >= BAR_MIN_WIDTH) return { colWidth, barWidth, chipTier: tier };
+    const barWidth = opts.width - BASE_FIXED_WIDTH - TIER_RESERVE[tier];
+    if (barWidth >= BAR_MIN_WIDTH) return { barWidth, chipTier: tier };
   }
-  return { colWidth, barWidth: BAR_MIN_WIDTH, chipTier: "none" };
+  return { barWidth: BAR_MIN_WIDTH, chipTier: "none" };
 }
 
 interface RowParts {
@@ -192,7 +189,6 @@ export const DailyList = memo(function DailyList({
   days,
   pageIndex = 0,
   prefs,
-  columns,
   width,
   showPrecip = true,
   selectedDateLocal = null,
@@ -204,54 +200,25 @@ export const DailyList = memo(function DailyList({
   const weekMax = Math.max(...days.map((d) => d.tempMaxC));
   const showCursor =
     selectedDateLocal !== null && pageDays.some((d) => d.dateLocal === selectedDateLocal);
-  const metricsWidth = Math.max(columns, width - (showCursor ? columns : 0));
-  const { colWidth, barWidth, chipTier } = dailyMetrics(days, {
+  const metricsWidth = Math.max(1, width - (showCursor ? 1 : 0));
+  const { barWidth, chipTier } = dailyMetrics(days, {
     width: metricsWidth,
-    columns,
     showPrecip,
   });
 
-  if (columns === 1) {
-    return (
-      <box flexDirection="column">
-        {pageDays.map((day) => (
-          <DailyRow
-            key={day.dateLocal}
-            parts={rowParts(day, prefs.precip, chipTier)}
-            temp={prefs.temp}
-            barWidth={barWidth}
-            weekMin={weekMin}
-            weekMax={weekMax}
-            selected={day.dateLocal === selectedDateLocal}
-            showCursor={showCursor}
-          />
-        ))}
-      </box>
-    );
-  }
-
-  const rows: DailyPoint[][] = [];
-  for (let i = 0; i < pageDays.length; i += 2) {
-    rows.push(pageDays.slice(i, i + 2));
-  }
   return (
     <box flexDirection="column">
-      {rows.map((pair, idx) => (
-        <box key={pair[0]?.dateLocal ?? idx} flexDirection="row">
-          {pair.map((day) => (
-            <box key={day.dateLocal} flexDirection="row" width={colWidth} flexShrink={0}>
-              <DailyRow
-                parts={rowParts(day, prefs.precip, chipTier)}
-                temp={prefs.temp}
-                barWidth={barWidth}
-                weekMin={weekMin}
-                weekMax={weekMax}
-                selected={day.dateLocal === selectedDateLocal}
-                showCursor={showCursor}
-              />
-            </box>
-          ))}
-        </box>
+      {pageDays.map((day) => (
+        <DailyRow
+          key={day.dateLocal}
+          parts={rowParts(day, prefs.precip, chipTier)}
+          temp={prefs.temp}
+          barWidth={barWidth}
+          weekMin={weekMin}
+          weekMax={weekMax}
+          selected={day.dateLocal === selectedDateLocal}
+          showCursor={showCursor}
+        />
       ))}
     </box>
   );
