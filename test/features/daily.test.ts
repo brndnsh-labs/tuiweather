@@ -76,7 +76,6 @@ describe("dailyMetrics width budget", () => {
   test("barWidth reserves nothing when no day passes the gate", () => {
     const m = dailyMetrics([day(19, { precipSumMm: 5 })], {
       width: 40,
-      columns: 1,
       showPrecip: true,
     });
     expect(m.chipTier).toBe("none");
@@ -86,7 +85,6 @@ describe("dailyMetrics width budget", () => {
   test("probability-only chips reserve 7 columns", () => {
     const m = dailyMetrics([day(65, { precipSumMm: 0 })], {
       width: 40,
-      columns: 1,
       showPrecip: true,
     });
     expect(m.chipTier).toBe("prob");
@@ -96,7 +94,6 @@ describe("dailyMetrics width budget", () => {
   test("any accumulated day reserves the full-chip allowance for all rows", () => {
     const m = dailyMetrics([day(65, { precipSumMm: 0 }), day(80)], {
       width: 40,
-      columns: 1,
       showPrecip: true,
     });
     expect(m.chipTier).toBe("full");
@@ -105,23 +102,9 @@ describe("dailyMetrics width budget", () => {
   });
 
   test("showPrecip=false skips every reservation", () => {
-    const m = dailyMetrics([day(90)], { width: 40, columns: 1, showPrecip: false });
+    const m = dailyMetrics([day(90)], { width: 40, showPrecip: false });
     expect(m.chipTier).toBe("none");
     expect(m.barWidth).toBe(25);
-  });
-
-  test("two-column layout budgets per column width", () => {
-    const days = [day(65)];
-    expect(dailyMetrics(days, { width: 80, columns: 2, showPrecip: true })).toEqual({
-      colWidth: 40,
-      barWidth: 6,
-      chipTier: "full",
-    });
-    expect(dailyMetrics(days, { width: 64, columns: 2, showPrecip: true })).toEqual({
-      colWidth: 32,
-      barWidth: 10,
-      chipTier: "prob",
-    });
   });
 });
 
@@ -129,31 +112,26 @@ describe("degradation ladder at shrinking widths", () => {
   const days = [day(65)];
 
   test("amount suffix drops first when the full allowance collapses the bar", () => {
-    expect(dailyMetrics(days, { width: 35, columns: 1, showPrecip: true })).toEqual({
-      colWidth: 35,
+    expect(dailyMetrics(days, { width: 35, showPrecip: true })).toEqual({
       barWidth: 13,
       chipTier: "prob",
     });
-    expect(dailyMetrics(days, { width: 32, columns: 1, showPrecip: true })).toEqual({
-      colWidth: 32,
+    expect(dailyMetrics(days, { width: 32, showPrecip: true })).toEqual({
       barWidth: 10,
       chipTier: "prob",
     });
   });
 
   test("whole chip drops next, then the bar clamps at its minimum", () => {
-    expect(dailyMetrics(days, { width: 23, columns: 1, showPrecip: true })).toEqual({
-      colWidth: 23,
+    expect(dailyMetrics(days, { width: 23, showPrecip: true })).toEqual({
       barWidth: 8,
       chipTier: "none",
     });
-    expect(dailyMetrics(days, { width: 22, columns: 1, showPrecip: true })).toEqual({
-      colWidth: 22,
+    expect(dailyMetrics(days, { width: 22, showPrecip: true })).toEqual({
       barWidth: 7,
       chipTier: "none",
     });
-    expect(dailyMetrics(days, { width: 15, columns: 1, showPrecip: true })).toEqual({
-      colWidth: 15,
+    expect(dailyMetrics(days, { width: 15, showPrecip: true })).toEqual({
       barWidth: 2,
       chipTier: "none",
     });
