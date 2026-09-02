@@ -287,6 +287,47 @@ export interface RowSegment {
   dim: boolean;
 }
 
+/**
+ * Per-column night flag for a resampled series, sampled at each column's
+ * midpoint (same nearest-index convention as hourLabelsRow) rather than
+ * resample()'s averaging bucket — isDay is categorical, not a value to blend.
+ */
+export function nightColumns(points: readonly HourlyPoint[], width: number): boolean[] {
+  if (points.length === 0 || width <= 0) return [];
+  const out = new Array<boolean>(width);
+  for (let c = 0; c < width; c++) {
+    const idx = Math.min(points.length - 1, Math.floor(((c + 0.5) / width) * points.length));
+    out[c] = !(points[idx]?.isDay ?? true);
+  }
+  return out;
+}
+
+/** Widens each cell's dim flag with the night flag of its columns, splitting runs where they diverge. */
+export function applyNightDim(
+  cells: readonly RowSegment[],
+  isNightCol: readonly boolean[],
+): RowSegment[] {
+  const flags: boolean[] = [];
+  const chars: string[] = [];
+  let col = 0;
+  for (const cell of cells) {
+    for (const ch of cell.text) {
+      chars.push(ch);
+      flags.push(cell.dim || (isNightCol[col] ?? false));
+      col += 1;
+    }
+  }
+  const out: RowSegment[] = [];
+  let i = 0;
+  while (i < chars.length) {
+    let j = i + 1;
+    while (j < chars.length && flags[j] === flags[i]) j++;
+    out.push({ text: chars.slice(i, j).join(""), dim: flags[i] ?? false });
+    i = j;
+  }
+  return out;
+}
+
 export function hourlyDetailRow(points: HourlyPoint[], windUnits: Units, width: number): string {
   if (points.length === 0 || width <= 0) return "";
   const uvValues: number[] = [];
@@ -386,6 +427,7 @@ export const HourlyStrip = memo(function HourlyStrip({
   const notes = planTempNotes(seriesTemps, rowCount, prefs.temp);
   const fitted = fitNotes(fillRows, notes);
   const drawnRows = annotateRows(fillRows, notes);
+  const isNightCol = nightColumns(window, seriesWidth);
 
   const peak = peakProbability(window);
   const precipKind = precipWindowKind(
@@ -407,9 +449,12 @@ export const HourlyStrip = memo(function HourlyStrip({
     return {
       id: `temp-row-${r}`,
       gutter: r === 0 ? TEMP_LABEL : BLANK_GUTTER,
-      cells: segmentRow(
-        row,
-        fitted.filter((n) => n.row === r),
+      cells: applyNightDim(
+        segmentRow(
+          row,
+          fitted.filter((n) => n.row === r),
+        ),
+        isNightCol,
       ).map((seg) => {
         const cell = { ...seg, key: col };
         col += seg.text.length;
