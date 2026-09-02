@@ -211,6 +211,32 @@ export function todayBlockRows(block: TodayBlock | null): number {
 }
 
 /**
+ * Clamps the location list to the rows actually available, keeping the
+ * active location in view. Rendering every configured location unconditionally
+ * overflows the bordered box on a short rail with a long list, and OpenTUI
+ * drops rows non-contiguously rather than clipping cleanly (#195).
+ *
+ * When the list doesn't fit, one row is reserved for a "+N more" affordance
+ * and the window slides so the active slug is never scrolled out.
+ */
+export function visibleLocationRows(
+  slugs: string[],
+  activeSlug: string | null,
+  availableRows: number,
+): { visible: string[]; hiddenCount: number } {
+  if (availableRows <= 0) return { visible: [], hiddenCount: slugs.length };
+  if (slugs.length <= availableRows) return { visible: slugs, hiddenCount: 0 };
+  const displayRows = Math.max(0, availableRows - 1);
+  const activeIndex = activeSlug === null ? -1 : slugs.indexOf(activeSlug);
+  const start =
+    activeIndex >= displayRows
+      ? Math.min(activeIndex - displayRows + 1, slugs.length - displayRows)
+      : 0;
+  const visible = slugs.slice(start, start + displayRows);
+  return { visible, hiddenCount: slugs.length - visible.length };
+}
+
+/**
  * Sections shed bottom-up when the rail runs out of rows: the location list
  * is the sidebar's reason to exist and always wins, then the nowcast, then
  * today. A section renders whole or not at all — a half-drawn card reads as
@@ -254,18 +280,28 @@ export const Sidebar = memo(function Sidebar({
   const activeSlug = store((s) => s.activeSlug);
 
   const width = SIDEBAR_CONTENT_WIDTH;
+  const availableRows = Math.max(0, height - RAIL_BORDER_ROWS);
+  const slugs = config.locations.map((loc) => loc.slug);
+  const { visible: visibleSlugs, hiddenCount } = visibleLocationRows(
+    slugs,
+    // Anchor on the keyboard focus when there is one — j/k must be able to scroll
+    // the window, or focus can land on a location the clamp has hidden with no
+    // indication anything moved (#195 follow-up). Falls back to the active
+    // location so the common, no-focus case still keeps it in view.
+    focusedSlug ?? activeSlug,
+    availableRows,
+  );
+  const visibleSlugSet = new Set(visibleSlugs);
+  const visibleLocations = config.locations.filter((loc) => visibleSlugSet.has(loc.slug));
+  const locationRows = visibleSlugs.length + (hiddenCount > 0 ? 1 : 0);
+
   const now =
     forecast !== undefined && panels.nowcast ? buildNowSection(forecast, nowUtc, width) : null;
   const today =
     forecast !== undefined && panels.details
       ? buildTodayBlock(forecast, prefs, airQuality, width)
       : null;
-  const fit = railFit(
-    Math.max(0, height - RAIL_BORDER_ROWS),
-    config.locations.length,
-    nowSectionRows(now),
-    todayBlockRows(today),
-  );
+  const fit = railFit(availableRows, locationRows, nowSectionRows(now), todayBlockRows(today));
   const nowFg =
     now === null
       ? palette.fgDim
@@ -283,7 +319,7 @@ export const Sidebar = memo(function Sidebar({
       title="locations · l"
       flexDirection="column"
     >
-      {config.locations.map((loc) => (
+      {visibleLocations.map((loc) => (
         <SidebarRow
           key={loc.slug}
           slug={loc.slug}
@@ -294,6 +330,9 @@ export const Sidebar = memo(function Sidebar({
           prefs={prefs}
         />
       ))}
+      {hiddenCount > 0 ? (
+        <text fg={palette.fgDim}>{truncateTo(`… +${hiddenCount} more · l`, width)}</text>
+      ) : null}
       {fit.now && now !== null ? (
         <>
           <text fg={palette.fgDim}>{sectionRule("now · m", width)}</text>

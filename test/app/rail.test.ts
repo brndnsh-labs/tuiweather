@@ -7,6 +7,7 @@ import {
   relativeTicks,
   SIDEBAR_CONTENT_WIDTH,
   todayBlockRows,
+  visibleLocationRows,
 } from "../../src/app/components/Sidebar";
 import { resolveDisplayPrefs, tuiConfigSchema } from "../../src/lib/config/schema";
 import { normalizeForecast } from "../../src/lib/providers/openmeteo/normalize";
@@ -168,6 +169,53 @@ describe("railFit", () => {
 
   test("a section absent upstream is never reported as fitting", () => {
     expect(railFit(38, 1, 0, 0)).toEqual({ now: false, today: false });
+  });
+});
+
+describe("visibleLocationRows", () => {
+  const slugs = Array.from({ length: 30 }, (_, i) => `loc-${i}`);
+
+  test("a list that fits renders in full, unclamped", () => {
+    expect(visibleLocationRows(slugs.slice(0, 5), "loc-0", 24)).toEqual({
+      visible: slugs.slice(0, 5),
+      hiddenCount: 0,
+    });
+  });
+
+  test("clamps to available rows, reserving one for the overflow row", () => {
+    const { visible, hiddenCount } = visibleLocationRows(slugs, "loc-0", 24);
+    expect(visible).toHaveLength(23);
+    expect(visible).toEqual(slugs.slice(0, 23));
+    expect(hiddenCount).toBe(7);
+  });
+
+  test("slides the window so the active slug is never scrolled out", () => {
+    const { visible, hiddenCount } = visibleLocationRows(slugs, "loc-29", 24);
+    expect(visible).toContain("loc-29");
+    expect(visible).toHaveLength(23);
+    expect(hiddenCount).toBe(7);
+    // The window slides forward just enough to include the active slug.
+    expect(visible[visible.length - 1]).toBe("loc-29");
+  });
+
+  test("an active slug outside the configured list doesn't crash the window", () => {
+    const { visible, hiddenCount } = visibleLocationRows(slugs, "not-configured", 24);
+    expect(visible).toHaveLength(23);
+    expect(hiddenCount).toBe(7);
+  });
+
+  test("zero available rows hides every location", () => {
+    expect(visibleLocationRows(slugs, "loc-0", 0)).toEqual({ visible: [], hiddenCount: 30 });
+  });
+
+  test("the anchor is caller-supplied — Sidebar passes focus when set, else the active slug", () => {
+    // visibleLocationRows itself just windows on whichever slug it's given;
+    // Sidebar.tsx picks `focusedSlug ?? activeSlug` so j/k navigation can
+    // scroll the window instead of moving focus somewhere invisible (#195).
+    const anchoredOnActive = visibleLocationRows(slugs, "loc-0", 24);
+    const anchoredOnFocus = visibleLocationRows(slugs, "loc-29", 24);
+    expect(anchoredOnActive.visible).not.toContain("loc-29");
+    expect(anchoredOnFocus.visible).toContain("loc-29");
   });
 });
 
