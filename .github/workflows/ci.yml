@@ -65,6 +65,17 @@ jobs:
 
       - name: Smoke
         run: |
+          # Live calls to api.open-meteo.com: retry transient upstream 5xx
+          # instead of failing the job on a momentary blip.
+          retry() {
+            local tries=3 delay=15 i=0
+            while [ "$i" -lt "$tries" ]; do
+              if "$@"; then return 0; fi
+              i=$((i + 1))
+              [ "$i" -lt "$tries" ] && sleep "$delay"
+            done
+            return 1
+          }
           VERSION=$(node -p "require('./package.json').version")
           OUTPUT=$(tuiweather --version)
           if [ "$OUTPUT" != "tuiweather $VERSION" ]; then
@@ -72,8 +83,8 @@ jobs:
             exit 1
           fi
           tuiweather --help > /dev/null
-          tuiweather --one-line --lat 44.98 --lon -93.27
-          env -u HOME -u XDG_CONFIG_HOME tuiweather --one-line --lat 44.98 --lon -93.27
+          retry tuiweather --one-line --lat 44.98 --lon -93.27
+          retry env -u HOME -u XDG_CONFIG_HOME tuiweather --one-line --lat 44.98 --lon -93.27
 
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
@@ -81,10 +92,19 @@ jobs:
 
       - name: Smoke under pre-FFI Node (CLI paths only)
         run: |
+          retry() {
+            local tries=3 delay=15 i=0
+            while [ "$i" -lt "$tries" ]; do
+              if "$@"; then return 0; fi
+              i=$((i + 1))
+              [ "$i" -lt "$tries" ] && sleep "$delay"
+            done
+            return 1
+          }
           node --version
           OUTPUT=$(tuiweather --version)
           if [ "$OUTPUT" != "tuiweather $(node -p "require('./package.json').version")" ]; then
             echo "::error::unexpected --version output under node 24: $OUTPUT"
             exit 1
           fi
-          tuiweather --one-line --lat 44.98 --lon -93.27
+          retry tuiweather --one-line --lat 44.98 --lon -93.27
