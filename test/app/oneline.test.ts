@@ -165,6 +165,16 @@ describe("buildOneLine", () => {
     expect(buildOneLine(forecast, IMPERIAL, NOW)).toBe("☀ 72° fl70 · 58°–75° · ↘6mph nw");
     expect(buildOneLine(forecast, IMPERIAL, NOW)).not.toContain("☂");
   });
+
+  test("resolves hi-lo by local date, not daily[0], across midnight", () => {
+    const forecast = makeForecast({
+      daily: [
+        dailyPoint({ dateLocal: "2026-08-23", tempMinC: -40, tempMaxC: -40 }),
+        dailyPoint({ dateLocal: "2026-08-24" }),
+      ],
+    });
+    expect(buildOneLine(forecast, IMPERIAL, NOW)).toBe("☀ 72° fl70 · 58°–75° · ↘6mph nw");
+  });
 });
 
 describe("buildJsonLine", () => {
@@ -224,5 +234,23 @@ describe("buildJsonLine", () => {
       );
       expect(json.line).toBe(buildOneLine(forecast, prefs, nowUtc));
     }
+  });
+
+  test("today resolves by local date, falling back to daily[0]", () => {
+    const loc = { label: null, latitude: 0, longitude: 0 };
+    const matched = makeForecast({
+      daily: [
+        dailyPoint({ dateLocal: "2026-08-23", tempMinC: 0, tempMaxC: 1 }),
+        dailyPoint({ dateLocal: "2026-08-24" }),
+      ],
+    });
+    expect(buildJsonLine(matched, loc, METRIC, NOW).today).toEqual({
+      minC: 14.4444,
+      maxC: 23.8889,
+    });
+    const staleOnly = makeForecast({
+      daily: [dailyPoint({ dateLocal: "2026-08-23", tempMinC: 0, tempMaxC: 1 })],
+    });
+    expect(buildJsonLine(staleOnly, loc, METRIC, NOW).today).toEqual({ minC: 0, maxC: 1 });
   });
 });
