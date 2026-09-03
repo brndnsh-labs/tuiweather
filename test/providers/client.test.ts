@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { buildForecastUrl, fetchForecast } from "../../src/lib/providers/openmeteo/client";
+import {
+  buildForecastUrl,
+  fetchForecast,
+  forecastEndpoint,
+} from "../../src/lib/providers/openmeteo/client";
 import { forecastResponseSchema } from "../../src/lib/providers/openmeteo/schemas";
 import { ProviderError } from "../../src/lib/providers/types";
 
@@ -158,6 +162,37 @@ describe("fetchForecast error mapping", () => {
     expect(error.message.includes("\n")).toBe(false);
     expect(error.message.length).toBeLessThan(300);
     expect(error.message).toContain("before an HTTP response:");
+  });
+});
+
+describe("forecast endpoint override", () => {
+  const KEY = "TUIWEATHER_OPENMETEO_FORECAST_URL";
+  const saved = process.env[KEY];
+
+  afterEach(() => {
+    if (saved === undefined) delete process.env[KEY];
+    else process.env[KEY] = saved;
+  });
+
+  test("defaults to the production endpoint when unset", () => {
+    delete process.env[KEY];
+    expect(forecastEndpoint()).toBe("https://api.open-meteo.com/v1/forecast");
+    expect(buildForecastUrl(PORTLAND).startsWith("https://api.open-meteo.com/v1/forecast?")).toBe(
+      true,
+    );
+  });
+
+  test("uses the override URL for the full request URL when set", () => {
+    process.env[KEY] = "http://127.0.0.1:4321/v1/forecast";
+    expect(forecastEndpoint()).toBe("http://127.0.0.1:4321/v1/forecast");
+    const url = buildForecastUrl(PORTLAND);
+    expect(url.startsWith("http://127.0.0.1:4321/v1/forecast?")).toBe(true);
+    expect(new URL(url).searchParams.get("latitude")).toBe("45.5202");
+  });
+
+  test("a blank override falls back to production", () => {
+    process.env[KEY] = "   ";
+    expect(forecastEndpoint()).toBe("https://api.open-meteo.com/v1/forecast");
   });
 });
 

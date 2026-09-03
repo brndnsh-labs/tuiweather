@@ -6,7 +6,7 @@ import { apiErrorBodySchema, forecastResponseSchema, MAX_REASON_CHARS } from "./
 
 export const OPENMETEO_PROVIDER_ID = "openmeteo";
 
-const FORECAST_ENDPOINT = "https://api.open-meteo.com/v1/forecast";
+const DEFAULT_FORECAST_ENDPOINT = "https://api.open-meteo.com/v1/forecast";
 const TIMEOUT_MS = 10_000;
 
 /**
@@ -64,6 +64,15 @@ export interface ForecastOptions {
   forecastMinutely15?: number;
 }
 
+/**
+ * Testing hook for hermetic runs (CI smoke serves a recorded fixture from
+ * localhost). Production never sets this; the default endpoint applies.
+ */
+export function forecastEndpoint(): string {
+  const override = process.env.TUIWEATHER_OPENMETEO_FORECAST_URL?.trim();
+  return override === undefined || override === "" ? DEFAULT_FORECAST_ENDPOINT : override;
+}
+
 export function buildForecastUrl(location: GeoPoint, opts: ForecastOptions = {}): string {
   const params = new URLSearchParams({
     latitude: String(location.latitude),
@@ -81,7 +90,7 @@ export function buildForecastUrl(location: GeoPoint, opts: ForecastOptions = {})
   if (opts.forecastHours !== undefined) {
     params.set("forecast_hours", String(opts.forecastHours));
   }
-  return `${FORECAST_ENDPOINT}?${params.toString()}`;
+  return `${forecastEndpoint()}?${params.toString()}`;
 }
 
 function httpErrorFor(status: number, body: unknown): ProviderError {
