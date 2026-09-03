@@ -335,7 +335,8 @@ function bestDryRun(points: HourlyPoint[], scores: number[]): Run | null {
   let best: Run | null = null;
   let segStart = 0;
   for (let i = 0; i <= points.length; i++) {
-    const atBoundary = i === points.length || !isDryHour(points[i] as HourlyPoint);
+    const current = points[i];
+    const atBoundary = i === points.length || current === undefined || !isDryHour(current);
     if (!atBoundary) continue;
     if (i - segStart >= MIN_RUN_HOURS) {
       const run = bestRun(scores.slice(segStart, i), (a, b) => a > b);

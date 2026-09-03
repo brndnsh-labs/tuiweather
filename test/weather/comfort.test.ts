@@ -118,6 +118,12 @@ describe("deriveComfortWindows", () => {
     expect(headsUp).toBeNull();
   });
 
+  test("empty hourly input scores without touching the loop boundary", () => {
+    const { goOut, headsUp } = deriveComfortWindows(forecast([]), NOW);
+    expect(goOut).toBeNull();
+    expect(headsUp).toBeNull();
+  });
+
   test("a go-out window is never composed across a wet hour, even when doing so would raise its mean", () => {
     // Removing a below-mean (here, zero-scored) hour from an average never
     // lowers it, so an exhaustive mean search would happily straddle a wet
