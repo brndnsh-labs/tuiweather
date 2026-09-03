@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { RangeBar } from "../../components/RangeBar";
+import { localDateAtOffset } from "../../features/daydetail/DayDetailOverlay";
 import { sectionRule } from "../../features/hourly/HourlyStrip";
 import type { DisplayPrefs, TuiConfig } from "../../lib/config/schema";
 import { conditionIcon } from "../../lib/weather/condition-display";
@@ -149,8 +150,12 @@ export function buildTodayBlock(
   prefs: DisplayPrefs,
   airQuality: AirQuality | null | undefined,
   width: number,
+  nowUtc: string,
 ): TodayBlock | null {
-  const today = forecast.daily[0];
+  const todayDate = localDateAtOffset(nowUtc, forecast.utcOffsetSeconds);
+  const today =
+    (todayDate !== null ? forecast.daily.find((day) => day.dateLocal === todayDate) : undefined) ??
+    forecast.daily[0];
   if (!today) return null;
   const loLabel = formatTemp(today.tempMinC, prefs.temp);
   const hiLabel = formatTemp(today.tempMaxC, prefs.temp);
@@ -299,7 +304,7 @@ export const Sidebar = memo(function Sidebar({
     forecast !== undefined && panels.nowcast ? buildNowSection(forecast, nowUtc, width) : null;
   const today =
     forecast !== undefined && panels.details
-      ? buildTodayBlock(forecast, prefs, airQuality, width)
+      ? buildTodayBlock(forecast, prefs, airQuality, width, nowUtc)
       : null;
   const fit = railFit(availableRows, locationRows, nowSectionRows(now), todayBlockRows(today));
   const nowFg =
