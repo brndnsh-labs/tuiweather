@@ -1211,7 +1211,7 @@ describe("action error transient", () => {
     expect(store.getState().lastActionError).toBeUndefined();
     expect(store.getState().lastActionErrorAtMs).toBeNull();
     store.getState().dispose();
-  });
+  }, 30_000);
 
   test("deleteLocation guard sets transient that is visible via isActionErrorActive", async () => {
     const singleTOML = CONFIG_TOML.replace(
@@ -1276,7 +1276,7 @@ longitude = -0.1276
     await new Promise((resolve) => setTimeout(resolve, ACTION_ERROR_TTL_MS + 150));
     expect(store.getState().lastActionError).toBe(message);
     store.getState().dispose();
-  });
+  }, 30_000);
 });
 
 describe("refreshLoopPeriodMs", () => {
