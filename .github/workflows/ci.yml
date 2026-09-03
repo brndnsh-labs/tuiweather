@@ -63,6 +63,13 @@ jobs:
           npm pack --json > /dev/null
           npm install --global ./tuiweather-*.tgz
 
+      - name: Start fixture stub
+        run: |
+          # Hermetic smoke: serve the recorded Portland fixture from localhost
+          # so the --one-line invocations below never touch api.open-meteo.com.
+          bun scripts/smoke-stub.ts 4321 &
+          echo "TUIWEATHER_OPENMETEO_FORECAST_URL=http://127.0.0.1:4321/v1/forecast" >> "$GITHUB_ENV"
+
       - name: Smoke
         run: |
           # Live calls to api.open-meteo.com: retry transient upstream 5xx
