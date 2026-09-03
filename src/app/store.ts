@@ -256,6 +256,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
     }
 
     function launchAirQuality(slug: string, location: GeoPoint, provider: ProviderId): void {
+      if (!selectProvider(provider).getAirQuality) return;
       void (async () => {
         try {
           const aq = await aqFetcher(location, { provider });

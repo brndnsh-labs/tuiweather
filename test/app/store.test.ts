@@ -125,7 +125,7 @@ function makeForecast(temperatureC = 18): NormalizedForecast {
 }
 
 describe("store", () => {
-  test("passes the configured provider id to both fetchers", async () => {
+  test("passes the configured provider id to the forecast fetcher; skips air quality without provider support", async () => {
     const dir = await makeConfigDir(NWS_TOML);
     const fetcher = stubFetcher();
     const aqCalls: unknown[] = [];
@@ -146,7 +146,33 @@ describe("store", () => {
 
     expect(store.getState().config.provider).toBe("nws");
     expect(fetcher.calls.providers).toEqual(["nws", "nws"]);
-    expect(aqCalls).toEqual(["nws", "nws"]);
+    expect(aqCalls).toEqual([]);
+    expect(store.getState().airQuality).toBeNull();
+    expect(store.getState().airQualityBySlug).toEqual({});
+    store.getState().dispose();
+  });
+
+  test("still fetches air quality with the provider id under openmeteo", async () => {
+    const dir = await makeConfigDir(CONFIG_TOML);
+    const fetcher = stubFetcher();
+    const aqCalls: unknown[] = [];
+    const aqFetcher = (
+      _location: { latitude: number; longitude: number },
+      opts?: { provider?: string },
+    ) => {
+      aqCalls.push(opts?.provider);
+      return Promise.resolve(stubNullAirQuality);
+    };
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: fetcher,
+      fetchAirQuality: aqFetcher,
+    });
+
+    await store.getState().init();
+
+    expect(store.getState().config.provider).toBe("openmeteo");
+    expect(aqCalls).toEqual(["openmeteo", "openmeteo"]);
     store.getState().dispose();
   });
 
