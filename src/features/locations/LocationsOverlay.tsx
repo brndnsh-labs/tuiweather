@@ -17,7 +17,7 @@ interface LocationsOverlayProps {
   height: number;
 }
 
-function rowLine(
+export function rowLine(
   num: string,
   marker: string,
   isDefault: boolean,
@@ -26,7 +26,9 @@ function rowLine(
   width: number,
 ): string {
   const prefix = `${num}${marker}${isDefault ? "★" : " "} `;
-  const budget = Math.max(0, width - displayWidth(prefix) - displayWidth(tail));
+  // One column narrower than the box interior: text at exactly the container
+  // width can wrap its last glyph onto an extra row (AGENTS.md).
+  const budget = Math.max(0, width - displayWidth(prefix) - displayWidth(tail) - 1);
   return `${prefix}${truncateCells(label, budget)}${tail}`;
 }
 
@@ -208,15 +210,18 @@ export function LocationsOverlay({ store, width, height }: LocationsOverlayProps
         </text>
       ) : armedLabel !== null ? (
         <text fg={palette.danger} bg={palette.surface}>
-          {truncateCells(`d again deletes ${armedLabel}`, innerWidth)}
+          {truncateCells(`d again deletes ${armedLabel}`, Math.max(0, innerWidth - 1))}
         </text>
       ) : (
         <text fg={palette.fgDim} bg={palette.surface}>
-          {truncateCells("↑↓ move · enter switch · 1-9 jump · esc close", innerWidth)}
+          {truncateCells(
+            "↑↓ move · enter switch · 1-9 jump · esc close",
+            Math.max(0, innerWidth - 1),
+          )}
         </text>
       )}
       <text fg={palette.fgDim} bg={palette.surface}>
-        {truncateCells("s default · d del×2 · J/K move · / add", innerWidth)}
+        {truncateCells("s default · d del×2 · J/K move · / add", Math.max(0, innerWidth - 1))}
       </text>
     </box>
   );
