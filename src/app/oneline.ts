@@ -1,8 +1,9 @@
+import { localDateAtOffset } from "../features/daydetail/DayDetailOverlay";
 import type { DisplayPrefs } from "../lib/config/schema";
 import { conditionGlyph } from "../lib/weather/condition-display";
 import { deriveNowcast, type Nowcast } from "../lib/weather/derive";
 import { formatTemp, formatWind } from "../lib/weather/format";
-import type { Condition, NormalizedForecast } from "../lib/weather/types";
+import type { Condition, DailyPoint, NormalizedForecast } from "../lib/weather/types";
 
 const SEPARATOR = " · ";
 
@@ -23,8 +24,20 @@ function windSegment(speedKmh: number, dirDeg: number, wind: DisplayPrefs["wind"
   return `${windArrow(dirDeg)}${speed}${unit}${compass ? ` ${compass}` : ""}`;
 }
 
-function hiLoSegment(forecast: NormalizedForecast, temp: DisplayPrefs["temp"]): string {
-  const today = forecast.daily[0];
+function todayPoint(forecast: NormalizedForecast, nowUtc: string): DailyPoint | undefined {
+  const todayDate = localDateAtOffset(nowUtc, forecast.utcOffsetSeconds);
+  return (
+    (todayDate !== null ? forecast.daily.find((day) => day.dateLocal === todayDate) : undefined) ??
+    forecast.daily[0]
+  );
+}
+
+function hiLoSegment(
+  forecast: NormalizedForecast,
+  temp: DisplayPrefs["temp"],
+  nowUtc: string,
+): string {
+  const today = todayPoint(forecast, nowUtc);
   if (!today) return "";
   return `${formatTemp(today.tempMinC, temp)}–${formatTemp(today.tempMaxC, temp)}`;
 }
@@ -55,7 +68,7 @@ export function buildOneLine(
   const segments = [
     `${glyph} ${formatTemp(current.temperatureC, prefs.temp)} fl${feelsLike}`,
     nowcastSegment(forecast, nowUtc),
-    hiLoSegment(forecast, prefs.temp),
+    hiLoSegment(forecast, prefs.temp, nowUtc),
     windSegment(current.windSpeedKmh, current.windDirectionDeg, prefs.wind),
   ].filter((segment) => segment.length > 0);
   return segments.join(SEPARATOR);
@@ -86,7 +99,7 @@ export function buildJsonLine(
   nowUtc: string,
 ): OneLineJson {
   const current = forecast.current;
-  const today = forecast.daily[0];
+  const today = todayPoint(forecast, nowUtc);
   return {
     location,
     observedAtUtc: current.timeUtc,

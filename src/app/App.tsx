@@ -220,7 +220,7 @@ function XsChips({
   const palette = usePalette();
   return (
     <text fg={palette.fg}>
-      {truncateTo(dailyChips(forecast.daily, prefs.temp), Math.max(0, width))}
+      {truncateTo(dailyChips(forecast.daily, prefs.temp), Math.max(0, width - 1))}
     </text>
   );
 }

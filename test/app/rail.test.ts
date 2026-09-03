@@ -108,6 +108,7 @@ describe("buildTodayBlock", () => {
       PREFS,
       { usAqi: 22, observedAtUtc: NOW },
       SIDEBAR_CONTENT_WIDTH,
+      NOW,
     );
     expect(block?.loLabel).toBe("53°");
     expect(block?.hiLabel).toBe("64°");
@@ -117,7 +118,7 @@ describe("buildTodayBlock", () => {
   });
 
   test("the range row's parts total exactly the content width", () => {
-    const block = buildTodayBlock(fixtureForecast(), PREFS, null, SIDEBAR_CONTENT_WIDTH);
+    const block = buildTodayBlock(fixtureForecast(), PREFS, null, SIDEBAR_CONTENT_WIDTH, NOW);
     const total =
       displayWidth(block?.loLabel ?? "") +
       1 +
@@ -128,13 +129,13 @@ describe("buildTodayBlock", () => {
   });
 
   test("omits the air row when neither UV nor AQI is present", () => {
-    const block = buildTodayBlock(fixtureForecast(), PREFS, null, SIDEBAR_CONTENT_WIDTH);
+    const block = buildTodayBlock(fixtureForecast(), PREFS, null, SIDEBAR_CONTENT_WIDTH, NOW);
     expect(block?.air).toBeNull();
   });
 
   test("null when the forecast carries no daily points", () => {
     const forecast = { ...fixtureForecast(), daily: [] };
-    expect(buildTodayBlock(forecast, PREFS, null, SIDEBAR_CONTENT_WIDTH)).toBeNull();
+    expect(buildTodayBlock(forecast, PREFS, null, SIDEBAR_CONTENT_WIDTH, NOW)).toBeNull();
   });
 
   test("every row stays inside the content width", () => {
@@ -143,10 +144,34 @@ describe("buildTodayBlock", () => {
       PREFS,
       { usAqi: 155, observedAtUtc: NOW },
       SIDEBAR_CONTENT_WIDTH,
+      NOW,
     );
     for (const row of [block?.precip, block?.sun, block?.air]) {
       if (row != null) expect(displayWidth(row)).toBeLessThanOrEqual(SIDEBAR_CONTENT_WIDTH);
     }
+  });
+
+  test("resolves today by local date, not daily[0], across midnight", () => {
+    const base = fixtureForecast();
+    const first = base.daily[0];
+    expect(first).toBeDefined();
+    if (first === undefined) throw new Error("fixture needs a daily point");
+    const stale = { ...first, dateLocal: "2026-09-01", tempMinC: -40, tempMaxC: -40 };
+    const forecast = { ...base, daily: [stale, ...base.daily] };
+    const block = buildTodayBlock(forecast, PREFS, null, SIDEBAR_CONTENT_WIDTH, NOW);
+    expect(block?.loLabel).toBe("53°");
+    expect(block?.hiLabel).toBe("64°");
+  });
+
+  test("falls back to daily[0] when no entry matches today", () => {
+    const base = fixtureForecast();
+    const forecast = {
+      ...base,
+      daily: base.daily.filter((day) => day.dateLocal !== "2026-09-02"),
+    };
+    const block = buildTodayBlock(forecast, PREFS, null, SIDEBAR_CONTENT_WIDTH, NOW);
+    expect(block?.loLabel).toBe("53°");
+    expect(block?.hiLabel).toBe("62°");
   });
 });
 
@@ -233,9 +258,10 @@ describe("section row accounting", () => {
       PREFS,
       { usAqi: 22, observedAtUtc: NOW },
       SIDEBAR_CONTENT_WIDTH,
+      NOW,
     );
     expect(todayBlockRows(full)).toBe(5);
-    const noAir = buildTodayBlock(fixtureForecast(), PREFS, null, SIDEBAR_CONTENT_WIDTH);
+    const noAir = buildTodayBlock(fixtureForecast(), PREFS, null, SIDEBAR_CONTENT_WIDTH, NOW);
     expect(todayBlockRows(noAir)).toBe(4);
   });
 });
