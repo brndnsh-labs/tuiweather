@@ -50,7 +50,7 @@ import { appStore, isActionErrorActive, isDeleteArmed, type WeatherStore } from 
 export { __setTickIntervalMs, TICK_INTERVAL_MS } from "./tick";
 
 /** Width budgeted for the slick-font hero digits when laying out the details grid beside it. */
-const HERO_RESERVE = 22;
+const HERO_RESERVE = 23;
 
 const EMPTY_FORECAST_HINT = "no forecast loaded — press r to refresh";
 const SCROLL_HINT_MORE = "↓ more";
@@ -751,6 +751,7 @@ export function App(props: AppProps = {}) {
           airQuality={airQuality}
           panels={config.panels}
           height={viewport.height}
+          viewportWidth={viewport.width}
         />
         <box flexDirection="column" flexGrow={1} gap={1}>
           {header}

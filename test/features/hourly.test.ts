@@ -3,6 +3,7 @@ import {
   annotateRows,
   applyNightDim,
   buildTempAreaRows,
+  chartSegmentsForRow,
   fitNotes,
   hourLabelsRow,
   hourlyDetailRow,
@@ -21,6 +22,7 @@ import {
   TEMP_AREA_ROWS_NARROW,
   TEMP_AREA_ROWS_WIDE,
   TRACE_MM,
+  tempColumnColors,
   windowIsDry,
 } from "../../src/features/hourly/HourlyStrip";
 import { displayWidth } from "../../src/lib/weather/format";
@@ -376,6 +378,40 @@ describe("applyNightDim", () => {
       { text: "  ", dim: false },
       { text: "85°", dim: true },
       { text: "██", dim: false },
+    ]);
+  });
+});
+
+describe("chartSegmentsForRow", () => {
+  const cold = "#000000";
+  const warm = "#ffffff";
+  const dim = "#888888";
+
+  test("day columns take their temp color", () => {
+    const colFg = tempColumnColors([0, 35], cold, warm);
+    expect(colFg).toHaveLength(2);
+    expect(colFg[0]).toBe(cold);
+    expect(colFg[1]).toBe(warm);
+    expect(chartSegmentsForRow("██", [], [false, false], colFg, dim)).toEqual([
+      { text: "█", fg: cold },
+      { text: "█", fg: warm },
+    ]);
+  });
+
+  test("night columns and annotation labels fall back to dim", () => {
+    const colFg = tempColumnColors([35, 35], cold, warm);
+    const notes = [{ row: 0, col: 1, label: "°" }];
+    expect(chartSegmentsForRow("█°", notes, [false, true], colFg, dim)).toEqual([
+      { text: "█", fg: warm },
+      { text: "°", fg: dim },
+    ]);
+  });
+
+  test("adjacent columns with equal color merge into one run", () => {
+    const colFg = tempColumnColors([20, 20, 20], cold, warm);
+    expect(colFg).toHaveLength(3);
+    expect(chartSegmentsForRow("███", [], [false, false, false], colFg, dim)).toEqual([
+      { text: "███", fg: colFg[0] ?? dim },
     ]);
   });
 });

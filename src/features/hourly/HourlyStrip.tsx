@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { lerpHex } from "../../components/RangeBar";
 import { resample, SPARKLINE_RAMP } from "../../components/Sparkline";
 import type { DisplayPrefs } from "../../lib/config/schema";
 import { conditionGlyph } from "../../lib/weather/condition-display";
@@ -13,6 +14,7 @@ import {
   formatVisibility,
   formatWind,
   type TimeFormat,
+  tempWarmthT,
   truncateCells,
   type Units,
 } from "../../lib/weather/format";
@@ -397,6 +399,47 @@ export function segmentRow(row: string, marks: readonly AreaNote[]): RowSegment[
   return segments;
 }
 
+export interface ChartSegment {
+  text: string;
+  fg: string;
+}
+
+export function tempColumnColors(temps: readonly number[], cold: string, warm: string): string[] {
+  return temps.map((t) => lerpHex(cold, warm, tempWarmthT(t)));
+}
+
+/**
+ * Per-column chart segments: day columns take their resampled temp color,
+ * night columns and hi/lo annotation labels fall back to dim. Runs merge
+ * where the resolved fg matches so span counts stay small.
+ */
+export function chartSegmentsForRow(
+  row: string,
+  notes: readonly AreaNote[],
+  isNightCol: readonly boolean[],
+  colFg: readonly string[],
+  dimFg: string,
+): ChartSegment[] {
+  const noteCols = new Set<number>();
+  for (const n of notes) {
+    for (let c = n.col; c < n.col + n.label.length; c++) noteCols.add(c);
+  }
+  const fgAt = (i: number): string => {
+    if (noteCols.has(i) || (isNightCol[i] ?? false)) return dimFg;
+    return colFg[i] ?? dimFg;
+  };
+  const out: ChartSegment[] = [];
+  let i = 0;
+  while (i < row.length) {
+    const fg = fgAt(i);
+    let j = i + 1;
+    while (j < row.length && fgAt(j) === fg) j++;
+    out.push({ text: row.slice(i, j), fg });
+    i = j;
+  }
+  return out;
+}
+
 export const HourlyStrip = memo(function HourlyStrip({
   points,
   nowUtc,
@@ -446,21 +489,17 @@ export const HourlyStrip = memo(function HourlyStrip({
       : `next ${window.length}h`);
 
   const chartRows = drawnRows.map((row, r) => {
-    let col = 0;
+    const cells = chartSegmentsForRow(
+      row,
+      fitted.filter((n) => n.row === r),
+      isNightCol,
+      tempColumnColors(seriesTemps, palette.tempCold, palette.tempWarm),
+      palette.fgDim,
+    ).map((seg, key) => ({ ...seg, key }));
     return {
       id: `temp-row-${r}`,
       gutter: r === 0 ? TEMP_LABEL : BLANK_GUTTER,
-      cells: applyNightDim(
-        segmentRow(
-          row,
-          fitted.filter((n) => n.row === r),
-        ),
-        isNightCol,
-      ).map((seg) => {
-        const cell = { ...seg, key: col };
-        col += seg.text.length;
-        return cell;
-      }),
+      cells,
     };
   });
 
@@ -479,8 +518,8 @@ export const HourlyStrip = memo(function HourlyStrip({
         <box key={id} flexDirection="row">
           <text fg={palette.fgDim}>{gutter}</text>
           <text>
-            {cells.map(({ key, text, dim }) => (
-              <span key={key} fg={dim ? palette.fgDim : palette.accent}>
+            {cells.map(({ key, text, fg }) => (
+              <span key={key} fg={fg}>
                 {text}
               </span>
             ))}

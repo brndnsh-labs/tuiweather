@@ -26,6 +26,12 @@ import type { WeatherStore } from "../store";
 
 export const SIDEBAR_WIDTH = 26;
 /**
+ * Below this viewport width the lg rail goes slim: locations only, no now/today
+ * cards. At 96–110 cols the main panel is only ~66–80 cols wide, so the cards
+ * cost more than they give — and the today card duplicates the main DaylightBar.
+ */
+export const SLIM_RAIL_CUTOFF = 110;
+/**
  * One column narrower than the bordered box's interior: text at exactly the
  * container width can wrap its last glyph onto an extra row (AGENTS.md).
  */
@@ -268,6 +274,7 @@ interface SidebarProps {
   airQuality?: AirQuality | null;
   panels: TuiConfig["panels"];
   height: number;
+  viewportWidth?: number;
 }
 
 export const Sidebar = memo(function Sidebar({
@@ -279,6 +286,7 @@ export const Sidebar = memo(function Sidebar({
   airQuality,
   panels,
   height,
+  viewportWidth,
 }: SidebarProps) {
   const palette = usePalette();
   const config = store((s) => s.config);
@@ -302,11 +310,17 @@ export const Sidebar = memo(function Sidebar({
 
   const now =
     forecast !== undefined && panels.nowcast ? buildNowSection(forecast, nowUtc, width) : null;
-  const today =
+  const todayRaw =
     forecast !== undefined && panels.details
       ? buildTodayBlock(forecast, prefs, airQuality, width, nowUtc)
       : null;
-  const fit = railFit(availableRows, locationRows, nowSectionRows(now), todayBlockRows(today));
+  const slim = viewportWidth !== undefined && viewportWidth < SLIM_RAIL_CUTOFF;
+  // Wide rails keep the main DaylightBar as the single sun source — the sidebar
+  // today card is the duplicate, not the bar. Slim rails hide today entirely.
+  const today = slim ? null : todayRaw === null ? null : { ...todayRaw, sun: null };
+  const fit = slim
+    ? { now: false, today: false }
+    : railFit(availableRows, locationRows, nowSectionRows(now), todayBlockRows(today));
   const nowFg =
     now === null
       ? palette.fgDim

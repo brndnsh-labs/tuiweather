@@ -149,7 +149,10 @@ describe("lg status rail", () => {
       expect(rail).toContain("Dry");
       expect(rail).toContain("── today");
       expect(rail).toContain("☂ 92% · 0.66 in");
-      expect(rail).toContain("↑ 6:33 AM  ↓ 7:46 PM");
+      // The sidebar today card drops its sun line — the main DaylightBar is the
+      // single sun source on wide rails.
+      expect(rail).not.toContain("↑ 6:33 AM");
+      expect(frame).toContain("↑ 6:33 AM");
     } finally {
       destroy();
     }
@@ -162,11 +165,11 @@ describe("lg status rail", () => {
       const rail = railColumn(frame);
       const nowRow = rail.findIndex((line) => line.includes("── now · m"));
       const todayRow = rail.findIndex((line) => line.includes("── today"));
-      const sunRow = rail.findIndex((line) => line.includes("↑ 6:33 AM"));
+      const precipRow = rail.findIndex((line) => line.includes("☂ 92%"));
       expect(nowRow).toBeGreaterThan(0);
       // Today sits at the foot of the rail: its last row is the row above the bottom border.
       const bottomBorder = rail.findIndex((line) => line.startsWith("└"));
-      expect(sunRow).toBe(bottomBorder - 1);
+      expect(precipRow).toBe(bottomBorder - 1);
       // The gap lands between the two sections, not after both.
       expect(todayRow - nowRow).toBeGreaterThan(10);
       for (const line of rail.slice(nowRow + 2, todayRow)) {
@@ -216,6 +219,26 @@ describe("lg status rail", () => {
     }
   });
 
+  test("narrow-lg viewports go slim: locations only, no now/today cards", async () => {
+    const store = await makeStore(toml({ nowcast: true, details: true }));
+    const { frame, destroy } = await renderAt(store, 100, 40);
+    try {
+      const lines = frame.split("\n").filter((line) => line.length > 0);
+      for (const line of lines) {
+        expect(displayWidth(line)).toBeLessThanOrEqual(100);
+      }
+      const rail = railColumn(frame).join("\n");
+      expect(rail).toContain("Portland");
+      expect(rail).not.toContain("── now · m");
+      expect(rail).not.toContain("── today");
+      // The main panel keeps its own daylight + hourly sections.
+      expect(frame).toContain("↑ 6:33 AM");
+      expect(frame).toContain("next 48h");
+    } finally {
+      destroy();
+    }
+  });
+
   test("renders at the 96-column lg floor with no row overflowing the terminal", async () => {
     const store = await makeStore(toml({ nowcast: true, details: true }));
     const { frame, destroy } = await renderAt(store, 96, 24);
@@ -225,8 +248,9 @@ describe("lg status rail", () => {
         expect(displayWidth(line)).toBeLessThanOrEqual(96);
       }
       const rail = railColumn(frame).join("\n");
-      expect(rail).toContain("── now · m");
-      expect(rail).toContain("── today");
+      expect(rail).toContain("Portland");
+      expect(rail).not.toContain("── now · m");
+      expect(rail).not.toContain("── today");
     } finally {
       destroy();
     }
@@ -269,7 +293,7 @@ describe("lg status rail", () => {
 
   test("a short rail sheds today before the nowcast, and never half-draws a section", async () => {
     const store = await makeStore(toml({ nowcast: true, details: true }));
-    const { frame, destroy } = await renderAt(store, 96, 8);
+    const { frame, destroy } = await renderAt(store, 120, 7);
     try {
       const rail = railColumn(frame).join("\n");
       expect(rail).toContain("── now · m");
