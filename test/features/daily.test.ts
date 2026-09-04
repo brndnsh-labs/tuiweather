@@ -79,7 +79,7 @@ describe("dailyMetrics width budget", () => {
       showPrecip: true,
     });
     expect(m.chipTier).toBe("none");
-    expect(m.barWidth).toBe(25);
+    expect(m.barWidth).toBe(23);
   });
 
   test("probability-only chips reserve 7 columns", () => {
@@ -88,7 +88,7 @@ describe("dailyMetrics width budget", () => {
       showPrecip: true,
     });
     expect(m.chipTier).toBe("prob");
-    expect(m.barWidth).toBe(18);
+    expect(m.barWidth).toBe(16);
   });
 
   test("any accumulated day reserves the full-chip allowance for all rows", () => {
@@ -97,14 +97,14 @@ describe("dailyMetrics width budget", () => {
       showPrecip: true,
     });
     expect(m.chipTier).toBe("full");
-    expect(m.barWidth).toBe(6);
-    expect(18 - m.barWidth).toBe(CHIP_FULL_RESERVE - CHIP_PROB_ONLY_RESERVE);
+    expect(m.barWidth).toBe(4);
+    expect(16 - m.barWidth).toBe(CHIP_FULL_RESERVE - CHIP_PROB_ONLY_RESERVE);
   });
 
   test("showPrecip=false skips every reservation", () => {
     const m = dailyMetrics([day(90)], { width: 40, showPrecip: false });
     expect(m.chipTier).toBe("none");
-    expect(m.barWidth).toBe(25);
+    expect(m.barWidth).toBe(23);
   });
 });
 
@@ -113,22 +113,22 @@ describe("degradation ladder at shrinking widths", () => {
 
   test("amount suffix drops first when the full allowance collapses the bar", () => {
     expect(dailyMetrics(days, { width: 35, showPrecip: true })).toEqual({
-      barWidth: 13,
+      barWidth: 11,
       chipTier: "prob",
     });
     expect(dailyMetrics(days, { width: 32, showPrecip: true })).toEqual({
-      barWidth: 10,
+      barWidth: 8,
       chipTier: "prob",
     });
   });
 
   test("whole chip drops next, then the bar clamps at its minimum", () => {
     expect(dailyMetrics(days, { width: 23, showPrecip: true })).toEqual({
-      barWidth: 8,
+      barWidth: 6,
       chipTier: "none",
     });
     expect(dailyMetrics(days, { width: 22, showPrecip: true })).toEqual({
-      barWidth: 7,
+      barWidth: 5,
       chipTier: "none",
     });
     expect(dailyMetrics(days, { width: 15, showPrecip: true })).toEqual({

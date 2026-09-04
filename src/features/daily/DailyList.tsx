@@ -39,7 +39,9 @@ export const CHIP_FULL_RESERVE =
   CHIP_LEADING_SPACE + CHIP_PROB_MAX + CHIP_SEPARATOR.length + CHIP_AMOUNT_MAX;
 
 const ICON_SEGMENT_CELLS = 1 + CONDITION_ICON_CELLS + 1;
-const BASE_FIXED_WIDTH = DAY_LABEL_WIDTH + ICON_SEGMENT_CELLS + 4 + 4;
+// A single space separates each temp from the range bar so `53°·███·64°`
+// pad-glyph runs never read as glued to the numbers.
+const BASE_FIXED_WIDTH = DAY_LABEL_WIDTH + ICON_SEGMENT_CELLS + 4 + 4 + 2;
 
 export type PrecipChipTier = "none" | "prob" | "full";
 
@@ -163,7 +165,7 @@ function DailyRow({
       ) : null}
       <text fg={selected ? palette.accent : palette.fgDim}>{parts.head}</text>
       <text fg={palette.fg} bg={selected ? palette.surface : undefined}>
-        {formatTemp(parts.lo, temp)}
+        {`${formatTemp(parts.lo, temp)} `}
       </text>
       <RangeBar
         lo={parts.lo}
@@ -174,7 +176,7 @@ function DailyRow({
         palette={palette}
       />
       <text fg={palette.fg} bg={selected ? palette.surface : undefined}>
-        {formatTemp(parts.hi, temp)}
+        {` ${formatTemp(parts.hi, temp)}`}
       </text>
       {parts.precip !== null ? (
         <text fg={palette.accent} bg={selected ? palette.surface : undefined}>

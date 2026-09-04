@@ -105,6 +105,7 @@ async function waitUntilFrame(
 describe("golden frames", () => {
   for (const [name, width, height] of [
     ["lg 120x40", 120, 40],
+    ["narrow-lg 100x40", 100, 40],
     ["md 80x24", 80, 24],
     ["sm 60x20", 60, 20],
     ["xs 40x12", 40, 12],
