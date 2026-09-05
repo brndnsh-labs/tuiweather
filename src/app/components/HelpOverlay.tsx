@@ -11,7 +11,7 @@ interface HelpOverlayProps {
 }
 
 export const HELP_BOX_WIDTH = 46;
-const HELP_BOX_HEIGHT = 13;
+const HELP_BOX_HEIGHT = 16;
 
 const HELP_LINES: { text: string; dim?: boolean }[] = [
   { text: "q quit        r refresh      u units" },
@@ -24,6 +24,9 @@ const HELP_LINES: { text: string; dim?: boolean }[] = [
   { text: "/ search     d delete (press twice)", dim: true },
   { text: "o re-run setup", dim: true },
   { text: "esc close / clear focus" },
+  { text: "▔ nowcast marker", dim: true },
+  { text: "▁▃▅█ precip: dry·light·mod·heavy", dim: true },
+  { text: "▸ focused  ● active  ○ inactive", dim: true },
 ];
 
 export function HelpOverlay({ store, width, height, providerLabel }: HelpOverlayProps) {
