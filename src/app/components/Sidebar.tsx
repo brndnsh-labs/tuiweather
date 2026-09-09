@@ -21,7 +21,8 @@ import {
   truncateCells,
 } from "../../lib/weather/format";
 import type { AirQuality, NormalizedForecast } from "../../lib/weather/types";
-import { usePalette } from "../../theme/tokens";
+import { panelPalette } from "../../theme/palette";
+import { ThemeContext, usePalette } from "../../theme/tokens";
 import type { WeatherStore } from "../store";
 
 export const SIDEBAR_WIDTH = 26;
@@ -65,7 +66,8 @@ const SidebarRow = memo(function SidebarRow({
   prefs,
 }: SidebarRowProps) {
   const locEntry = store((s) => s.forecastBySlug[slug]);
-  const palette = usePalette();
+  const base = usePalette();
+  const palette = isActive || isFocused ? panelPalette(base, base.selection) : base;
   const bullet = isFocused ? "▸" : isActive ? "●" : "○";
   const fg = isFocused
     ? isActive
@@ -79,7 +81,7 @@ const SidebarRow = memo(function SidebarRow({
     : "";
   const labelBudget = Math.max(0, SIDEBAR_WIDTH - 2 - displayWidth(tail) - 2 - 1);
   return (
-    <text fg={fg}>
+    <text fg={fg} bg={isActive || isFocused ? palette.selection : palette.surface} height={1}>
       {truncateTo(`${bullet} ${truncateTo(label, labelBudget)}${tail}`, SIDEBAR_CONTENT_WIDTH)}
     </text>
   );
@@ -288,12 +290,14 @@ export const Sidebar = memo(function Sidebar({
   height,
   viewportWidth,
 }: SidebarProps) {
-  const palette = usePalette();
+  const palette = panelPalette(usePalette());
   const config = store((s) => s.config);
   const activeSlug = store((s) => s.activeSlug);
 
   const width = SIDEBAR_CONTENT_WIDTH;
-  const availableRows = Math.max(0, height - RAIL_BORDER_ROWS);
+  const mastheadRows =
+    height >= 16 && config.locations.length + RAIL_BORDER_ROWS + 3 <= height ? 3 : 0;
+  const availableRows = Math.max(0, height - RAIL_BORDER_ROWS - mastheadRows);
   const slugs = config.locations.map((loc) => loc.slug);
   const { visible: visibleSlugs, hiddenCount } = visibleLocationRows(
     slugs,
@@ -331,59 +335,73 @@ export const Sidebar = memo(function Sidebar({
           : palette.fgDim;
 
   return (
-    <box
-      width={SIDEBAR_WIDTH}
-      border
-      borderColor={palette.border}
-      title="locations · l"
-      flexDirection="column"
-    >
-      {visibleLocations.map((loc) => (
-        <SidebarRow
-          key={loc.slug}
-          slug={loc.slug}
-          label={loc.label}
-          store={store}
-          isActive={loc.slug === activeSlug}
-          isFocused={loc.slug === focusedSlug}
-          prefs={prefs}
-        />
-      ))}
-      {hiddenCount > 0 ? (
-        <text fg={palette.fgDim}>{truncateTo(`… +${hiddenCount} more · l`, width)}</text>
-      ) : null}
-      {fit.now && now !== null ? (
-        <>
-          <text fg={palette.fgDim}>{sectionRule("now · m", width)}</text>
-          <text fg={nowFg}>{now.line}</text>
-          {now.strip !== null ? <text fg={nowFg}>{now.strip}</text> : null}
-          {now.ticks !== null ? <text fg={palette.fgDim}>{now.ticks}</text> : null}
-        </>
-      ) : null}
-      {fit.today && today !== null ? (
-        <>
-          {/* Locations and the nowcast stay top-anchored where they're glanceable; today
+    <ThemeContext value={palette}>
+      <box
+        width={SIDEBAR_WIDTH}
+        border
+        borderColor={palette.border}
+        backgroundColor={palette.surface}
+        title="locations · l"
+        flexDirection="column"
+      >
+        {mastheadRows > 0 ? (
+          <box height={3} flexShrink={0}>
+            <text fg={palette.accent} height={1}>
+              <b> T U I W E A T H E R</b>
+            </text>
+            <text fg={palette.fgDim} height={1}>
+              {" "}
+              your window outside
+            </text>
+          </box>
+        ) : null}
+        {visibleLocations.map((loc) => (
+          <SidebarRow
+            key={loc.slug}
+            slug={loc.slug}
+            label={loc.label}
+            store={store}
+            isActive={loc.slug === activeSlug}
+            isFocused={loc.slug === focusedSlug}
+            prefs={prefs}
+          />
+        ))}
+        {hiddenCount > 0 ? (
+          <text fg={palette.fgDim}>{truncateTo(`… +${hiddenCount} more · l`, width)}</text>
+        ) : null}
+        {fit.now && now !== null ? (
+          <>
+            <text fg={palette.fgDim}>{sectionRule("now · m", width)}</text>
+            <text fg={nowFg}>{now.line}</text>
+            {now.strip !== null ? <text fg={nowFg}>{now.strip}</text> : null}
+            {now.ticks !== null ? <text fg={palette.fgDim}>{now.ticks}</text> : null}
+          </>
+        ) : null}
+        {fit.today && today !== null ? (
+          <>
+            {/* Locations and the nowcast stay top-anchored where they're glanceable; today
               pins to the bottom so a tall rail's leftover space reads as structure
               rather than a trailing hole. Collapses to nothing when rows are tight. */}
-          <box flexGrow={1} />
-          <text fg={palette.fgDim}>{sectionRule("today", width)}</text>
-          <box flexDirection="row">
-            <text fg={palette.fgDim}>{`${today.loLabel} `}</text>
-            <RangeBar
-              lo={today.lo}
-              hi={today.hi}
-              weekMin={today.weekMin}
-              weekMax={today.weekMax}
-              width={today.barWidth}
-              palette={palette}
-            />
-            <text fg={palette.fgDim}>{` ${today.hiLabel}`}</text>
-          </box>
-          {today.precip !== null ? <text fg={palette.rain}>{today.precip}</text> : null}
-          {today.sun !== null ? <text fg={palette.fgDim}>{today.sun}</text> : null}
-          {today.air !== null ? <text fg={palette.fgDim}>{today.air}</text> : null}
-        </>
-      ) : null}
-    </box>
+            <box flexGrow={1} />
+            <text fg={palette.fgDim}>{sectionRule("today", width)}</text>
+            <box flexDirection="row">
+              <text fg={palette.fgDim}>{`${today.loLabel} `}</text>
+              <RangeBar
+                lo={today.lo}
+                hi={today.hi}
+                weekMin={today.weekMin}
+                weekMax={today.weekMax}
+                width={today.barWidth}
+                palette={palette}
+              />
+              <text fg={palette.fgDim}>{` ${today.hiLabel}`}</text>
+            </box>
+            {today.precip !== null ? <text fg={palette.rain}>{today.precip}</text> : null}
+            {today.sun !== null ? <text fg={palette.fgDim}>{today.sun}</text> : null}
+            {today.air !== null ? <text fg={palette.fgDim}>{today.air}</text> : null}
+          </>
+        ) : null}
+      </box>
+    </ThemeContext>
   );
 });

@@ -110,6 +110,37 @@ async function waitUntilFrame(
 }
 
 describe("daily list paging", () => {
+  test("wide cards preserve unknown rain chances and day selection through inspection and resize", async () => {
+    const store = await makeStore(sevenDayForecast());
+    const setup = await testRender(<App store={store} nowMs={NOW_MS} nowUtc={NOW} />, {
+      width: 120,
+      height: 40,
+    });
+    try {
+      await setup.flush();
+      const cards = await waitUntilFrame(setup, (frame) => frame.includes("68° high"));
+      expect(cards.match(/68° high/g)).toHaveLength(7);
+      expect(cards.match(/☂ –/g)).toHaveLength(7);
+      expect(cards).not.toContain("☂ 0%");
+      setup.mockInput.pressArrow("right");
+      await waitUntilFrame(setup, (frame) => frame.includes("▸Thu"));
+      await setup.mockInput.pressKeys(["v"]);
+      await waitUntilFrame(setup, (frame) => frame.includes("Thu 2026-09-03"));
+      setup.mockInput.pressEscape();
+      await sleep(30);
+      await waitUntilFrame(setup, (frame) => frame.includes("▸Thu"));
+      setup.resize(80, 40);
+      const rows = await waitUntilFrame(
+        setup,
+        (frame) => frame.includes("▸Thu") && !frame.includes("68° high"),
+      );
+      expect(rows).toContain("▸Thu ☀️");
+      expect(store.getState().dayCursorDate).toBe("2026-09-03");
+    } finally {
+      setup.renderer.destroy();
+    }
+  }, 30_000);
+
   test(", and . page a 14-day forecast; clamped at both ends", async () => {
     const store = await makeStore(fixtureForecast());
     const setup = await testRender(<App store={store} nowMs={NOW_MS} nowUtc={NOW} />, {

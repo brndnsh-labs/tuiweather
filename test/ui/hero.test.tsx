@@ -3,9 +3,16 @@ import { testRender } from "@opentui/react/test-utils";
 import { lerpHex } from "../../src/components/RangeBar";
 import { Hero } from "../../src/features/current/Hero";
 import type { DisplayPrefs } from "../../src/lib/config/schema";
-import { tempWarmthT } from "../../src/lib/weather/format";
+import { formatTemp, tempWarmthT } from "../../src/lib/weather/format";
 import type { CurrentObs } from "../../src/lib/weather/types";
-import { DARK_INK, NIGHT_ACCENTS, type Palette } from "../../src/theme/palette";
+import {
+  buildPalette,
+  contrastRatio,
+  DARK_INK,
+  NIGHT_ACCENTS,
+  type Palette,
+  panelPalette,
+} from "../../src/theme/palette";
 import { ThemeContext } from "../../src/theme/tokens";
 
 const palette: Palette = { ...DARK_INK, ...NIGHT_ACCENTS };
@@ -57,9 +64,10 @@ function expectedTempHex(celsius: number): string {
 async function collectFgHexes(
   obs: CurrentObs,
   opts: { mini?: boolean; compact?: boolean },
+  colors: Palette = palette,
 ): Promise<Set<string>> {
   const setup = await testRender(
-    <ThemeContext.Provider value={palette}>
+    <ThemeContext.Provider value={colors}>
       <Hero obs={obs} prefs={prefs} mini={opts.mini} compact={opts.compact} />
     </ThemeContext.Provider>,
     { width: 60, height: 12 },
@@ -81,6 +89,37 @@ async function collectFgHexes(
 }
 
 describe("Hero temperature color", () => {
+  test("interpolated temperatures retain text contrast in the day palette on a dark panel", async () => {
+    const colors = panelPalette(buildPalette("day", true, "dark", null));
+    for (const celsius of [0, 10, 20]) {
+      const hexes = await collectFgHexes(makeObs(celsius), {}, colors);
+      for (const hex of hexes)
+        expect(contrastRatio(hex, colors.surface)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  for (const temperatureC of [-40, 55]) {
+    test(`three-character temperatures fit the smallest instrument at ${temperatureC}C`, async () => {
+      const imperial = { ...prefs, temp: "imperial" as const };
+      const setup = await testRender(
+        <box width={24} flexDirection="column">
+          <Hero obs={makeObs(temperatureC)} prefs={imperial} width={24} />
+          <text>after instrument</text>
+        </box>,
+        { width: 24, height: 8 },
+      );
+      try {
+        await setup.flush();
+        const frame = setup.captureCharFrame();
+        expect(frame).toContain("°F");
+        expect(frame).toContain(`feels like ${formatTemp(temperatureC, "imperial")}`);
+        expect(frame.split("\n")[6]?.trim()).toBe("after instrument");
+      } finally {
+        setup.renderer.destroy();
+      }
+    });
+  }
+
   test("cold fixture renders cold-shifted hue in mini", async () => {
     const hexes = await collectFgHexes(makeObs(-10), { mini: true });
     expect(hexes.has(expectedTempHex(-10))).toBe(true);

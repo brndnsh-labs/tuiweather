@@ -223,12 +223,22 @@ Requires [Bun](https://bun.sh) >= 1.3.
 ```sh
 bun install
 bun run dev        # run the TUI
+bun run preview    # offline interface demo with recorded Portland + Tokyo weather
 bun run test       # unit + snapshot tests
 bun run typecheck  # tsc --noEmit
 bun run lint       # biome check
 ```
 
 See [AGENTS.md](AGENTS.md) for architecture and conventions, [CONTRIBUTING.md](CONTRIBUTING.md) for contribution workflow.
+
+The interface adapts from a compact weather summary to an observatory with large temperatures,
+weather artwork, an hourly chart, and seven forecast cards. Light and dark terminal appearances
+both use contrast-adjusted text. Use `←` / `→` and `v` to inspect a day, `i` to inspect an hour,
+and `?` for all shortcuts.
+
+The preview uses a temporary config and recorded fixtures; it does not load or change your
+normal locations. Try `bun run preview --light` for the light appearance. To export a terminal
+frame as SVG, run `bun run preview --capture /tmp/weather.svg --width 120 --height 40`.
 
 ## License
 

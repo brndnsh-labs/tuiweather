@@ -1,6 +1,7 @@
 import { useKeyboard, useRenderer } from "@opentui/react";
 import { memo, type ReactNode, useEffect, useMemo, useState } from "react";
 import { DAYLIGHT_MIN_WIDTH, DaylightBar } from "../components/DaylightBar";
+import { SectionHeading } from "../components/SectionHeading";
 import { Sparkline } from "../components/Sparkline";
 import { ComfortLines } from "../features/comfort/ComfortLines";
 import { DetailsGrid } from "../features/current/DetailsGrid";
@@ -10,6 +11,7 @@ import {
   DAILY_PAGE_SIZE,
   DailyList,
   dailyChips,
+  dailyContentRows,
   dailySectionLabel,
 } from "../features/daily/DailyList";
 import { DayDetailOverlay, localDateAtOffset } from "../features/daydetail/DayDetailOverlay";
@@ -17,7 +19,6 @@ import {
   HourlyStrip,
   MIN_WIDE_AREA_SERIES_WIDTH,
   nextInspectTimeUtc,
-  sectionRule,
   seriesWidthFor,
   sliceUpcoming,
   TEMP_AREA_ROWS_NARROW,
@@ -34,7 +35,7 @@ import { deriveComfortWindows, deriveNowcast } from "../lib/weather/derive";
 import { displayWidth, truncateCells } from "../lib/weather/format";
 import type { AirQuality, NormalizedForecast } from "../lib/weather/types";
 import { FALLBACK_APPEARANCE, type TerminalAppearance } from "../theme/detect";
-import { buildPalette } from "../theme/palette";
+import { buildPalette, panelPalette } from "../theme/palette";
 import { ThemeContext, usePalette } from "../theme/tokens";
 import type { Tier } from "../viewport/breakpoints";
 import { useViewport } from "../viewport/useViewport";
@@ -49,15 +50,11 @@ import { appStore, isActionErrorActive, isDeleteArmed, type WeatherStore } from 
 
 export { __setTickIntervalMs, TICK_INTERVAL_MS } from "./tick";
 
-/** Width budgeted for the slick-font hero digits when laying out the details grid beside it. */
-const HERO_RESERVE = 23;
-
 const EMPTY_FORECAST_HINT = "no forecast loaded — press r to refresh";
 const SCROLL_HINT_MORE = "↓ more";
 
-const SLICK_HERO_ROWS = 7;
+const HERO_ROWS = 6;
 const COMPACT_HERO_ROWS = 2;
-const DETAILS_GRID_ROWS = 4;
 const NOWCAST_BANNER_ROWS = 2;
 /** Extra rows the toggled minutely-15 expansion adds under the banner: a labeled bar row + a time-tick row. */
 const NOWCAST_EXPANSION_ROWS = 2;
@@ -65,8 +62,8 @@ const NOWCAST_EXPANSION_ROWS = 2;
 const ERROR_PANEL_ROWS = 4;
 /** Hint line reserved under the scroll region when the overflow hint shows. */
 const OVERFLOW_HINT_ROWS = 1;
-/** Panel border pair plus the header/footer rows and their gaps around the main panel. */
-export const MAIN_CHROME_ROWS = 6;
+/** Two header rows, a border pair, and the one-row footer. */
+export const MAIN_CHROME_ROWS = 5;
 export interface MainOverflowInput {
   tier: Tier;
   width: number;
@@ -80,7 +77,7 @@ export interface MainOverflowInput {
 function heroRowsFor(tier: Tier, panels: TuiConfig["panels"]): number {
   if (tier === "sm") return COMPACT_HERO_ROWS;
   if (tier === "md" && !panels.details) return COMPACT_HERO_ROWS;
-  return Math.max(SLICK_HERO_ROWS, DETAILS_GRID_ROWS);
+  return HERO_ROWS;
 }
 
 /** Single source of truth for the hourly window size per tier — mirrors the maxPoints passed to every <HourlyStrip>. */
@@ -143,7 +140,7 @@ export function estimateMainContentRows(input: MainOverflowInput): number | null
   } = input;
   if (tier === "xs") return null;
 
-  const sections: number[] = [heroRowsFor(tier, panels)];
+  let overviewRows = heroRowsFor(tier, panels);
   const today = forecast.daily[0];
   const sunriseMs = today?.sunriseUtc != null ? Date.parse(today.sunriseUtc) : NaN;
   const sunsetMs = today?.sunsetUtc != null ? Date.parse(today.sunsetUtc) : NaN;
@@ -154,20 +151,19 @@ export function estimateMainContentRows(input: MainOverflowInput): number | null
     sunsetMs > sunriseMs &&
     width - 1 >= DAYLIGHT_MIN_WIDTH - 1
   ) {
-    sections.push(1);
+    overviewRows += 1;
   }
   const nowcastKind = deriveNowcast(forecast, nowUtc).kind;
   if (tier !== "lg" && panels.nowcast && nowcastKind !== "dry" && nowcastKind !== "unavailable") {
-    sections.push(NOWCAST_BANNER_ROWS + (nowcastExpanded ? NOWCAST_EXPANSION_ROWS : 0));
+    overviewRows += NOWCAST_BANNER_ROWS + (nowcastExpanded ? NOWCAST_EXPANSION_ROWS : 0);
   }
   const comfortRows = comfortRowsFor(tier, forecast, nowUtc);
-  if (comfortRows > 0) sections.push(comfortRows);
+  overviewRows += comfortRows;
+  const sections = [overviewRows];
   const hourlyRows = hourlyRowsFor(tier, width, forecast, panels, nowUtc, hourlyInspectTimeUtc);
   if (hourlyRows > 0) sections.push(hourlyRows);
   if (panels.daily && forecast.daily.length > 0 && width >= 12) {
-    sections.push(1);
-    const pageDays = Math.min(forecast.daily.length, DAILY_PAGE_SIZE);
-    sections.push(tier === "lg" ? pageDays : Math.ceil(pageDays / 2));
+    sections.push(1 + dailyContentRows(forecast.daily.length, width));
   }
 
   const sectionRows = sections.reduce((sum, rows) => sum + rows, 0);
@@ -253,7 +249,7 @@ const MainContent = memo(function MainContent({
     const tempValues = sliceUpcoming(forecast.hourly, nowUtc, 12).map((p) => p.temperatureC);
     return (
       <box flexDirection="column" gap={1}>
-        <Hero obs={forecast.current} prefs={prefs} mini />
+        <Hero obs={forecast.current} prefs={prefs} mini width={width} />
         {panels.nowcast ? <NowcastBanner nowcast={nowcast} hideWhenDry width={width} /> : null}
         {panels.hourly && tempValues.length > 0 ? (
           <Sparkline
@@ -267,31 +263,40 @@ const MainContent = memo(function MainContent({
     );
   }
 
-  if (tier === "sm" || tier === "md") {
-    const showDetails = tier === "md";
-    return (
-      <scrollbox
-        height={scrollHeight}
-        focused
-        viewportCulling={false}
-        scrollbarOptions={{ visible: false }}
-      >
-        <box flexDirection="column" gap={1}>
-          {showDetails && panels.details ? (
-            <box flexDirection="row" gap={2}>
-              <Hero obs={forecast.current} prefs={prefs} />
-              <DetailsGrid
+  const showDetails = tier !== "sm" && panels.details;
+  const detailColWidth = Math.max(18, Math.min(22, Math.floor((width - 26) / 2)));
+  const heroWidth = showDetails ? width - detailColWidth * 2 - 2 : width;
+  const instrumentPalette = panelPalette(palette);
+
+  return (
+    <scrollbox
+      height={scrollHeight}
+      focused
+      viewportCulling={false}
+      scrollbarOptions={{ visible: false }}
+    >
+      <box flexDirection="column" gap={1}>
+        <box flexDirection="column">
+          <ThemeContext value={instrumentPalette}>
+            <box flexDirection="row" gap={2} backgroundColor={instrumentPalette.surface}>
+              <Hero
                 obs={forecast.current}
-                today={forecast.daily[0]}
-                utcOffsetSeconds={forecast.utcOffsetSeconds}
                 prefs={prefs}
-                colWidth={Math.max(10, Math.floor((width - HERO_RESERVE) / 2))}
-                airQuality={airQuality}
+                width={heroWidth}
+                compact={tier === "sm" || (tier === "md" && !panels.details)}
               />
+              {showDetails ? (
+                <DetailsGrid
+                  obs={forecast.current}
+                  today={forecast.daily[0]}
+                  utcOffsetSeconds={forecast.utcOffsetSeconds}
+                  prefs={prefs}
+                  colWidth={detailColWidth}
+                  airQuality={airQuality}
+                />
+              ) : null}
             </box>
-          ) : (
-            <Hero obs={forecast.current} prefs={prefs} compact />
-          )}
+          </ThemeContext>
           {showDaylight && today ? (
             <DaylightBar
               sunriseUtc={today.sunriseUtc}
@@ -302,7 +307,7 @@ const MainContent = memo(function MainContent({
               timeFormat={prefs.timeFormat}
             />
           ) : null}
-          {panels.nowcast ? (
+          {tier !== "lg" && panels.nowcast ? (
             <NowcastBanner
               nowcast={nowcast}
               hideWhenDry
@@ -313,7 +318,7 @@ const MainContent = memo(function MainContent({
               timeFormat={prefs.timeFormat}
             />
           ) : null}
-          {showDetails && (comfort.goOut !== null || comfort.headsUp !== null) ? (
+          {comfort.goOut !== null || comfort.headsUp !== null ? (
             <ComfortLines
               goOut={comfort.goOut}
               headsUp={comfort.headsUp}
@@ -322,78 +327,7 @@ const MainContent = memo(function MainContent({
               width={width}
             />
           ) : null}
-          {panels.hourly ? (
-            <HourlyStrip
-              points={forecast.hourly}
-              nowUtc={nowUtc}
-              utcOffsetSeconds={forecast.utcOffsetSeconds}
-              prefs={prefs}
-              maxPoints={hourlyWindowMaxPoints(tier)}
-              width={width}
-              showDetail={showDetails}
-              inspectTimeUtc={hourlyInspectTimeUtc}
-            />
-          ) : null}
-          {panels.daily ? (
-            <>
-              <text fg={palette.fgDim}>
-                {sectionRule(dailySectionLabel(forecast.daily.length, dailyPageIndex), width)}
-              </text>
-              <DailyList
-                days={forecast.daily}
-                pageIndex={dailyPageIndex}
-                prefs={prefs}
-                width={width}
-                showPrecip={!showDetails}
-                selectedDateLocal={selectedDayDateLocal}
-              />
-            </>
-          ) : null}
         </box>
-      </scrollbox>
-    );
-  }
-
-  return (
-    <scrollbox
-      height={scrollHeight}
-      focused
-      viewportCulling={false}
-      scrollbarOptions={{ visible: false }}
-    >
-      <box flexDirection="column" gap={1}>
-        <box flexDirection="row" gap={2}>
-          <Hero obs={forecast.current} prefs={prefs} />
-          {panels.details ? (
-            <DetailsGrid
-              obs={forecast.current}
-              today={forecast.daily[0]}
-              utcOffsetSeconds={forecast.utcOffsetSeconds}
-              prefs={prefs}
-              colWidth={Math.max(10, Math.floor((width - HERO_RESERVE) / 2))}
-              airQuality={airQuality}
-            />
-          ) : null}
-        </box>
-        {showDaylight && today ? (
-          <DaylightBar
-            sunriseUtc={today.sunriseUtc}
-            sunsetUtc={today.sunsetUtc}
-            nowUtc={nowUtc}
-            utcOffsetSeconds={forecast.utcOffsetSeconds}
-            width={width}
-            timeFormat={prefs.timeFormat}
-          />
-        ) : null}
-        {comfort.goOut !== null || comfort.headsUp !== null ? (
-          <ComfortLines
-            goOut={comfort.goOut}
-            headsUp={comfort.headsUp}
-            utcOffsetSeconds={forecast.utcOffsetSeconds}
-            prefs={prefs}
-            width={width}
-          />
-        ) : null}
         {panels.hourly ? (
           <HourlyStrip
             points={forecast.hourly}
@@ -402,15 +336,16 @@ const MainContent = memo(function MainContent({
             prefs={prefs}
             maxPoints={hourlyWindowMaxPoints(tier)}
             width={width}
-            showDetail
+            showDetail={tier !== "sm"}
             inspectTimeUtc={hourlyInspectTimeUtc}
           />
         ) : null}
-        {panels.daily ? (
-          <>
-            <text fg={palette.fgDim}>
-              {sectionRule(dailySectionLabel(forecast.daily.length, dailyPageIndex), width)}
-            </text>
+        {panels.daily && forecast.daily.length > 0 ? (
+          <box flexDirection="column">
+            <SectionHeading
+              label={dailySectionLabel(forecast.daily.length, dailyPageIndex)}
+              width={width}
+            />
             <DailyList
               days={forecast.daily}
               pageIndex={dailyPageIndex}
@@ -418,7 +353,7 @@ const MainContent = memo(function MainContent({
               width={width}
               selectedDateLocal={selectedDayDateLocal}
             />
-          </>
+          </box>
         ) : null}
       </box>
     </scrollbox>
@@ -456,10 +391,10 @@ export function App(props: AppProps = {}) {
 
   const isDay = entry?.forecast.current.isDay ?? true;
   const appearance = props.appearance ?? FALLBACK_APPEARANCE;
-  const palette = useMemo(
-    () => buildPalette(config.theme, isDay, appearance.ink, appearance.background),
-    [config.theme, isDay, appearance],
-  );
+  const palette = useMemo(() => {
+    const base = buildPalette(config.theme, isDay, appearance.ink, appearance.background);
+    return panelPalette(base, base.surface);
+  }, [config.theme, isDay, appearance]);
   const prefs = useMemo(() => resolveDisplayPrefs(config), [config]);
 
   useEffect(() => {
@@ -633,7 +568,7 @@ export function App(props: AppProps = {}) {
       fetchedAtMs={entry?.fetchedAtMs}
       stale={stale}
       nowMs={nowMs}
-      width={viewport.width}
+      width={tier === "lg" ? viewport.width - SIDEBAR_WIDTH : viewport.width}
     />
   );
 
@@ -681,7 +616,7 @@ export function App(props: AppProps = {}) {
           : staleBadge
             ? 1
             : 0;
-  const statusBlock = statusRows > 0 ? statusRows + 1 : 0;
+  const statusBlock = statusRows;
   const showOverflowHint =
     overflowEstimate !== null &&
     viewport.height < overflowEstimate + MAIN_CHROME_ROWS + statusBlock;
@@ -717,9 +652,9 @@ export function App(props: AppProps = {}) {
   const mainPanel = (
     <box
       border
-      borderColor={palette.border}
+      borderColor={palette.accent}
       flexGrow={1}
-      title="main"
+      title=" observatory "
       flexDirection="column"
       paddingX={1}
     >
@@ -753,7 +688,7 @@ export function App(props: AppProps = {}) {
           height={viewport.height}
           viewportWidth={viewport.width}
         />
-        <box flexDirection="column" flexGrow={1} gap={1}>
+        <box flexDirection="column" flexGrow={1}>
           {header}
           {status}
           {mainPanel}
@@ -763,7 +698,7 @@ export function App(props: AppProps = {}) {
     );
   } else {
     body = (
-      <box flexDirection="column" flexGrow={1} gap={1}>
+      <box flexDirection="column" flexGrow={1} gap={tier === "xs" ? 1 : 0}>
         {header}
         {status}
         {mainPanel}
@@ -774,7 +709,7 @@ export function App(props: AppProps = {}) {
 
   return (
     <ThemeContext value={palette}>
-      <box flexDirection="column" width="100%" height="100%">
+      <box flexDirection="column" width="100%" height="100%" backgroundColor={palette.surface}>
         {initStatus === "idle" || initStatus === "loading" ? (
           <box flexGrow={1} justifyContent="center" alignItems="center">
             <text fg={palette.fgDim}>starting tuiweather…</text>

@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { lerpHex } from "../../components/RangeBar";
+import { SectionHeading } from "../../components/SectionHeading";
 import { resample, SPARKLINE_RAMP } from "../../components/Sparkline";
 import type { DisplayPrefs } from "../../lib/config/schema";
 import { conditionGlyph } from "../../lib/weather/condition-display";
@@ -513,7 +514,7 @@ export const HourlyStrip = memo(function HourlyStrip({
 
   return (
     <box flexDirection="column">
-      <text fg={palette.fgDim}>{sectionRule(title, width)}</text>
+      <SectionHeading label={title} width={width} />
       {chartRows.map(({ id, gutter, cells }) => (
         <box key={id} flexDirection="row">
           <text fg={palette.fgDim}>{gutter}</text>

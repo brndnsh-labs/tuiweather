@@ -8,6 +8,13 @@ import {
   rangeBarSegments,
   rangeBarSpan,
 } from "../../src/components/RangeBar";
+import {
+  buildPalette,
+  contrastRatio,
+  FOREGROUND_CONTRAST_FLOOR,
+  panelPalette,
+  type ThemeName,
+} from "../../src/theme/palette";
 
 describe("rangeBarSpan", () => {
   test("full span covers the whole track", () => {
@@ -137,6 +144,38 @@ describe("rangeBarSegments", () => {
     const fillColors = new Set(segments.filter((s) => s.fg !== DIM).map((s) => s.fg));
     expect(fillColors.size).toBeLessThanOrEqual(GRADIENT_STEPS);
     expect(segments.length).toBeLessThanOrEqual(GRADIENT_STEPS + 2);
+  });
+
+  test("keeps every gradient step legible on each observatory surface", () => {
+    const themes: ThemeName[] = ["day", "night"];
+    for (const ink of ["dark", "light"] as const) {
+      for (const theme of themes) {
+        const base = buildPalette(theme, theme === "day", ink, null);
+        for (const surface of [base.surface, base.panel, base.selection]) {
+          const palette = panelPalette(base, surface);
+          const segments = rangeBarSegments(
+            0,
+            100,
+            0,
+            100,
+            64,
+            palette.tempCold,
+            palette.tempWarm,
+            palette.fgDim,
+            palette.surface,
+          );
+          const fillColors = segments
+            .filter((segment) => segment.text.includes(FILL_GLYPH))
+            .map((segment) => segment.fg);
+          expect(fillColors).toHaveLength(GRADIENT_STEPS);
+          for (const color of fillColors) {
+            expect(contrastRatio(color, palette.surface)).toBeGreaterThanOrEqual(
+              FOREGROUND_CONTRAST_FLOOR,
+            );
+          }
+        }
+      }
+    }
   });
 
   test("degenerate hi == lo renders a single midpoint cell", () => {

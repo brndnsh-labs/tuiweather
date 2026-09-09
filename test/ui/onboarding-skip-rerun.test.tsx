@@ -200,7 +200,7 @@ describe("onboarding skip and re-run", () => {
       await setup.mockInput.pressEnter();
       const weather = await waitUntilFrame(
         setup,
-        (frame) => frame.includes("Tokyo, Tokyo") && frame.includes("main"),
+        (frame) => frame.includes("Tokyo, Tokyo") && frame.includes("observatory"),
       );
       expect(weather).not.toContain("find your first location");
       expect(store.getState().config.locations.map((loc) => loc.slug)).toEqual([
