@@ -179,7 +179,7 @@ describe("nowcast minutely-15 expansion", () => {
       await waitUntilFrame(setup, (f) => f.includes("Portland"));
 
       setup.resize(40, 24);
-      await waitUntilFrame(setup, (f) => f.includes("Portland"));
+      await waitUntilFrame(setup, (f) => f.includes("v r u ? q"));
 
       await setup.mockInput.pressKeys(["m"]);
       await sleep(30);

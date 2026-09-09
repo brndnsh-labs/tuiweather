@@ -1,4 +1,5 @@
 import {
+  displayWidth,
   formatClock,
   formatDayDate,
   type TimeFormat,
@@ -45,6 +46,7 @@ export function Header({
   width,
 }: HeaderProps) {
   const palette = usePalette();
+  const budget = Math.max(1, (width ?? 100) - 1);
 
   if (tier === "sm" || tier === "xs") {
     const clock =
@@ -56,27 +58,45 @@ export function Header({
     const line = [label, date, clock].filter((part) => part !== undefined).join(" · ");
     const clipped = width === undefined ? line : truncateCells(line, Math.max(1, width - 1));
     return (
-      <box flexDirection="row">
-        <text fg={palette.fg}>{clipped}</text>
+      <box flexDirection="column" height={tier === "xs" ? 1 : 2} flexShrink={0}>
+        <text fg={palette.fg} height={1}>
+          <b>{clipped}</b>
+        </text>
+        {tier === "sm" ? (
+          <text fg={palette.accent} height={1}>
+            {truncateCells("tuiweather / your window outside", budget)}
+          </text>
+        ) : null}
       </box>
     );
   }
 
+  const clock = clockUtc === undefined ? "" : formatClock(clockUtc, utcOffsetSeconds, timeFormat);
+  const date = clockUtc === undefined ? "" : formatDayDate(clockUtc, utcOffsetSeconds, "long");
+  const right = `${date}  ${clock}`.trim();
+  const brand = "tuiweather / ";
+  const name = truncateCells(label, Math.max(1, budget - brand.length - displayWidth(right) - 2));
+  const gap = " ".repeat(
+    Math.max(1, budget - brand.length - displayWidth(name) - displayWidth(right)),
+  );
+  const metadata = [
+    coords ? `${coords.latitude.toFixed(1)}°, ${coords.longitude.toFixed(1)}°` : null,
+    fetchedAtMs === undefined ? null : formatUpdatedAgo(fetchedAtMs, nowMs),
+    stale ? "stale" : null,
+  ]
+    .filter((part) => part !== null)
+    .join("  ·  ");
   return (
-    <box flexDirection="row" gap={2}>
-      <text fg={palette.accent}>{label}</text>
-      {coords ? (
-        <text fg={palette.fgDim}>
-          {`${coords.latitude.toFixed(1)}°, ${coords.longitude.toFixed(1)}°`}
-        </text>
-      ) : null}
-      {clockUtc !== undefined ? (
-        <text fg={palette.fgDim}>{formatDayDate(clockUtc, utcOffsetSeconds, "long")}</text>
-      ) : null}
-      {fetchedAtMs !== undefined ? (
-        <text fg={palette.fgDim}>{formatUpdatedAgo(fetchedAtMs, nowMs)}</text>
-      ) : null}
-      {stale ? <text fg={palette.warn}>stale</text> : null}
+    <box flexDirection="column" height={2} flexShrink={0}>
+      <text fg={palette.fg} height={1}>
+        <span fg={palette.accent}>{brand}</span>
+        <b>{name}</b>
+        {gap}
+        <span fg={palette.fgDim}>{right}</span>
+      </text>
+      <text fg={stale ? palette.warn : palette.fgDim} height={1}>
+        {truncateCells(metadata, budget)}
+      </text>
     </box>
   );
 }

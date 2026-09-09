@@ -1,4 +1,5 @@
 import { truncateCells } from "../../lib/weather/format";
+import { panelPalette } from "../../theme/palette";
 import { usePalette } from "../../theme/tokens";
 import type { Tier } from "../../viewport/breakpoints";
 
@@ -21,10 +22,26 @@ export function footerText(tier: Tier, width: number): string {
 }
 
 export function Footer({ tier, width }: FooterProps) {
-  const palette = usePalette();
+  const palette = panelPalette(usePalette());
+  const hints = footerText(tier, width).split(" · ");
   return (
-    <box flexDirection="row">
-      <text fg={palette.fgDim}>{footerText(tier, width)}</text>
+    <box flexDirection="row" backgroundColor={palette.surface} height={1} flexShrink={0}>
+      <text fg={palette.fgDim} height={1}>
+        {hints.map((hint, index) => {
+          const split = hint.indexOf(" ");
+          const key = split === -1 ? hint : hint.slice(0, split);
+          const label = split === -1 ? "" : hint.slice(split);
+          return (
+            <span key={hint}>
+              {index > 0 ? " · " : ""}
+              <span fg={palette.accent}>
+                <b>{key}</b>
+              </span>
+              {label}
+            </span>
+          );
+        })}
+      </text>
     </box>
   );
 }

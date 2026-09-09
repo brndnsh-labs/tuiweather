@@ -24,12 +24,12 @@ interface DetailsGridProps {
 
 const LABEL_PAD = 9;
 
-function Cell({ label, value }: { label: string; value: string }) {
+function Cell({ label, value, width }: { label: string; value: string; width: number }) {
   const palette = usePalette();
   return (
-    <text fg={palette.fgDim}>
+    <text fg={palette.fgDim} height={1}>
       {`${label.padEnd(LABEL_PAD)}`}
-      <span fg={palette.fg}>{value}</span>
+      <span fg={palette.fg}>{truncateCells(value, Math.max(0, width - LABEL_PAD - 1))}</span>
     </text>
   );
 }
@@ -42,6 +42,7 @@ export const DetailsGrid = memo(function DetailsGrid({
   colWidth,
   airQuality,
 }: DetailsGridProps) {
+  const palette = usePalette();
   const humidity = `${Math.round(obs.humidityPct)}%`;
   const dewPoint = obs.dewPointC === null ? "--" : formatTemp(obs.dewPointC, prefs.temp);
   const pressure = formatPressure(obs.pressureHpa, prefs.pressure);
@@ -81,18 +82,22 @@ export const DetailsGrid = memo(function DetailsGrid({
       ["sunrise", sunrise],
       ["sunset", sunset],
     ],
+    [["wind", formatWind(obs.windSpeedKmh, obs.windDirectionDeg, prefs.wind)]],
   ];
   if (air !== null) {
-    rows.push([["air", air]]);
+    rows[4]?.push(["air", air]);
   }
 
   return (
     <box flexDirection="column">
+      <text fg={palette.accent} height={1}>
+        <b>ATMOSPHERE</b>
+      </text>
       {rows.map((pair) => (
         <box key={pair.map(([label]) => label).join("-")} flexDirection="row">
           {pair.map(([label, value]) => (
             <box key={label} width={halfWidth} flexShrink={0} flexDirection="row">
-              <Cell label={label} value={value} />
+              <Cell label={label} value={value} width={halfWidth} />
             </box>
           ))}
         </box>

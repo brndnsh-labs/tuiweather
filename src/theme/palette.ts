@@ -6,6 +6,8 @@ export interface Ink {
   fgDim: string;
   border: string;
   surface: string;
+  panel: string;
+  selection: string;
 }
 
 export interface Accents {
@@ -21,37 +23,41 @@ export interface Accents {
 export interface Palette extends Ink, Accents {}
 
 export const DARK_INK: Ink = {
-  fg: "#c0caf5",
-  fgDim: "#565f89",
-  border: "#3b4261",
-  surface: "#16161e",
+  fg: "#e3edf5",
+  fgDim: "#92a8ba",
+  border: "#314b60",
+  surface: "#0b1520",
+  panel: "#112231",
+  selection: "#203d50",
 };
 
 export const LIGHT_INK: Ink = {
-  fg: "#343b58",
-  fgDim: "#8990b3",
-  border: "#a8b0d0",
-  surface: "#f4f6fb",
+  fg: "#173247",
+  fgDim: "#506a7b",
+  border: "#94b0bf",
+  surface: "#f0f5f7",
+  panel: "#e3edf1",
+  selection: "#cbdfe8",
 };
 
 export const DAY_ACCENTS: Accents = {
-  accent: "#2e7de9",
-  ok: "#387068",
-  warn: "#8c6c3e",
-  danger: "#c64343",
-  tempCold: "#007197",
-  tempWarm: "#965027",
-  rain: "#00807a",
+  accent: "#007e97",
+  ok: "#397559",
+  warn: "#916013",
+  danger: "#ba354f",
+  tempCold: "#007bba",
+  tempWarm: "#b06424",
+  rain: "#087f90",
 };
 
 export const NIGHT_ACCENTS: Accents = {
-  accent: "#7aa2f7",
-  ok: "#9ece6a",
-  warn: "#e0af68",
-  danger: "#f7768e",
-  tempCold: "#7dcfff",
-  tempWarm: "#ff9e64",
-  rain: "#41a6b5",
+  accent: "#65dce8",
+  ok: "#a3deb0",
+  warn: "#f2c078",
+  danger: "#ff879e",
+  tempCold: "#80caff",
+  tempWarm: "#ffb66f",
+  rain: "#65c9e8",
 };
 
 export function parseHexColor(hex: string): [number, number, number] | null {
@@ -134,12 +140,36 @@ export function buildPalette(
           : NIGHT_ACCENTS),
   };
   const bg = terminalBackground ?? base.surface;
+  const onSurface = (color: string) =>
+    ensureContrast(color, base.surface, FOREGROUND_CONTRAST_FLOOR);
   return {
     ...base,
     fg: ensureContrast(base.fg, bg, FOREGROUND_CONTRAST_FLOOR),
     fgDim: ensureContrast(base.fgDim, bg, FOREGROUND_CONTRAST_FLOOR),
     warn: ensureContrast(base.warn, bg, FOREGROUND_CONTRAST_FLOOR),
     danger: ensureContrast(base.danger, bg, FOREGROUND_CONTRAST_FLOOR),
+    accent: onSurface(base.accent),
+    ok: onSurface(base.ok),
+    tempCold: onSurface(base.tempCold),
+    tempWarm: onSurface(base.tempWarm),
+    rain: onSurface(base.rain),
+  };
+}
+
+export function panelPalette(palette: Palette, surface = palette.panel): Palette {
+  const readable = (color: string) => ensureContrast(color, surface, FOREGROUND_CONTRAST_FLOOR);
+  return {
+    ...palette,
+    surface,
+    fg: readable(palette.fg),
+    fgDim: readable(palette.fgDim),
+    accent: readable(palette.accent),
+    ok: readable(palette.ok),
+    warn: readable(palette.warn),
+    danger: readable(palette.danger),
+    tempCold: readable(palette.tempCold),
+    tempWarm: readable(palette.tempWarm),
+    rain: readable(palette.rain),
   };
 }
 

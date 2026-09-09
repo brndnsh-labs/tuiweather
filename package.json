@@ -33,6 +33,7 @@
   },
   "scripts": {
     "dev": "bun run src/index.tsx",
+    "preview": "bun scripts/preview.tsx",
     "build": "bun build ./src/index.tsx --outdir dist --target node --external '@opentui/core-*'",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",

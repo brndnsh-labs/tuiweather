@@ -8,6 +8,7 @@ import {
   isDarkBackground,
   LIGHT_INK,
   NIGHT_ACCENTS,
+  panelPalette,
   relativeLuminance,
 } from "../../src/theme/palette";
 
@@ -46,17 +47,45 @@ describe("buildPalette ink/sky split", () => {
     const nightTerminalDaytime = buildPalette("auto", true, "dark", null);
     expect(nightTerminalDaytime.fg).toBe(DARK_INK.fg);
     expect(nightTerminalDaytime.surface).toBe(DARK_INK.surface);
-    expect(nightTerminalDaytime.accent).toBe(DAY_ACCENTS.accent);
+    expect(nightTerminalDaytime.accent).toBe(
+      ensureContrast(DAY_ACCENTS.accent, DARK_INK.surface, 4.5),
+    );
 
     const dayTerminalNighttime = buildPalette("auto", false, "light", null);
     expect(dayTerminalNighttime.fg).toBe(LIGHT_INK.fg);
-    expect(dayTerminalNighttime.accent).toBe(NIGHT_ACCENTS.accent);
+    expect(dayTerminalNighttime.accent).toBe(
+      ensureContrast(NIGHT_ACCENTS.accent, LIGHT_INK.surface, 4.5),
+    );
   });
 
   test("explicit theme still pins accents only", () => {
     const p = buildPalette("night", true, "dark", null);
     expect(p.accent).toBe(NIGHT_ACCENTS.accent);
     expect(p.fg).toBe(DARK_INK.fg);
+  });
+
+  test("all text colors stay legible on instruments and selected cards in both inks", () => {
+    for (const ink of ["dark", "light"] as const) {
+      for (const theme of ["day", "night"] as const) {
+        const base = buildPalette(theme, true, ink, null);
+        for (const surface of [base.surface, base.panel, base.selection]) {
+          const palette = panelPalette(base, surface);
+          for (const key of [
+            "fg",
+            "fgDim",
+            "accent",
+            "ok",
+            "warn",
+            "danger",
+            "tempCold",
+            "tempWarm",
+            "rain",
+          ] as const) {
+            expect(contrastRatio(palette[key], surface)).toBeGreaterThanOrEqual(4.5);
+          }
+        }
+      }
+    }
   });
 
   test("fg and fgDim meet the 4.5:1 floor against both stock surfaces", () => {

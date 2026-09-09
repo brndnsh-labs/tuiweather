@@ -85,13 +85,15 @@ export const ComfortLines = memo(function ComfortLines({
   const palette = usePalette();
   if (goOut === null && headsUp === null) return null;
   return (
-    <>
+    <box flexDirection="column">
       {goOut !== null ? (
-        <text fg={palette.accent}>{buildGoOutLine(goOut, utcOffsetSeconds, prefs, width)}</text>
+        <text fg={palette.ok}>{buildGoOutLine(goOut, utcOffsetSeconds, prefs, width - 1)}</text>
       ) : null}
       {headsUp !== null ? (
-        <text fg={palette.warn}>{buildHeadsUpLine(headsUp, utcOffsetSeconds, prefs, width)}</text>
+        <text fg={palette.warn}>
+          {buildHeadsUpLine(headsUp, utcOffsetSeconds, prefs, width - 1)}
+        </text>
       ) : null}
-    </>
+    </box>
   );
 });

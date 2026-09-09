@@ -276,7 +276,7 @@ describe("App shell", () => {
       const frame = await waitUntilFrame(setup, (f) => f.includes("Portland"));
       expect(frame).toContain("45.5°, -122.7°");
       expect(frame).not.toContain("●");
-      expect(frame).toContain("┌─main");
+      expect(frame).toContain("┌─ observatory ");
       expect(frame).not.toContain("· md");
       expect(frame).toContain("v view");
     } finally {
@@ -510,7 +510,7 @@ describe("App shell", () => {
       await setup.flush();
       const frame = await waitUntilFrame(setup, (f) => f.includes("no forecast loaded"));
       expect(frame).toContain("press r to refresh");
-      expect(frame).toContain("┌─main");
+      expect(frame).toContain("┌─ observatory ");
       expect(frame).not.toContain("· md");
     } finally {
       await setup.renderer.destroy();
@@ -600,12 +600,12 @@ describe("cell-aware label truncation", () => {
       await setup.flush();
       const frame = await waitUntilFrame(
         setup,
-        (f) => f.includes("┌─main") && !f.includes("syncing"),
+        (f) => f.includes("┌─ observatory ") && !f.includes("syncing"),
       );
       const rows = frame.split("\n");
       expect(rows[0]?.trimEnd()).toBe(`${"L".repeat(30)}…`);
       expect(rows[1]?.trim()).toBe("");
-      expect(rows[2]).toContain("┌─main");
+      expect(rows[2]).toContain("┌─ observatory ");
       for (const row of rows) {
         expect(displayWidth(row.trimEnd())).toBeLessThanOrEqual(32);
       }
@@ -624,12 +624,12 @@ describe("cell-aware label truncation", () => {
       await setup.flush();
       const frame = await waitUntilFrame(
         setup,
-        (f) => f.includes("┌─main") && !f.includes("syncing"),
+        (f) => f.includes("┌─ observatory ") && !f.includes("syncing"),
       );
       const rows = frame.split("\n");
       expect(rows[0]?.trimEnd()).toBe(`${"⛅️Honolulu".repeat(3)}…`);
       expect(rows[1]?.trim()).toBe("");
-      expect(rows[2]).toContain("┌─main");
+      expect(rows[2]).toContain("┌─ observatory ");
       for (const row of rows) {
         expect(displayWidth(row.trimEnd())).toBeLessThanOrEqual(32);
       }
@@ -646,7 +646,7 @@ describe("cell-aware label truncation", () => {
     });
     try {
       await setup.flush();
-      await waitUntilFrame(setup, (f) => f.includes("┌─main") && !f.includes("syncing"));
+      await waitUntilFrame(setup, (f) => f.includes("┌─ observatory ") && !f.includes("syncing"));
 
       await setup.mockInput.pressKeys(["d"]);
       const frame = await waitUntilFrame(setup, (f) => f.includes("press d again"));
@@ -655,7 +655,7 @@ describe("cell-aware label truncation", () => {
       expect(armRows).toHaveLength(1);
       const armRow = armRows[0] ?? "";
       expect(armRow.trimEnd().endsWith("…")).toBe(true);
-      expect(rows.findIndex((row) => row.includes("┌─main"))).toBe(
+      expect(rows.findIndex((row) => row.includes("┌─ observatory "))).toBe(
         rows.findIndex((row) => row.includes("press d again")) + 2,
       );
     } finally {

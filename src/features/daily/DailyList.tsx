@@ -7,9 +7,11 @@ import {
   formatPct,
   formatPrecip,
   formatTemp,
+  truncateCells,
   type Units,
 } from "../../lib/weather/format";
 import type { DailyPoint } from "../../lib/weather/types";
+import { panelPalette } from "../../theme/palette";
 import { usePalette } from "../../theme/tokens";
 
 interface DailyListProps {
@@ -89,6 +91,11 @@ export interface DailyListMetrics {
  * available to page through grows.
  */
 export const DAILY_PAGE_SIZE = 7;
+export const DAILY_CARDS_MIN_WIDTH = 84;
+
+export function dailyContentRows(dayCount: number, width: number): number {
+  return dayCount > 0 && width >= DAILY_CARDS_MIN_WIDTH ? 7 : Math.min(dayCount, DAILY_PAGE_SIZE);
+}
 
 function dailyPageCount(totalDays: number): number {
   return Math.max(1, Math.ceil(totalDays / DAILY_PAGE_SIZE));
@@ -157,7 +164,8 @@ function DailyRow({
   selected: boolean;
   showCursor: boolean;
 }) {
-  const palette = usePalette();
+  const base = usePalette();
+  const palette = selected ? panelPalette(base, base.selection) : base;
   return (
     <box flexDirection="row" backgroundColor={selected ? palette.surface : undefined}>
       {showCursor ? (
@@ -187,6 +195,63 @@ function DailyRow({
   );
 }
 
+function DayCard({
+  day,
+  prefs,
+  width,
+  weekMin,
+  weekMax,
+  selected,
+  showPrecip,
+}: {
+  day: DailyPoint;
+  prefs: DisplayPrefs;
+  width: number;
+  weekMin: number;
+  weekMax: number;
+  selected: boolean;
+  showPrecip: boolean;
+}) {
+  const base = usePalette();
+  const palette = panelPalette(base, selected ? base.selection : base.panel);
+  const contentWidth = width - 3;
+  const clip = (value: string) => truncateCells(value, contentWidth);
+  return (
+    <box
+      width={width}
+      height={7}
+      flexShrink={0}
+      border
+      borderStyle="rounded"
+      borderColor={selected ? palette.accent : palette.border}
+      backgroundColor={palette.surface}
+      flexDirection="column"
+    >
+      <text height={1} fg={selected ? palette.accent : palette.fg}>
+        <b>{`${selected ? "▸" : " "}${formatDayLabel(day.dateLocal)}`}</b>
+        {` ${conditionIcon(day.condition)}`}
+      </text>
+      <text height={1} fg={palette.tempWarm}>
+        <b>{clip(`${formatTemp(day.tempMaxC, prefs.temp)} high`)}</b>
+      </text>
+      <text height={1} fg={palette.fgDim}>
+        {clip(`${formatTemp(day.tempMinC, prefs.temp)} low`)}
+      </text>
+      <RangeBar
+        lo={day.tempMinC}
+        hi={day.tempMaxC}
+        weekMin={weekMin}
+        weekMax={weekMax}
+        width={contentWidth}
+        palette={palette}
+      />
+      <text height={1} fg={palette.rain}>
+        {showPrecip ? clip(`☂ ${formatPct(day.precipProbabilityMaxPct)}`) : ""}
+      </text>
+    </box>
+  );
+}
+
 export const DailyList = memo(function DailyList({
   days,
   pageIndex = 0,
@@ -202,6 +267,25 @@ export const DailyList = memo(function DailyList({
   const weekMax = Math.max(...days.map((d) => d.tempMaxC));
   const showCursor =
     selectedDateLocal !== null && pageDays.some((d) => d.dateLocal === selectedDateLocal);
+  if (width >= DAILY_CARDS_MIN_WIDTH) {
+    const cardWidth = Math.floor((width - DAILY_PAGE_SIZE) / DAILY_PAGE_SIZE);
+    return (
+      <box flexDirection="row" gap={1}>
+        {pageDays.map((day) => (
+          <DayCard
+            key={day.dateLocal}
+            day={day}
+            prefs={prefs}
+            width={cardWidth}
+            weekMin={weekMin}
+            weekMax={weekMax}
+            selected={day.dateLocal === selectedDateLocal}
+            showPrecip={showPrecip}
+          />
+        ))}
+      </box>
+    );
+  }
   const metricsWidth = Math.max(1, width - (showCursor ? 1 : 0));
   const { barWidth, chipTier } = dailyMetrics(days, {
     width: metricsWidth,

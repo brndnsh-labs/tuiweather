@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { testRender } from "@opentui/react/test-utils";
-import { App, estimateMainContentRows } from "../../src/app/App";
+import { App, estimateMainContentRows, MAIN_CHROME_ROWS } from "../../src/app/App";
 import { createStoreInstance, type ForecastFetcher, type WeatherStore } from "../../src/app/store";
 import { normalizeForecast } from "../../src/lib/providers/openmeteo/normalize";
 import { forecastResponseSchema } from "../../src/lib/providers/openmeteo/schemas";
@@ -107,20 +107,31 @@ describe("main overflow estimate", () => {
       panels: ALL_PANELS,
       nowUtc: NOW,
     });
-    expect(rows).toBe(28);
-    expect((rows ?? 0) + 6).toBeGreaterThan(24);
+    expect(rows).toBe(27);
+    expect((rows ?? 0) + MAIN_CHROME_ROWS).toBeGreaterThan(24);
   });
 
   test("tier shapes change the estimate deterministically", () => {
     const forecast = fixtureForecast();
     const base = { width: 90, forecast, panels: ALL_PANELS, nowUtc: NOW };
-    expect(estimateMainContentRows({ ...base, tier: "lg" })).toBe(31);
-    expect(estimateMainContentRows({ ...base, tier: "sm" })).toBe(19);
+    expect(estimateMainContentRows({ ...base, tier: "lg" })).toBe(27);
+    expect(estimateMainContentRows({ ...base, tier: "sm" })).toBe(20);
     expect(estimateMainContentRows({ ...base, tier: "xs" })).toBeNull();
   });
 });
 
 describe("overflow hint", () => {
+  test("the complete hourly chart including its clock labels fits above the 80x24 fold", async () => {
+    const frame = await frameFor(configToml({}));
+    expect(frame).toContain("CURRENT CONDITIONS");
+    expect(frame).toContain("rain ");
+    const rows = frame.split("\n");
+    const times = rows.findIndex((row) => row.includes("6a") && row.includes("3a"));
+    const hint = rows.findIndex((row) => row.includes("↓ more"));
+    expect(times).toBeGreaterThan(0);
+    expect(times).toBeLessThan(hint);
+  });
+
   test("short md frame surfaces the bottom-right hint", async () => {
     const frame = await frameFor(configToml({}));
     expect(frame).toContain("↓ more");
@@ -140,7 +151,7 @@ describe("overflow hint", () => {
 describe("panels config toggles", () => {
   test("default panels render hero, details, hourly, and daily sections", async () => {
     const frame = await frameFor(configToml({}));
-    expect(frame).toContain("╭━━━╮");
+    expect(frame).toContain("CURRENT CONDITIONS");
     expect(frame).toContain("sunrise");
     expect(frame).toContain("temp ");
     expect(frame).toContain("↓ more");
@@ -182,7 +193,7 @@ describe("panels config toggles", () => {
 
   test("panels.hourly=false drops the strip but keeps other sections", async () => {
     const frame = await frameFor(configToml({ hourly: false }));
-    expect(frame).toContain("╭━━━╮");
+    expect(frame).toContain("CURRENT CONDITIONS");
     expect(frame).not.toContain("temp ");
     expect(frame).toContain("sunrise");
     expect(frame).toContain("14 day");
@@ -190,7 +201,7 @@ describe("panels config toggles", () => {
 
   test("panels.daily=false drops list and its rule but keeps other sections", async () => {
     const frame = await frameFor(configToml({ daily: false }));
-    expect(frame).toContain("╭━━━╮");
+    expect(frame).toContain("CURRENT CONDITIONS");
     expect(frame).not.toContain("14 day");
     expect(frame).not.toContain("Mon ☁️");
     expect(frame).toContain("temp ");
