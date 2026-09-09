@@ -1,4 +1,4 @@
-import type { Palette } from "../theme/palette";
+import { ensureContrast, FOREGROUND_CONTRAST_FLOOR, type Palette } from "../theme/palette";
 
 export const PAD_GLYPH = "·";
 export const FILL_GLYPH = "█";
@@ -73,6 +73,7 @@ export function rangeBarSegments(
   cold: string,
   warm: string,
   padFg: string,
+  background?: string,
 ): BarSegment[] {
   const w = Math.max(1, Math.floor(width));
   const { start, end } = rangeBarSpan(lo, hi, weekMin, weekMax, w);
@@ -95,9 +96,12 @@ export function rangeBarSegments(
       }
     }
     for (const chunk of chunks) {
+      const gradientColor = lerpHex(cold, warm, chunk.step / (GRADIENT_STEPS - 1));
       segments.push({
         text: FILL_GLYPH.repeat(chunk.to - chunk.from),
-        fg: lerpHex(cold, warm, chunk.step / (GRADIENT_STEPS - 1)),
+        fg: background
+          ? ensureContrast(gradientColor, background, FOREGROUND_CONTRAST_FLOOR)
+          : gradientColor,
       });
     }
   }
@@ -125,6 +129,7 @@ export function RangeBar({ lo, hi, weekMin, weekMax, width, palette }: RangeBarP
     palette.tempCold,
     palette.tempWarm,
     palette.fgDim,
+    palette.surface,
   );
   let offset = 0;
   return (
