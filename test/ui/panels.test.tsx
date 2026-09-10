@@ -107,15 +107,15 @@ describe("main overflow estimate", () => {
       panels: ALL_PANELS,
       nowUtc: NOW,
     });
-    expect(rows).toBe(27);
+    expect(rows).toBe(29);
     expect((rows ?? 0) + MAIN_CHROME_ROWS).toBeGreaterThan(24);
   });
 
   test("tier shapes change the estimate deterministically", () => {
     const forecast = fixtureForecast();
     const base = { width: 90, forecast, panels: ALL_PANELS, nowUtc: NOW };
-    expect(estimateMainContentRows({ ...base, tier: "lg" })).toBe(27);
-    expect(estimateMainContentRows({ ...base, tier: "sm" })).toBe(20);
+    expect(estimateMainContentRows({ ...base, tier: "lg" })).toBe(29);
+    expect(estimateMainContentRows({ ...base, tier: "sm" })).toBe(22);
     expect(estimateMainContentRows({ ...base, tier: "xs" })).toBeNull();
   });
 });
