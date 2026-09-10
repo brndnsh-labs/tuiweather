@@ -4,7 +4,10 @@ import {
   CHIP_FULL_RESERVE,
   CHIP_PROB_ONLY_RESERVE,
   clampDailyPageIndex,
+  DAILY_PAGE_SIZE,
+  DAILY_TREND_ROWS,
   dailyChips,
+  dailyContentRows,
   dailyMetrics,
   dailyPageWindow,
   dailySectionLabel,
@@ -150,6 +153,15 @@ function daysOfLength(n: number): DailyPoint[] {
     day(null, { dateLocal: `2026-09-${String(i + 1).padStart(2, "0")}` }),
   );
 }
+
+describe("dailyContentRows", () => {
+  test("budgets one row per visible day plus the hi/lo trend strip", () => {
+    expect(dailyContentRows(0)).toBe(0);
+    expect(dailyContentRows(3)).toBe(3 + DAILY_TREND_ROWS);
+    expect(dailyContentRows(DAILY_PAGE_SIZE)).toBe(DAILY_PAGE_SIZE + DAILY_TREND_ROWS);
+    expect(dailyContentRows(14)).toBe(DAILY_PAGE_SIZE + DAILY_TREND_ROWS);
+  });
+});
 
 describe("daily paging", () => {
   test("an exact multiple of the page size has no partial trailing page", () => {

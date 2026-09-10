@@ -163,7 +163,7 @@ export function estimateMainContentRows(input: MainOverflowInput): number | null
   const hourlyRows = hourlyRowsFor(tier, width, forecast, panels, nowUtc, hourlyInspectTimeUtc);
   if (hourlyRows > 0) sections.push(hourlyRows);
   if (panels.daily && forecast.daily.length > 0 && width >= 12) {
-    sections.push(1 + dailyContentRows(forecast.daily.length, width));
+    sections.push(1 + dailyContentRows(forecast.daily.length));
   }
 
   const sectionRows = sections.reduce((sum, rows) => sum + rows, 0);

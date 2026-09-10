@@ -37,4 +37,13 @@ describe("sparklineChars", () => {
       expect(SPARKLINE_RAMP.includes(ch as (typeof SPARKLINE_RAMP)[number])).toBe(true);
     }
   });
+
+  test("explicit domain normalizes to the shared scale instead of the page min/max", () => {
+    expect(sparklineChars([6, 8], 2, { min: 0, max: 10 })).toBe("▆▇");
+    expect(sparklineChars([6, 8], 2)).toBe("▁█");
+  });
+
+  test("explicit zero-span domain renders flat", () => {
+    expect(sparklineChars([5, 9], 2, { min: 7, max: 7 })).toBe("▄▄");
+  });
 });

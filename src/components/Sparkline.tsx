@@ -30,15 +30,22 @@ export function resample(values: number[], width: number): number[] {
   return out;
 }
 
-export function sparklineChars(values: number[], width?: number): string {
+export interface SparklineDomain {
+  min: number;
+  max: number;
+}
+
+export function sparklineChars(values: number[], width?: number, domain?: SparklineDomain): string {
   if (values.length === 0) return EMPTY_CHAR;
   const w = Math.max(1, width ?? values.length);
   const pts = resample(values, w);
-  let min = Infinity;
-  let max = -Infinity;
-  for (const v of pts) {
-    if (v < min) min = v;
-    if (v > max) max = v;
+  let min = domain?.min ?? Infinity;
+  let max = domain?.max ?? -Infinity;
+  if (domain === undefined) {
+    for (const v of pts) {
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
   }
   const range = max - min;
   return pts

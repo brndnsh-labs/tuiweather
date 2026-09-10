@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { RangeBar } from "../../components/RangeBar";
+import { sparklineChars } from "../../components/Sparkline";
 import type { DisplayPrefs } from "../../lib/config/schema";
 import { CONDITION_ICON_CELLS, conditionIcon } from "../../lib/weather/condition-display";
 import {
@@ -7,7 +8,6 @@ import {
   formatPct,
   formatPrecip,
   formatTemp,
-  truncateCells,
   type Units,
 } from "../../lib/weather/format";
 import type { DailyPoint } from "../../lib/weather/types";
@@ -41,9 +41,13 @@ export const CHIP_FULL_RESERVE =
   CHIP_LEADING_SPACE + CHIP_PROB_MAX + CHIP_SEPARATOR.length + CHIP_AMOUNT_MAX;
 
 const ICON_SEGMENT_CELLS = 1 + CONDITION_ICON_CELLS + 1;
+// Lo temps render right-aligned in a fixed field so every range bar starts in
+// the same column — the vertical alignment that makes multi-day trends readable.
+// Fixed at 4: "100°" and "-12°" are the widest formatTemp outputs.
 // A single space separates each temp from the range bar so `53°·███·64°`
 // pad-glyph runs never read as glued to the numbers.
-const BASE_FIXED_WIDTH = DAY_LABEL_WIDTH + ICON_SEGMENT_CELLS + 4 + 4 + 2;
+const LO_TEMP_WIDTH = 4;
+const BASE_FIXED_WIDTH = DAY_LABEL_WIDTH + ICON_SEGMENT_CELLS + LO_TEMP_WIDTH + 4 + 2;
 
 export type PrecipChipTier = "none" | "prob" | "full";
 
@@ -91,10 +95,12 @@ export interface DailyListMetrics {
  * available to page through grows.
  */
 export const DAILY_PAGE_SIZE = 7;
-export const DAILY_CARDS_MIN_WIDTH = 84;
+/** Week-trend strip above the rows: one sparkline for highs, one for lows. */
+export const DAILY_TREND_ROWS = 2;
 
-export function dailyContentRows(dayCount: number, width: number): number {
-  return dayCount > 0 && width >= DAILY_CARDS_MIN_WIDTH ? 7 : Math.min(dayCount, DAILY_PAGE_SIZE);
+export function dailyContentRows(dayCount: number): number {
+  if (dayCount <= 0) return 0;
+  return Math.min(dayCount, DAILY_PAGE_SIZE) + DAILY_TREND_ROWS;
 }
 
 function dailyPageCount(totalDays: number): number {
@@ -173,7 +179,7 @@ function DailyRow({
       ) : null}
       <text fg={selected ? palette.accent : palette.fgDim}>{parts.head}</text>
       <text fg={palette.fg} bg={selected ? palette.surface : undefined}>
-        {`${formatTemp(parts.lo, temp)} `}
+        {`${formatTemp(parts.lo, temp).padStart(LO_TEMP_WIDTH)} `}
       </text>
       <RangeBar
         lo={parts.lo}
@@ -195,60 +201,42 @@ function DailyRow({
   );
 }
 
-function DayCard({
-  day,
-  prefs,
-  width,
+/**
+ * Week-trend strip: highs and lows sparklines for the visible page, normalized
+ * to the full-forecast domain so amplitudes match the range bars below. Each
+ * row reuses the DailyRow gutter geometry (cursor + head + lo-temp field) so
+ * the sparklines start in exactly the bar column and read as a continuation.
+ */
+function TrendRows({
+  pageDays,
+  barWidth,
   weekMin,
   weekMax,
-  selected,
-  showPrecip,
+  showCursor,
 }: {
-  day: DailyPoint;
-  prefs: DisplayPrefs;
-  width: number;
+  pageDays: DailyPoint[];
+  barWidth: number;
   weekMin: number;
   weekMax: number;
-  selected: boolean;
-  showPrecip: boolean;
+  showCursor: boolean;
 }) {
-  const base = usePalette();
-  const palette = panelPalette(base, selected ? base.selection : base.panel);
-  const contentWidth = width - 3;
-  const clip = (value: string) => truncateCells(value, contentWidth);
+  const palette = usePalette();
+  const gutter = `${showCursor ? " " : ""}${" ".repeat(DAY_LABEL_WIDTH + ICON_SEGMENT_CELLS)}`;
+  const rows = [
+    { label: "hi", values: pageDays.map((d) => d.tempMaxC), fg: palette.tempWarm },
+    { label: "lo", values: pageDays.map((d) => d.tempMinC), fg: palette.tempCold },
+  ] as const;
   return (
-    <box
-      width={width}
-      height={7}
-      flexShrink={0}
-      border
-      borderStyle="rounded"
-      borderColor={selected ? palette.accent : palette.border}
-      backgroundColor={palette.surface}
-      flexDirection="column"
-    >
-      <text height={1} fg={selected ? palette.accent : palette.fg}>
-        <b>{`${selected ? "▸" : " "}${formatDayLabel(day.dateLocal)}`}</b>
-        {` ${conditionIcon(day.condition)}`}
-      </text>
-      <text height={1} fg={palette.tempWarm}>
-        <b>{clip(`${formatTemp(day.tempMaxC, prefs.temp)} high`)}</b>
-      </text>
-      <text height={1} fg={palette.fgDim}>
-        {clip(`${formatTemp(day.tempMinC, prefs.temp)} low`)}
-      </text>
-      <RangeBar
-        lo={day.tempMinC}
-        hi={day.tempMaxC}
-        weekMin={weekMin}
-        weekMax={weekMax}
-        width={contentWidth}
-        palette={palette}
-      />
-      <text height={1} fg={palette.rain}>
-        {showPrecip ? clip(`☂ ${formatPct(day.precipProbabilityMaxPct)}`) : ""}
-      </text>
-    </box>
+    <>
+      {rows.map((row) => (
+        <box key={row.label} flexDirection="row">
+          <text fg={palette.fgDim}>{`${gutter}${row.label.padStart(LO_TEMP_WIDTH)} `}</text>
+          <text fg={row.fg}>
+            {sparklineChars(row.values, barWidth, { min: weekMin, max: weekMax })}
+          </text>
+        </box>
+      ))}
+    </>
   );
 }
 
@@ -267,25 +255,6 @@ export const DailyList = memo(function DailyList({
   const weekMax = Math.max(...days.map((d) => d.tempMaxC));
   const showCursor =
     selectedDateLocal !== null && pageDays.some((d) => d.dateLocal === selectedDateLocal);
-  if (width >= DAILY_CARDS_MIN_WIDTH) {
-    const cardWidth = Math.floor((width - DAILY_PAGE_SIZE) / DAILY_PAGE_SIZE);
-    return (
-      <box flexDirection="row" gap={1}>
-        {pageDays.map((day) => (
-          <DayCard
-            key={day.dateLocal}
-            day={day}
-            prefs={prefs}
-            width={cardWidth}
-            weekMin={weekMin}
-            weekMax={weekMax}
-            selected={day.dateLocal === selectedDateLocal}
-            showPrecip={showPrecip}
-          />
-        ))}
-      </box>
-    );
-  }
   const metricsWidth = Math.max(1, width - (showCursor ? 1 : 0));
   const { barWidth, chipTier } = dailyMetrics(days, {
     width: metricsWidth,
@@ -294,6 +263,13 @@ export const DailyList = memo(function DailyList({
 
   return (
     <box flexDirection="column">
+      <TrendRows
+        pageDays={pageDays}
+        barWidth={barWidth}
+        weekMin={weekMin}
+        weekMax={weekMax}
+        showCursor={showCursor}
+      />
       {pageDays.map((day) => (
         <DailyRow
           key={day.dateLocal}

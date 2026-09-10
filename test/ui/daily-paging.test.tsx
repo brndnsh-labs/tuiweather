@@ -110,7 +110,7 @@ async function waitUntilFrame(
 }
 
 describe("daily list paging", () => {
-  test("wide cards preserve unknown rain chances and day selection through inspection and resize", async () => {
+  test("wide rows preserve unknown rain chances and day selection through inspection and resize", async () => {
     const store = await makeStore(sevenDayForecast());
     const setup = await testRender(<App store={store} nowMs={NOW_MS} nowUtc={NOW} />, {
       width: 120,
@@ -118,10 +118,13 @@ describe("daily list paging", () => {
     });
     try {
       await setup.flush();
-      const cards = await waitUntilFrame(setup, (frame) => frame.includes("68° high"));
-      expect(cards.match(/68° high/g)).toHaveLength(7);
-      expect(cards.match(/☂ –/g)).toHaveLength(7);
-      expect(cards).not.toContain("☂ 0%");
+      const rows = await waitUntilFrame(
+        setup,
+        (frame) => frame.includes("Wed ☀️") && /hi [▁▂▃▄▅▆▇█]+/.test(frame),
+      );
+      expect(rows.match(/68°/g)?.length).toBeGreaterThanOrEqual(7);
+      expect(rows).not.toContain("☂ –");
+      expect(rows).not.toContain("☂ 0%");
       setup.mockInput.pressArrow("right");
       await waitUntilFrame(setup, (frame) => frame.includes("▸Thu"));
       await setup.mockInput.pressKeys(["v"]);
@@ -130,11 +133,8 @@ describe("daily list paging", () => {
       await sleep(30);
       await waitUntilFrame(setup, (frame) => frame.includes("▸Thu"));
       setup.resize(80, 40);
-      const rows = await waitUntilFrame(
-        setup,
-        (frame) => frame.includes("▸Thu") && !frame.includes("68° high"),
-      );
-      expect(rows).toContain("▸Thu ☀️");
+      const resized = await waitUntilFrame(setup, (frame) => frame.includes("▸Thu"));
+      expect(resized).toContain("▸Thu ☀️");
       expect(store.getState().dayCursorDate).toBe("2026-09-03");
     } finally {
       setup.renderer.destroy();
