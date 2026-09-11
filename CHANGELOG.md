@@ -2,6 +2,40 @@
 
 All notable changes to this project are documented here.
 
+## v0.5.0 (2026-09-11)
+
+### Features
+- feat(ui): restore aligned daily rows with hi/lo trend strip (f07ac2d)
+- feat: redesign terminal interface as a weather observatory (#218) (4406da1)
+- feat(ui): add a glyph legend to the help overlay (#217) (98646af)
+- feat: narrow-lg polish for ~100-col terminals (#215) (683d12c)
+- feat(ui): derive a "go out" window and a heads-up window from the hourly forecast (#198) (03fca24)
+- feat(ui): fill the lg sidebar with a persistent status rail (#196) (24f0198)
+- feat(ui): day/night split + nightly overview in the day detail overlay (#192) (5907e52)
+- feat(ui): expandable minutely-15 precip timeline under the nowcast banner (#191) (f4bd3d5)
+- feat(ui): page the daily list through the extended 14-day Open-Meteo range (#188) (92e72e8)
+- feat(ui): hourly inspect cursor for the HourlyStrip chart (#187) (c29ee23)
+- feat(ui): add day detail overlay (#183) (76bcb60)
+
+### Fixes
+- fix: remove unchecked indexed-access cast in bestDryRun (#207) (a340de7)
+- fix: reserve a one-cell spare in XsChips and LocationsOverlay rows (#206) (4552e18)
+- fix: resolve 'today' by local date instead of daily[0] in sidebar and one-line output (#204) (3983772)
+- fix(ui): clamp the sidebar location list to the rail's row budget (#197) (f9b3209)
+
+### Other
+- Merge pull request #220 from brndnsh-labs/feat/daily-aligned-rows-trend-strip (3aac8e8)
+- chore(deps): bump opentui to 0.5.11, react to 19.3.0, zod to 4.6.1, biome to 2.5.13 (#219) (b843fff)
+- chore(deps): bump the github-actions group across 1 directory with 2 updates (#211) (04a1c95)
+- chore: bump opentui to 0.5.10, zod to 4.5.4, biome to 2.5.12 (#214) (3c2aea2)
+- chore: serve recorded fixtures from a local stub in CI smoke (#213) (8e09686)
+- chore: retry transient upstream failures in windows-smoke one-line calls (#210) (8ddfe3f)
+- chore: give the two 4s-sleep store tests an explicit bun timeout (#208) (53d9db9)
+- perf: skip air-quality fetch when the provider has no getAirQuality (#205) (0d55d97)
+- refactor(ui): make the daily list always single-column (#190) (d0bd3e1)
+- chore: add guard test for AGENTS.md architecture-map drift (#186) (a304191)
+- chore(skills): sync the-cycle pipeline to 98f02a0 (#181) (c5b0d7b)
+
 ## v0.4.0 (2026-08-30)
 
 ### Features
