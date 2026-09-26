@@ -2,7 +2,7 @@
 name: scout
 description: Discovery-driven finder for tuiweather — fans out read-only agents across security · performance · hygiene · context · a11y lenses, verifies each finding against the real code, dedupes against open issues, and files the worth-keeping candidates as actionable issues. Read-only over code: it FINDS and FILES, it never fixes, branches, or merges. Usage `/scout` (all lenses, tightly capped) or `/scout <lens>` (one focused lens, higher cap).
 ---
-<!-- cycle:rendered template=skills/scout.md.tmpl hash=024bbd8262b2 — managed by the-cycle; edit the template, not this file -->
+<!-- cycle:rendered template=skills/scout.md.tmpl hash=23bc9e62e5b3 — managed by the-cycle; edit the template, not this file -->
 
 # /scout — find tuiweather's next work, on demand
 
@@ -66,7 +66,7 @@ What each lens looks for *here*, with the real smells.
 - Emoji presentation or variation-selector glyphs (U+FE0F) — breaks single-cell alignment.
 - Single-line strings exactly at container width: last glyph wraps onto a new row and shifts everything below (`seriesWidthFor` exists for this).
 - Char grids built per slot (`cells[i] = "10a"` emits three chars for one slot) instead of writing `label[k]` into individual slots.
-- `°` routed through ascii-font rendering — the tiny font lacks it.
+- `°` routed through custom-font rendering — font-rendered text has no degree glyph. Plain `text` handles it.
 
 ## Test fidelity
 - Network calls in tests — every HTTP response must be a recorded fixture under `test/fixtures/`.

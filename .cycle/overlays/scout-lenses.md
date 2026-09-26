@@ -21,7 +21,7 @@ What each lens looks for *here*, with the real smells.
 - Emoji presentation or variation-selector glyphs (U+FE0F) — breaks single-cell alignment.
 - Single-line strings exactly at container width: last glyph wraps onto a new row and shifts everything below (`seriesWidthFor` exists for this).
 - Char grids built per slot (`cells[i] = "10a"` emits three chars for one slot) instead of writing `label[k]` into individual slots.
-- `°` routed through ascii-font rendering — the tiny font lacks it.
+- `°` routed through custom-font rendering — font-rendered text has no degree glyph. Plain `text` handles it.
 
 ## Test fidelity
 - Network calls in tests — every HTTP response must be a recorded fixture under `test/fixtures/`.
