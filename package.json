@@ -43,15 +43,15 @@
     "prepublishOnly": "bun run verify"
   },
   "dependencies": {
-    "@opentui/core": "^0.5.11",
-    "@opentui/react": "^0.5.11",
+    "@opentui/core": "^0.5.12",
+    "@opentui/react": "^0.5.12",
     "react": "^19.3.0",
-    "smol-toml": "^1.8.0",
-    "zod": "4.6.1",
+    "smol-toml": "^1.9.0",
+    "zod": "4.6.5",
     "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.13",
+    "@biomejs/biome": "^2.5.14",
     "@types/bun": "^1.4.2",
     "@types/react": "^19.3.0",
     "typescript": "^7.0.2"
