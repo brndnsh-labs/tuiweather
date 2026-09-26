@@ -51,7 +51,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.13",
+    "@biomejs/biome": "^2.5.14",
     "@types/bun": "^1.4.2",
     "@types/react": "^19.3.0",
     "typescript": "^7.0.2"
