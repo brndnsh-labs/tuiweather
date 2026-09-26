@@ -1,7 +1,7 @@
 {
   "upstream": "9e75c3b",
   "files": {
-    ".agents/skills/DOCTRINE.md": "2ef2ab4dfe67",
+    ".agents/skills/DOCTRINE.md": "9ada07228d7c",
     ".agents/skills/DELIVERY.md": "7b47694805fb",
     ".agents/skills/FILING.md": "aa4a62ecee9c",
     ".agents/skills/cycle/SKILL.md": "291fbc97223b",
@@ -16,7 +16,7 @@
     ".agents/skills/dep-update/SKILL.md": "7f9252726050",
     ".agents/skills/deploy-test/SKILL.md": "c9adc007caad",
     ".agents/skills/deploy-prod/SKILL.md": "4bb4a6f24364",
-    ".opencode/skills/DOCTRINE.md": "808e35ea3252",
+    ".opencode/skills/DOCTRINE.md": "439b700e6d82",
     ".opencode/skills/DELIVERY.md": "4b06d7ddd818",
     ".opencode/skills/FILING.md": "aa4a62ecee9c",
     ".opencode/skills/cycle/SKILL.md": "02974a8ac164",
@@ -31,7 +31,7 @@
     ".opencode/skills/dep-update/SKILL.md": "5cf56e428ef7",
     ".opencode/skills/deploy-test/SKILL.md": "c9adc007caad",
     ".opencode/skills/deploy-prod/SKILL.md": "104ae4281571",
-    ".claude/skills/DOCTRINE.md": "2ee62b83e0f1",
+    ".claude/skills/DOCTRINE.md": "fec4026f4e95",
     ".claude/skills/DELIVERY.md": "9632608acf87",
     ".claude/skills/FILING.md": "aa4a62ecee9c",
     ".claude/skills/cycle/SKILL.md": "d97331665a96",

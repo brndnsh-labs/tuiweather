@@ -79,7 +79,7 @@
     "anything destructive or irreversible"
   ],
   "branch": {
-    "minor_edits_direct": true
+    "minor_edits_direct": false
   },
   "deploy": {
     "test": "",
