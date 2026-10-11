@@ -160,6 +160,40 @@ describe("store air quality", () => {
     store.getState().dispose();
   });
 
+  test("overlapping loads fire the AQ fetch once (in-flight dedupe)", async () => {
+    const dir = await makeConfigDir();
+    let aqCalls = 0;
+    let releaseAq!: (v: AirQuality) => void;
+    const aqPromise = new Promise<AirQuality>((resolve) => {
+      releaseAq = resolve;
+    });
+    const aqFetcher: AirQualityFetcher = () => {
+      aqCalls += 1;
+      return aqPromise;
+    };
+    const fetcher: ForecastFetcher = () =>
+      Promise.resolve({ forecast: makeForecast(), stale: false });
+    const store = createStoreInstance({
+      configPath: join(dir, "config.toml"),
+      fetchForecast: fetcher,
+      fetchAirQuality: aqFetcher,
+    });
+    await store.getState().init();
+    expect(store.getState().forecastBySlug.portland).toBeDefined();
+    expect(aqCalls).toBe(1);
+    // init's AQ fetch is still pending; overlapping loads must not stack
+    // more concurrent identical AQ requests.
+    const second = store.getState().loadForecast("portland");
+    const third = store.getState().loadForecast("portland");
+    await Promise.all([second, third]);
+    expect(aqCalls).toBe(1);
+    // The single pending fetch still lands its result.
+    releaseAq(makeAq());
+    await new Promise((r) => setTimeout(r, 20));
+    expect(store.getState().airQuality?.usAqi).toBe(29);
+    store.getState().dispose();
+  });
+
   test("dispose clears AQ state", async () => {
     const dir = await makeConfigDir();
     const fetcher: ForecastFetcher = () =>
