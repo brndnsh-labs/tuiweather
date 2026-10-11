@@ -28,7 +28,8 @@ CI runs the same gates on every PR; they are required checks on `main`.
 src/
   index.tsx              entry: renderer boot; CLI parsing (--one-line, --json, watch) in cli.ts
   app/                   shell, global keymap, store (zustand), refresh scheduler
-  components/            presentational primitives (Sparkline, RangeBar, DaylightBar)
+  components/            presentational primitives (Sparkline, RangeBar, DaylightBar, WeatherArt,
+                         SectionHeading)
   features/              current/ (incl. DetailsGrid) hourly/ daily/ daydetail/ nowcast/ comfort/ search/ locations/ onboarding/
   lib/weather/types.ts   DOMAIN MODEL — Condition enum, CurrentObs, NormalizedForecast
   lib/providers/
@@ -41,6 +42,8 @@ src/
   lib/weather/           derive.ts (nowcast rules), format.ts (units/display), cache.ts (TTL),
                          condition-display.ts (CONDITION_ICON_CELLS + icon mapping)
   lib/config/            zod schema, load/save (atomic tmp+rename)
+  lib/runtime/           Node >= 26.4 FFI availability gate for the interactive TUI
+                         (FFI_MIN_NODE, isFfiAvailable, formatFfiUnavailableMessage)
   theme/                 palettes: ink (terminal-adaptive) + day/night accents, detection, tokens
   viewport/              breakpoint definitions + debounced hooks
 test/                    unit tests, fixtures, snapshot goldens
