@@ -199,6 +199,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
     let refreshHandle: unknown;
     let disposed = false;
     const inFlight = new Map<string, Promise<void>>();
+    const aqInFlight = new Map<string, Promise<void>>();
     let actionErrorTimer: ReturnType<typeof setTimeout> | undefined;
 
     function clearActionErrorTimer(): void {
@@ -257,7 +258,9 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
 
     function launchAirQuality(slug: string, location: GeoPoint, provider: ProviderId): void {
       if (!selectProvider(provider).getAirQuality) return;
-      void (async () => {
+      const pending = aqInFlight.get(slug);
+      if (pending) return;
+      const load = (async () => {
         try {
           const aq = await aqFetcher(location, { provider });
           if (disposed) return;
@@ -280,6 +283,8 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
           });
         }
       })();
+      aqInFlight.set(slug, load);
+      void load.finally(() => aqInFlight.delete(slug));
     }
 
     return {
@@ -698,6 +703,7 @@ export function createStoreInstance(deps: StoreDeps = prodDeps()) {
         clearActionErrorTimer();
         set({ airQuality: null, airQualityBySlug: {} });
         inFlight.clear();
+        aqInFlight.clear();
       },
     };
   });
