@@ -65,7 +65,16 @@ async function waitUntilFrame(
   const deadline = Date.now() + timeoutMs;
   let frame = "";
   while (Date.now() < deadline) {
-    frame = setup.captureCharFrame();
+    try {
+      frame = setup.captureCharFrame();
+    } catch (error) {
+      // OpenTUI 0.6 owns the tree in native code: capturing mid-frame throws
+      // OutputBusy instead of blocking. Treat as a miss and retry.
+      if (!(error instanceof Error) || !error.message.includes("OutputBusy")) throw error;
+      await sleep(15);
+      await setup.flush().catch(() => undefined);
+      continue;
+    }
     if (predicate(frame)) return frame;
     await sleep(15);
     await setup.flush().catch(() => undefined);
