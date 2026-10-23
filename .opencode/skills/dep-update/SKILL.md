@@ -1,15 +1,13 @@
 ---
 name: dep-update
-description: Routine dependency hygiene for tuiweather — survey what's outdated, plan the bump, update, run the gates, and land one dependency-metadata commit. Distinguishes a stale test expectation from a real regression. Never uses `audit fix --force`; never auto-pushes. Plan-first. Usage `/dep-update` (or `/dep-update <package>`).
+description: Routine dependency hygiene for tuiweather — survey what's outdated, bump it in risk-sized steps, run the gates, and land one dependency commit. Tells a stale test expectation from a real regression. Never force-fixes advisories; never auto-pushes. Usage `/dep-update` (or `/dep-update <package>`).
 ---
-<!-- cycle:rendered template=skills/dep-update.md.tmpl hash=5cf56e428ef7 — managed by the-cycle; edit the template, not this file -->
+<!-- cycle:rendered template=skills/dep-update.md.tmpl hash=7cb266c0c3cf — managed by the-cycle; edit the template, not this file -->
 
 # /dep-update — dependency hygiene
 
-Goal: keep dependencies current without turning a routine bump into an outage.
-
-**Shared rules in `.opencode/skills/DOCTRINE.md` — read it if not already in context.** Leans on §4
-(Gates), §8 (commit conventions — explicit paths), §9 (branch policy).
+**Shared rules in `.opencode/skills/DOCTRINE.md` — read it if not already in context** (§4 gates, §6
+branch and commit policy).
 
 # Dep update landmines
 
@@ -19,49 +17,21 @@ Goal: keep dependencies current without turning a routine bump into an outage.
 - **bun** — the version lives *only* in CI: `bun-version: "1.3.13"` in both the `verify` and `windows-smoke` jobs of `.github/workflows/ci.yml`. `package.json` `engines` constrains Node (`>=20`), not bun — there is no bun entry to raise. Bump the two workflow pins together and confirm the `bun.lock` format survives.
 - **typescript** (^7) / **zod** (v4) — strictness or schema-behavior changes surface as typecheck failures or config-validation changes; run all gates and watch `superRefine`/`prefault` semantics in `src/lib/config/schema.ts`. `zod` is exact-pinned (no caret) on purpose, so a bump is a `package.json` edit, not a range widening.
 
-## Workflow
+1. **Survey:** `bun outdated` and `bun audit`. Patch/minor bumps of leaf packages are routine; a
+   major, a framework, or anything with a native build step is not — take those **one at a time**,
+   so a failure can be attributed.
+2. **Branch** (§6), then update: `bun update` for the routine set; name packages for the rest.
+   Read the install output, not just the exit code — a silently skipped patch or a native rebuild
+   against the wrong ABI exits 0 and breaks at runtime.
+3. **Advisories:** fix each on its own terms. An advisory only a major bump clears is a separate change —
+   surface the tradeoff.
+4. **Gates (§4).** A red gate is one of two opposite things: a **stale expectation** (the dependency
+   legitimately changed its output — update the test and say so in the commit) or a **real
+   regression** (pin back and file it; don't bless it). Can't tell which → surface it.
+5. **Commit once** (§6) with explicit paths: `package.json`, plus any test a stale
+   expectation required. A formatter bump that reformats untouched files gets its own commit.
+6. **Report** what moved, what's held back and why, and gate status. **Don't push** — a dependency
+   bump lands on Brandon's schedule.
 
-1. **Survey.** `bun outdated` and `bun audit`. Group by risk: patch/minor on a leaf dependency is
-   routine; a **major**, a **framework**, or anything with a **native build step** is not.
-2. **Present the plan** (a status update, not a gate — §5): what's bumping, from → to, which group
-   each falls in, and anything you're deliberately holding back and why.
-3. **Branch** (§9).
-4. **Update.** `bun update` for the routine set; name specific packages for anything riskier.
-   Take majors **one at a time** — a batch of majors makes a failure impossible to attribute.
-5. **Watch the install output**, don't just check the exit code. A patch step that silently
-   no-ops, a native module that rebuilds against a different ABI, or a postinstall that fails
-   soft will all exit 0 and break at runtime.
-6. **Advisories.** Fix each on its own terms. An advisory that can
-   only be cleared by a major bump is a different change than the one you're making — surface the
-   tradeoff rather than folding it in.
-7. **Run the gates** (§4):
-   ```
-   bun run typecheck
-   bun run lint
-   bun run test
-   bun run build
-   ```
-   **A red gate here is one of two things, and they need opposite responses:**
-   - **A stale expectation** — the dependency legitimately changed its output, and the test
-     encoded the old one. Update the test, and say so in the commit.
-   - **A real regression** — the dependency broke something you rely on. Do **not** update the
-     test to match. Pin back, and file it.
-
-   If you can't tell which, that's a judgment call (§5) — surface it rather than guessing.
-8. **Commit** (§8) — one commit, explicit paths (`package.json`, plus any test file a
-   *stale expectation* legitimately required). Never `-A`.
-9. **Report** what moved, what's held back and why, and gate status. **Don't auto-push** — a
-   dependency bump lands on Brandon's schedule.
-
-## Edge cases
-
-- **Lockfile drift with nothing outdated:** `bun install` rewrote `bun.lock` without any
-  version change (a transitive resolution moved). That's a legitimate standalone commit — say so, don't
-  bury it in an unrelated diff.
-- **A formatter or linter bumped** and now reformats files nobody touched: separate the
-  reformat-everything commit from the version bump, or the diff is unreviewable.
-- **A native or compiled dependency's ABI changed**: the gates may pass locally and fail on the
-  deploy target, which runs a different runtime version. Call it out explicitly.
-- **A patch/override is in play:** confirm it still applies after the bump. A silently-dropped
-  patch is the classic "it worked locally" failure.
-- **Nothing is outdated:** say so and stop. Don't manufacture a bump.
+**Lockfile drift with nothing outdated** (`bun install` rewrote `bun.lock` with no version change) is a legitimate
+standalone commit — say so; don't bury it in another diff. Nothing outdated → say so and stop.
