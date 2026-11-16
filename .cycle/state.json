@@ -1,29 +1,29 @@
 {
-  "upstream": "fb6dbf0",
+  "upstream": "667639e",
   "files": {
-    ".agents/skills/DOCTRINE.md": "3039df6285ba",
+    ".agents/skills/DOCTRINE.md": "8f70b4a4028c",
     ".agents/skills/cycle/SKILL.md": "9b234e83c6ac",
     ".agents/skills/intake/SKILL.md": "971d67e33ff2",
     ".agents/skills/review/SKILL.md": "2d6c9a88241b",
     ".agents/skills/next/SKILL.md": "672587f05344",
     ".agents/skills/scout/SKILL.md": "f34583b4ba35",
     ".agents/skills/wrap-up/SKILL.md": "f93e4447e4e9",
-    ".agents/skills/dep-update/SKILL.md": "c17b5df5a1ea",
-    ".opencode/skills/DOCTRINE.md": "2b6e05b0986d",
+    ".agents/skills/dep-update/SKILL.md": "232520cfb191",
+    ".opencode/skills/DOCTRINE.md": "39204da2edb5",
     ".opencode/skills/cycle/SKILL.md": "821f617f20d7",
     ".opencode/skills/intake/SKILL.md": "4482f7f32f32",
     ".opencode/skills/review/SKILL.md": "7f3cb9d7c271",
     ".opencode/skills/next/SKILL.md": "0a3f95b008be",
     ".opencode/skills/scout/SKILL.md": "3433b559ddeb",
     ".opencode/skills/wrap-up/SKILL.md": "f93e4447e4e9",
-    ".opencode/skills/dep-update/SKILL.md": "7cb266c0c3cf",
-    ".claude/skills/DOCTRINE.md": "552ac2a19620",
+    ".opencode/skills/dep-update/SKILL.md": "8b677cb0197a",
+    ".claude/skills/DOCTRINE.md": "8a99b14d12da",
     ".claude/skills/cycle/SKILL.md": "d70b45a3e812",
     ".claude/skills/intake/SKILL.md": "10c15c8e6de4",
     ".claude/skills/review/SKILL.md": "5b6c2c0987ce",
     ".claude/skills/next/SKILL.md": "410f9897464a",
     ".claude/skills/scout/SKILL.md": "4190aa2d6a44",
     ".claude/skills/wrap-up/SKILL.md": "f93e4447e4e9",
-    ".claude/skills/dep-update/SKILL.md": "eca0be4740e6"
+    ".claude/skills/dep-update/SKILL.md": "0ee197115e98"
   }
 }
