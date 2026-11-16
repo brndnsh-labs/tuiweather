@@ -8,7 +8,7 @@
     ".agents/skills/next/SKILL.md": "672587f05344",
     ".agents/skills/scout/SKILL.md": "f34583b4ba35",
     ".agents/skills/wrap-up/SKILL.md": "f93e4447e4e9",
-    ".agents/skills/dep-update/SKILL.md": "232520cfb191",
+    ".agents/skills/dep-update/SKILL.md": "92779880571d",
     ".opencode/skills/DOCTRINE.md": "39204da2edb5",
     ".opencode/skills/cycle/SKILL.md": "821f617f20d7",
     ".opencode/skills/intake/SKILL.md": "4482f7f32f32",
@@ -16,7 +16,7 @@
     ".opencode/skills/next/SKILL.md": "0a3f95b008be",
     ".opencode/skills/scout/SKILL.md": "3433b559ddeb",
     ".opencode/skills/wrap-up/SKILL.md": "f93e4447e4e9",
-    ".opencode/skills/dep-update/SKILL.md": "8b677cb0197a",
+    ".opencode/skills/dep-update/SKILL.md": "4ba61b8e5dd4",
     ".claude/skills/DOCTRINE.md": "8a99b14d12da",
     ".claude/skills/cycle/SKILL.md": "d70b45a3e812",
     ".claude/skills/intake/SKILL.md": "10c15c8e6de4",
@@ -24,6 +24,6 @@
     ".claude/skills/next/SKILL.md": "410f9897464a",
     ".claude/skills/scout/SKILL.md": "4190aa2d6a44",
     ".claude/skills/wrap-up/SKILL.md": "f93e4447e4e9",
-    ".claude/skills/dep-update/SKILL.md": "0ee197115e98"
+    ".claude/skills/dep-update/SKILL.md": "cd4ef37d0aa3"
   }
 }

@@ -77,12 +77,12 @@ WMO weather codes and NWS icon codes) must not leak past `lib/providers/<provide
 
 ## OpenTUI quirks
 
-Hard-won knowledge from building this UI against `@opentui/react` 0.5.x. Re-check these when upgrading.
+Hard-won knowledge from building this UI against `@opentui/react` 0.5.x; re-verified through 0.9.2. Re-check these when upgrading.
 
 - **Lowercase intrinsics via jsx-runtime.** Elements are `box`, `text`, `span`, `input`, `scrollbox`, etc., provided by the jsx-runtime configured in tsconfig — never React DOM tags, no explicit element import needed.
 - **UI tests use `testRender`** from `@opentui/react/test-utils`: capture frames with `setup.captureCharFrame()`, resize with `setup.resize(w, h)`, drive input with `setup.mockInput.pressKeys([...])` / `.pressArrow(...)` / `.pressEnter()`, and pump the render loop with `setup.flush()` (all wrapped in try/finally around `setup.renderer.destroy()`).
 - **Escape needs `pressEscape()` plus a tick.** Plain `pressKeys(["escape"])` does not route the same way through the input pipeline; use `mockInput.pressEscape()` and follow with a short real sleep (~30ms) before asserting on frames.
-- **No reliable wait for debounced updates.** `waitFor` cannot await debounce timers or async store chains; poll `captureCharFrame()` against a predicate with short sleeps instead (see the `waitUntilFrame` helpers in `test/ui/`).
+- **No reliable wait for debounced updates.** `waitFor` cannot await debounce timers or async store chains; poll `captureCharFrame()` against a predicate with short sleeps instead (see the `waitUntilFrame` helpers in `test/ui/`). After `setup.resize()`, opentui ≥0.9 relayouts boxes immediately while debounced content still has the old width, so a transitional frame with wrapped rows is capturable — the predicate must match only the *settled* layout (e.g. `"▸Thu ☀️"`, not `"▸Thu"`).
 - **Wait budgets vs bun's per-test timeout.** Any test with a guaranteed multi-second sleep or whose worst-case wait budget (a single budget or a sequential sum) can plausibly elapse on a passing run must set an explicit per-test timeout (e.g. `}, 30_000)`) — bun kills tests at its 5s default first.
 - **zustand v5: `create` vs `createStore`.** `create<T>()(fn)` returns a store that doubles as a React hook (components call it selector-style) while still exposing `getState()`/`setState()` for imperative use; vanilla `createStore` returns only the imperative form. Our store instance is passed as a prop and used both ways.
 - **Never route `°` through a custom font.** Font-rendered text has no degree glyph; plain `text` elements handle `°` fine. Nothing in `src/` sets a font today — keep it that way, or re-derive the font quirks before leaning on one.
