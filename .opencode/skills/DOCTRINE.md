@@ -1,4 +1,4 @@
-<!-- cycle:rendered template=DOCTRINE.md.tmpl hash=2b6e05b0986d — managed by the-cycle; edit the template, not this file -->
+<!-- cycle:rendered template=DOCTRINE.md.tmpl hash=39204da2edb5 — managed by the-cycle; edit the template, not this file -->
 # Pipeline doctrine (shared)
 
 The rules every tuiweather pipeline skill shares; a skill citing `§N` means this file. **Read it
@@ -196,7 +196,7 @@ Also surface before building:
 ## §6 Delivery
 
 **Branches.** Issue work happens on a feature branch with a PR, never on `main`.
-No minor-edit carve-out: `main` is protected against all direct pushes.
+No minor-edit carve-out: every change, however small, goes through a branch and PR — never push directly to `main`.
 Branch from freshly fetched `origin/main` (`git fetch origin && git checkout -b <slug> origin/main`),
 not local `main` — unpushed local commits otherwise fold silently into your squash. Prune merged local branches now and then
 (`git fetch --prune origin`, then `git branch -D`, since squash-merged branches never look merged).
