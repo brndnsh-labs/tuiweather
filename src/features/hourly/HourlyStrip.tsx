@@ -142,7 +142,7 @@ export function nextInspectTimeUtc(
   if (window.length === 0) return null;
   const currentIndex =
     currentTimeUtc === null ? -1 : window.findIndex((p) => p.timeUtc === currentTimeUtc);
-  const anchorIndex = currentIndex >= 0 ? currentIndex : 0;
+  const anchorIndex = Math.max(currentIndex, 0);
   const nextIndex = Math.max(0, Math.min(window.length - 1, anchorIndex + delta));
   return window[nextIndex]?.timeUtc ?? null;
 }
