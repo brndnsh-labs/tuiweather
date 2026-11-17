@@ -2,7 +2,7 @@
 name: dep-update
 description: Routine dependency hygiene for tuiweather — survey what's outdated, bump it in risk-sized steps, run the gates, and land one dependency commit. Tells a stale test expectation from a real regression. Never force-fixes advisories; never auto-pushes. Usage `/dep-update` (or `/dep-update <package>`).
 ---
-<!-- cycle:rendered template=skills/dep-update.md.tmpl hash=8b677cb0197a — managed by the-cycle; edit the template, not this file -->
+<!-- cycle:rendered template=skills/dep-update.md.tmpl hash=4ba61b8e5dd4 — managed by the-cycle; edit the template, not this file -->
 
 # /dep-update — dependency hygiene
 
@@ -11,7 +11,7 @@ branch and commit policy).
 
 # Dep update landmines
 
-- **@opentui/react + @opentui/core** (0.6.x; pre-1.0, so a minor bump is breaking) — re-verify every quirk in AGENTS.md after upgrading: escape needs `pressEscape()` plus a tick, scrollbox wants `viewportCulling={false}` under char-frame capture, scrollbar hidden via `scrollbarOptions.visible:false`. Expect wholesale `.snap` shifts; the UI tests are the canary. The native `@opentui/core-*` platform packages must all land on the same version — a lockstep miss is a silent ABI skew, so check the install output, not just the exit code. Bump `react` in the same change *only if* the new `@opentui/react` peer range excludes the version we already have (0.6.8 still peers `react >=19.2.0`).
+- **@opentui/react + @opentui/core** (0.9.x; pre-1.0, so a minor bump is breaking) — re-verify every quirk in AGENTS.md after upgrading: escape needs `pressEscape()` plus a tick, scrollbox wants `viewportCulling={false}` under char-frame capture, scrollbar hidden via `scrollbarOptions.visible:false`. Expect wholesale `.snap` shifts; the UI tests are the canary. The native `@opentui/core-*` platform packages must all land on the same version — a lockstep miss is a silent ABI skew, so check the install output, not just the exit code. Bump `react` in the same change *only if* the new `@opentui/react` peer range excludes the version we already have (0.9.2 still peers `react >=19.2.0`).
 - **react** — pinned against @opentui/react's peer range; never upgrade alone, and don't upgrade it just because opentui moved.
 - **zustand** v5 — `src/app/store.ts` uses the `create<T>()(fn)` dual form (React hook selector-style *and* imperative `getState()`/`setState()` via prop). API drift breaks both usage styles at once; check both call sites after updating.
 - **bun** — the version lives *only* in CI: `bun-version: "1.3.13"` in the `verify` and `windows-smoke` jobs of `.github/workflows/ci.yml` and in `.github/workflows/release.yml`. `package.json` `engines` constrains Node (`>=20`), not bun — there is no bun entry to raise. Bump all three workflow pins together and confirm the `bun.lock` format survives.

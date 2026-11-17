@@ -142,7 +142,7 @@ describe("daily list paging", () => {
       await sleep(30);
       await waitUntilFrame(setup, (frame) => frame.includes("▸Thu"));
       setup.resize(80, 40);
-      const resized = await waitUntilFrame(setup, (frame) => frame.includes("▸Thu"));
+      const resized = await waitUntilFrame(setup, (frame) => frame.includes("▸Thu ☀️"));
       expect(resized).toContain("▸Thu ☀️");
       expect(store.getState().dayCursorDate).toBe("2026-09-03");
     } finally {
