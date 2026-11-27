@@ -2,6 +2,32 @@
 
 All notable changes to this project are documented here.
 
+## v0.6.0 (2026-11-27)
+
+### Features
+- feat(ui): live light/dark ink, terminal title, linked attribution (#239) (7765207)
+
+### Fixes
+- fix(app): dedupe concurrent air-quality fetches in the store (#227) (8b5ce15)
+
+### Other
+- chore(deps): bump softprops/action-gh-release (#233) (45749c7)
+- chore(deps): bump opentui 0.9.9 + routine devDeps (#237) (655fcb0)
+- ci: bump bun 1.3.13 -> 1.4.4 (#236) (0a922f2)
+- chore(deps): bump opentui to 0.9.2 (#235) (ee4257d)
+- chore(deps): routine bumps + the-cycle 667639e render (#234) (81412de)
+- chore(cycle): drop overlays no skill renders (#232) (39156f8)
+- chore(cycle): update to the-cycle v2 (#231) (1d88139)
+- chore(deps): bump the github-actions group across 1 directory with 3 updates (#229) (58797f0)
+- chore(deps): bump opentui to 0.6.6 (#230) (acf0afa)
+- docs: sync the architecture map and README launcher claim with the tree (#228) (edfbd8a)
+- chore(deps): bump opentui to 0.5.17, smol-toml to 1.9.1 (#224) (e075f47)
+- chore(deps): bump opentui to 0.5.16, biome to 2.5.15, clear shell-quote advisory (#223) (b1bd585)
+- chore(cycle): drop the minor-edit direct-push carve-out (#222) (7f586fe)
+- docs: prune dead font quirks and correct the dep-update landmines overlay (43229ec)
+- chore(skills): re-render review and intake from the-cycle 9e75c3b (ad60ddb)
+- chore(deps): bump opentui to 0.5.12, zod to 4.6.5, smol-toml to 1.9.0, biome to 2.5.14 (#221) (1e82f97)
+
 ## v0.5.0 (2026-09-11)
 
 ### Features
