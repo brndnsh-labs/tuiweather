@@ -186,7 +186,7 @@ longitude = -122.6765
 | `refresh_minutes` | integer | `10` | Minimum `1` |
 | `reduced_motion` | boolean | `false` | Replace the animated loading spinner with a static indicator |
 | `theme` | `day` / `night` / `auto` | `"auto"` | Accent palette; `auto` follows the location's sunrise/sunset. Text ink adapts via `ink` |
-| `ink` | `auto` / `light` / `dark` | `"auto"` | Terminal ink override; `auto` detects the background via an OSC query (300ms timeout, fallback dark), `light`/`dark` skips detection and uses that ink directly |
+| `ink` | `auto` / `light` / `dark` | `"auto"` | Terminal ink override; `auto` detects the background via an OSC query (300ms timeout, fallback dark) and follows live light/dark switches on terminals that report them, `light`/`dark` skips detection and uses that ink directly |
 | `provider` | `openmeteo` / `nws` | `"openmeteo"` | Weather data source. Open-Meteo is the default full-feature experience; NWS is the official US source fallback — works: conditions, temperatures, precipitation probabilities; goes quiet: minute-level nowcast (panel hides, watch bell inactive), hourly/daily precip amounts (blank bars/chips), air quality |
 | `daily_days` | integer | `7` | `1`–`16` forecast days requested from NWS; Open-Meteo always requests 14 days and pages the daily list with `,`/`.` regardless of this setting |
 | `hourly_hours` | integer | `24` | `12`–`48` forecast hours |

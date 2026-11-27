@@ -47,6 +47,7 @@ import { StatusArea } from "./components/StatusArea";
 import { useNowMs } from "./hooks/useNowMs";
 import { handleKey, type KeymapApi } from "./keymap";
 import { appStore, isActionErrorActive, isDeleteArmed, type WeatherStore } from "./store";
+import { terminalTitle } from "./title";
 
 export { __setTickIntervalMs, TICK_INTERVAL_MS } from "./tick";
 
@@ -418,6 +419,19 @@ export function App(props: AppProps = {}) {
   const onboardingOpen =
     initStatus === "ready" &&
     ((config.locations.length === 0 && !onboardingSkipped) || onboardingForced);
+  const title = terminalTitle(
+    onboardingOpen ? undefined : activeLocation?.label,
+    forecast?.current.temperatureC,
+    prefs.temp,
+  );
+
+  useEffect(() => {
+    if (renderer.isDestroyed) return;
+    // The native session can reject control writes (InvalidPhase) while not destroyed; a title is cosmetic.
+    try {
+      renderer.setTerminalTitle(title);
+    } catch {}
+  }, [renderer, title]);
   const deleteArmed = isDeleteArmed(deleteArmedAtMs, nowMs);
   const actionError = isActionErrorActive(lastActionErrorAtMs, Date.now())
     ? lastActionError
@@ -731,6 +745,9 @@ export function App(props: AppProps = {}) {
                 width={viewport.width}
                 height={viewport.height}
                 providerLabel={config.provider === "nws" ? "api.weather.gov" : "open-meteo.com"}
+                providerUrl={
+                  config.provider === "nws" ? "https://www.weather.gov/" : "https://open-meteo.com/"
+                }
               />
             ) : null}
             {overlayOpen ? (

@@ -17,6 +17,10 @@ export function appearancesEqual(a: TerminalAppearance, b: TerminalAppearance): 
   return a.ink === b.ink && a.background === b.background;
 }
 
+export function appearanceFromBackground(background: string | null): TerminalAppearance {
+  return { ink: isDarkBackground(background) ? "dark" : "light", background };
+}
+
 export async function detectTerminalAppearance(
   query: PaletteQuery,
   timeoutMs = 300,
@@ -29,8 +33,7 @@ export async function detectTerminalAppearance(
         timer = setTimeout(() => reject(new Error("palette query timed out")), timeoutMs);
       }),
     ]);
-    const background = colors?.defaultBackground ?? null;
-    return { ink: isDarkBackground(background) ? "dark" : "light", background };
+    return appearanceFromBackground(colors?.defaultBackground ?? null);
   } catch {
     return FALLBACK_APPEARANCE;
   } finally {
