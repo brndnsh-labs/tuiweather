@@ -100,10 +100,19 @@ async function runTui(locationArg: string | null): Promise<number> {
     return 1;
   }
   const renderer = await createCliRenderer({ exitOnCtrlC: true });
-  renderer.on("destroy", () => appStore.getState().dispose());
+  renderer.on("destroy", () => {
+    appStore.getState().dispose();
+    try {
+      renderer.setTerminalTitle("");
+    } catch {}
+  });
   const appearancePromise = resolveTerminalAppearance(config.ink, renderer);
   createRoot(renderer).render(
-    <AppearanceApp initialSlug={initialSlug} appearancePromise={appearancePromise} />,
+    <AppearanceApp
+      initialSlug={initialSlug}
+      appearancePromise={appearancePromise}
+      followPalette={config.ink === "auto"}
+    />,
   );
   void appearancePromise.catch(() => undefined);
   return 0;

@@ -8,6 +8,7 @@ interface HelpOverlayProps {
   width: number;
   height: number;
   providerLabel: string;
+  providerUrl: string;
 }
 
 export const HELP_BOX_WIDTH = 46;
@@ -29,7 +30,13 @@ const HELP_LINES: { text: string; dim?: boolean }[] = [
   { text: "▸ focused  ● active  ○ inactive", dim: true },
 ];
 
-export function HelpOverlay({ store, width, height, providerLabel }: HelpOverlayProps) {
+export function HelpOverlay({
+  store,
+  width,
+  height,
+  providerLabel,
+  providerUrl,
+}: HelpOverlayProps) {
   const palette = usePalette();
   useKeyboard((key) => {
     if (key.name === "o" && !key.ctrl && !key.meta && !key.option && !key.shift) {
@@ -40,10 +47,10 @@ export function HelpOverlay({ store, width, height, providerLabel }: HelpOverlay
   const left = Math.max(0, Math.floor((width - boxWidth) / 2));
   const top = Math.max(0, Math.floor((height - HELP_BOX_HEIGHT) / 2));
   const clip = (line: string) => truncateCells(line, Math.max(1, boxWidth - 3));
-  const lines: { text: string; dim?: boolean }[] = [
-    ...HELP_LINES,
-    { text: `data by ${providerLabel} · MIT licensed`, dim: true },
-  ];
+  const creditPrefix = "data by ";
+  const creditSuffix = " · MIT licensed";
+  const credit = `${creditPrefix}${providerLabel}${creditSuffix}`;
+  const clippedCredit = clip(credit);
 
   return (
     <box
@@ -58,17 +65,22 @@ export function HelpOverlay({ store, width, height, providerLabel }: HelpOverlay
       title="keys"
       flexDirection="column"
     >
-      {lines.map(({ text, dim }) =>
-        dim ? (
-          <text key={text} fg={palette.fgDim} bg={palette.surface}>
-            {clip(text)}
-          </text>
+      {HELP_LINES.map(({ text, dim }) => (
+        <text key={text} fg={dim ? palette.fgDim : palette.fg} bg={palette.surface}>
+          {clip(text)}
+        </text>
+      ))}
+      <text fg={palette.fgDim} bg={palette.surface}>
+        {clippedCredit === credit ? (
+          <>
+            {creditPrefix}
+            <a href={providerUrl}>{providerLabel}</a>
+            {creditSuffix}
+          </>
         ) : (
-          <text key={text} fg={palette.fg} bg={palette.surface}>
-            {clip(text)}
-          </text>
-        ),
-      )}
+          clippedCredit
+        )}
+      </text>
     </box>
   );
 }

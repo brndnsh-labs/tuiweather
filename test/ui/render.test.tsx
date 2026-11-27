@@ -190,6 +190,18 @@ async function waitUntilFrame(
   throw new Error(`waitUntilFrame timed out; last frame:\n${frame}`);
 }
 
+function linkAtText(
+  setup: Awaited<ReturnType<typeof testRender>>,
+  frame: string,
+  needle: string,
+): string | null {
+  const rows = frame.split("\n");
+  const y = rows.findIndex((row) => row.includes(needle));
+  if (y < 0) return null;
+  const x = rows[y]?.indexOf(needle) ?? -1;
+  return setup.renderer.getLinkAt(x, y);
+}
+
 describe("viewport breakpoints", () => {
   test("tierFor matches the AGENTS.md thresholds", () => {
     expect(tierFor(96)).toBe("lg");
@@ -380,6 +392,23 @@ describe("App shell", () => {
     }
   });
 
+  test("sets the terminal title to the active location's temperature", async () => {
+    const store = await makeStore();
+    const setup = await testRender(<App store={store} />, { width: 100, height: 24 });
+    const titles: string[] = [];
+    setup.renderer.setTerminalTitle = (title: string) => {
+      titles.push(title);
+    };
+    try {
+      await setup.flush();
+      await waitUntilFrame(setup, (f) => f.includes("Portland"));
+      await setup.flush();
+      expect(titles.at(-1)).toMatch(/^-?\d+° Portland · tuiweather$/);
+    } finally {
+      await setup.renderer.destroy();
+    }
+  });
+
   test("help overlay shows open-meteo.com attribution by default", async () => {
     const store = await makeStore();
     const setup = await testRender(<App store={store} />, { width: 100, height: 24 });
@@ -389,6 +418,7 @@ describe("App shell", () => {
       await setup.mockInput.pressKeys(["?"]);
       const frame = await waitUntilFrame(setup, (f) => f.includes("open-meteo.com"));
       expect(frame).toContain("data by open-meteo.com");
+      expect(linkAtText(setup, frame, "open-meteo.com")).toBe("https://open-meteo.com/");
       await setup.mockInput.pressEscape();
       await sleep(30);
       await waitUntilFrame(setup, (f) => !f.includes("open-meteo.com"));
@@ -406,6 +436,7 @@ describe("App shell", () => {
       await setup.mockInput.pressKeys(["?"]);
       const frame = await waitUntilFrame(setup, (f) => f.includes("api.weather.gov"));
       expect(frame).toContain("data by api.weather.gov");
+      expect(linkAtText(setup, frame, "api.weather.gov")).toBe("https://www.weather.gov/");
       expect(frame).not.toContain("open-meteo.com");
       await setup.mockInput.pressEscape();
       await sleep(30);
